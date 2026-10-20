@@ -100,6 +100,7 @@
         <label class="check"><input type="checkbox" bind:checked={settings.alwaysShowTabs} /> {t('settings.alwaysShowTabs')}</label>
         <label class="check"><input type="checkbox" bind:checked={settings.driveBar} /> {t('settings.driveBar')}</label>
         <label class="check"><input type="checkbox" bind:checked={settings.metaColumns} /> {t('settings.metaColumns')}</label>
+        <label class="check"><input type="checkbox" bind:checked={settings.groupFiles} /> {t('settings.groupFiles')}</label>
         <label class="check"><input type="checkbox" bind:checked={settings.showAttrs} /> {t('col.attrs')}</label>
         <label class="row">
           <span>{t('settings.thumbSize')}</span>

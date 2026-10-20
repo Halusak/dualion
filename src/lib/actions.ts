@@ -14,6 +14,7 @@ import { settings } from './state/settings.svelte';
 import { Tab, UP_ENTRY } from './state/tab.svelte';
 import { openDialog, showError, toast } from './state/ui.svelte';
 import QuickFind from '../components/dialogs/QuickFind.svelte';
+import { renameGroup } from './groups';
 import { F, type Entry, type JobRequest, type Location, type SortKey, type ViewMode } from './types';
 
 import AboutDialog from '../components/dialogs/AboutDialog.svelte';
@@ -265,6 +266,23 @@ export async function commitRename(tab: Tab, e: Entry, newName: string) {
   if (!name || name === e.name) return;
   const b = backend(tab.location);
   if (!b) return;
+  // A collapsed group is renamed as a whole: every file keeps its own suffix.
+  const members = tab.groupMembers(e.key);
+  if (members && !tab.expandedGroups.has(e.key) && b.kind === 'local') {
+    try {
+      const pairs = renameGroup(members, e, name);
+      const res = await api.batchRename(b.path, pairs);
+      const ok = res.filter((r) => !r.error);
+      app.undo = { dir: b.path, pairs: pairs.filter((_, i) => !res[i]?.error).map((p) => ({ from: p.to, to: p.from })) };
+      if (ok.length < pairs.length) toast(t('mr.failed', { count: pairs.length - ok.length }), 'error');
+      await tab.reload();
+      const lead = pairs.find((p) => p.from === e.name);
+      if (lead) tab.setCursorKey(lead.to);
+    } catch (err) {
+      showError(err);
+    }
+    return;
+  }
   try {
     await api.renameItem(b, e.name, name);
     if (b.kind === 'local') app.undo = { dir: b.path, pairs: [{ from: name, to: e.name }] };

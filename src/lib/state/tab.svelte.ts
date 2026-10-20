@@ -1,6 +1,7 @@
 import { api, type BackendLocation } from '../api';
 import { localeTag } from '../i18n/index.svelte';
 import { autoColumns, columnById } from '../columns';
+import { groupEntries, type Grouped } from '../groups';
 import { baseName, dirName, extOf, joinLocal, maskMatcher, parentLoc, sameLoc } from '../paths';
 import { sortEntries } from '../sort';
 import {
@@ -90,6 +91,8 @@ export class Tab {
   locked = $state(false);
   /** Owning panel side (set by Side). */
   side: Side | null = null;
+  /** Group leaders whose members are listed. */
+  expandedGroups = $state.raw<Set<string>>(new Set());
   /** Result of a query-language filter (`type:image width>2000`). */
   filterQuery = $state.raw<{ text: string; keys: Set<string> | null; error: string | null } | null>(null);
   private filterToken = 0;
@@ -100,7 +103,12 @@ export class Tab {
   private anchor: string | null = null;
   private baseMarks: Set<string> | null = null;
 
-  visible = $derived.by(() => this.computeVisible());
+  private grouped = $derived.by(() => this.computeGrouped());
+  visible = $derived.by(() => {
+    const list = this.grouped.list;
+    if (settings.showUp && this.listing?.parent && !this.filter) return [UP_ENTRY, ...list];
+    return list;
+  });
   index = $derived.by(() => {
     const m = new Map<string, number>();
     const v = this.visible;
@@ -178,7 +186,37 @@ export class Tab {
     }
   }
 
-  private computeVisible(): Entry[] {
+  /** Whether related files are grouped in this tab. */
+  get grouping(): boolean {
+    const k = this.location.kind;
+    return settings.groupFiles && (k === 'local' || k === 'ftp' || k === 'archive');
+  }
+
+  /** All files of a group led by `key` (undefined if not a group). */
+  groupMembers(key: string): Entry[] | undefined {
+    return this.grouped.members.get(key);
+  }
+
+  toggleGroup(key: string, open?: boolean) {
+    const s = new Set(this.expandedGroups);
+    if (open ?? !s.has(key)) s.add(key);
+    else s.delete(key);
+    this.expandedGroups = s;
+  }
+
+  /** Collapsed groups stand for all their files in operations. */
+  private expand(e: Entry): Entry[] {
+    const ms = this.grouped.members.get(e.key);
+    return ms && !this.expandedGroups.has(e.key) ? ms : [e];
+  }
+
+  private computeGrouped(): Grouped {
+    const list = this.computeSorted();
+    if (!this.grouping) return { list, members: new Map() };
+    return groupEntries(list, this.expandedGroups);
+  }
+
+  private computeSorted(): Entry[] {
     let list = this.all;
     if (!settings.showHidden) list = list.filter((e) => (e.flags & F.HIDDEN) === 0);
     if (this.filter) {
@@ -198,9 +236,7 @@ export class Tab {
           return m ? col.value(m) : undefined;
         }
       : undefined;
-    const sorted = this.location.kind === 'drives' ? list : sortEntries(list, key, this.sortDesc, localeTag(), this.dirSizes, metaValue);
-    if (settings.showUp && this.listing?.parent && !this.filter) return [UP_ENTRY, ...sorted];
-    return sorted;
+    return this.location.kind === 'drives' ? list : sortEntries(list, key, this.sortDesc, localeTag(), this.dirSizes, metaValue);
   }
 
   get title(): string {
@@ -516,9 +552,12 @@ export class Tab {
 
   /** Items an operation applies to: marked ones, otherwise the cursor item. */
   targets(): Entry[] {
-    if (this.marked.size > 0) return this.all.filter((e) => this.marked.has(e.key));
+    if (this.marked.size > 0) {
+      const seen = new Set<string>();
+      return this.all.filter((e) => this.marked.has(e.key)).flatMap((e) => this.expand(e)).filter((e) => !seen.has(e.key) && !!seen.add(e.key));
+    }
     const c = this.current;
-    return c && (c.flags & F.UP) === 0 ? [c] : [];
+    return c && (c.flags & F.UP) === 0 ? this.expand(c) : [];
   }
 
   markedSummary(): { count: number; bytes: number } {
@@ -527,7 +566,7 @@ export class Tab {
     for (const e of this.all) {
       if (!this.marked.has(e.key)) continue;
       count++;
-      bytes += e.isDir ? (this.dirSizes.get(e.key) ?? 0) : e.size;
+      bytes += e.isDir ? (this.dirSizes.get(e.key) ?? 0) : this.expand(e).reduce((a, m) => a + m.size, 0);
     }
     return { count, bytes };
   }

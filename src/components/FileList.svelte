@@ -69,7 +69,7 @@
       if (s < 0) return '…';
       return formatSize(s, locale, settings.sizeFormat);
     }
-    return formatSize(e.size, locale, settings.sizeFormat);
+    return formatSize(e.groupBytes !== undefined && !tab.expandedGroups.has(e.key) ? e.groupBytes : e.size, locale, settings.sizeFormat);
   }
 
   function volume(e: Entry) {
@@ -187,10 +187,21 @@
         >
           <div class="c name">
             <FileIcon entry={e} location={tab.location} size={16} />
+            {#if e.groupOf}<span class="branch">↳</span>{/if}
             {#if tab.renaming === e.key}
               <RenameInput value={e.name} isDir={e.isDir} onDone={(v) => (v === null ? (tab.renaming = null) : commitRename(tab, e, v))} />
             {:else}
               <span class="ellipsis label">{vol ? vol.name : e.name}</span>
+              {#if e.groupSize}
+                <button
+                  class="group"
+                  class:open={tab.expandedGroups.has(e.key)}
+                  tabindex="-1"
+                  title={t('groups.tip', { names: (tab.groupMembers(e.key) ?? []).map((m) => m.ext).join(', ') })}
+                  onpointerdown={(ev) => ev.stopPropagation()}
+                  onclick={() => tab.toggleGroup(e.key)}>+{e.groupSize - 1}</button
+                >
+              {/if}
             {/if}
           </div>
           {#if isSearch}
@@ -402,5 +413,31 @@
   }
   .attrs {
     font-size: 11px;
+  }
+  .branch {
+    color: var(--text-3);
+    margin-left: 6px;
+    margin-right: -3px;
+  }
+  .group {
+    flex: none;
+    border: none;
+    padding: 0 5px;
+    height: 16px;
+    line-height: 16px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    background: var(--accent-20);
+    color: var(--accent-text);
+    font-variant-numeric: tabular-nums;
+  }
+  .group.open {
+    background: var(--accent);
+    color: white;
+  }
+  .row.cursor.active .group {
+    background: rgba(255, 255, 255, 0.25);
+    color: inherit;
   }
 </style>

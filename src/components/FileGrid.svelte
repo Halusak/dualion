@@ -144,6 +144,17 @@
       >
         <div class="icon">
           <FileIcon entry={e} location={tab.location} size={mode === 'list' ? 16 : iconSize} thumb={mode === 'thumbs'} />
+          {#if e.groupSize}
+            <button
+              class="group"
+              class:open={tab.expandedGroups.has(e.key)}
+              tabindex="-1"
+              title={(tab.groupMembers(e.key) ?? []).map((m) => m.name).join('\n')}
+              onpointerdown={(ev) => ev.stopPropagation()}
+              ondblclick={(ev) => ev.stopPropagation()}
+              onclick={() => tab.toggleGroup(e.key)}>+{e.groupSize - 1}</button
+            >
+          {/if}
         </div>
         {#if tab.renaming === e.key}
           <RenameInput value={e.name} isDir={e.isDir} onDone={(v) => (v === null ? (tab.renaming = null) : commitRename(tab, e, v))} />
@@ -258,5 +269,26 @@
   }
   .item.drop {
     box-shadow: inset 0 0 0 2px var(--accent);
+  }
+  .icon {
+    position: relative;
+  }
+  .group {
+    position: absolute;
+    right: -4px;
+    bottom: -2px;
+    border: none;
+    padding: 0 5px;
+    height: 16px;
+    line-height: 16px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 0 0 2px var(--bg-panel);
+  }
+  .group.open {
+    background: var(--text-2);
   }
 </style>

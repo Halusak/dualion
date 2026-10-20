@@ -17,6 +17,8 @@ export interface Settings {
   alwaysShowTabs: boolean;
   /** Drive buttons above each panel. */
   driveBar: boolean;
+  /** Show related files (icon.png + icon.psd …) as one group. */
+  groupFiles: boolean;
   /** Metadata columns (dimensions, duration, artist …) in the details view. */
   metaColumns: boolean;
   /** Columns chosen by hand for a folder (path -> column ids); others use the automatic preset. */
@@ -57,6 +59,7 @@ export const defaultSettings = (): Settings => ({
   alwaysShowTabs: true,
   driveBar: true,
   metaColumns: true,
+  groupFiles: true,
   folderColumns: {},
   metaWidths: {},
   index: { enabled: true, roots: [], excludes: null, hidden: false, meta: true },

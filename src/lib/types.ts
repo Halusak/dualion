@@ -38,6 +38,11 @@ export interface Entry {
   path?: string;
   /** Extra text shown for search results (folder / matched line). */
   note?: string;
+  /** Group leader: number of files in the group and their total size. */
+  groupSize?: number;
+  groupBytes?: number;
+  /** Member row of an expanded group: the leader's key. */
+  groupOf?: string;
 }
 
 export interface Crumb {
