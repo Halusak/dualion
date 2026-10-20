@@ -12,6 +12,7 @@
   import { dpr, isWindows, pathIconUrl } from '../lib/platform';
   import { app, type SideName } from '../lib/state/app.svelte';
   import { settings } from '../lib/state/settings.svelte';
+  import { Tab } from '../lib/state/tab.svelte';
   import { showError } from '../lib/state/ui.svelte';
   import { volumeOf, volumes, watchVolumes } from '../lib/state/volumes.svelte';
   import type { Volume } from '../lib/types';
@@ -38,8 +39,16 @@
     return v.total ? `${v.name} — ${formatSize(v.free, l, settings.sizeFormat)} / ${formatSize(v.total, l, settings.sizeFormat)}` : v.name;
   }
 
-  function go(v: Volume, e: MouseEvent) {
+  function go(v: Volume, e: MouseEvent, newTab = false) {
     app.activeSide = side;
+    if (newTab) {
+      // Middle click: open the drive in a new tab (like links in a browser).
+      const s = app.side(side);
+      const t = new Tab({ location: { kind: 'local', path: v.path }, view: tab.view, sortKey: tab.sortKey, sortDesc: tab.sortDesc });
+      s.addTab(t);
+      void t.navigate({ kind: 'local', path: lastOnDrive.get(v.path) ?? v.path }).catch(() => t.navigate({ kind: 'local', path: v.path }));
+      return;
+    }
     // Clicking the current drive goes to its root; otherwise return to the last folder there.
     const last = current?.path === v.path || e.shiftKey ? undefined : lastOnDrive.get(v.path);
     void tab.navigate({ kind: 'local', path: last ?? v.path }).catch(() => tab.navigate({ kind: 'local', path: v.path }));
@@ -80,7 +89,10 @@
 
 <div class="drives" role="toolbar" aria-label={t(isWindows ? 'place.drivesWin' : 'place.drivesMac')}>
   {#each volumes.list as v (v.path)}
-    <button class:on={current?.path === v.path} class:win={isWindows} title={title(v)} tabindex="-1" onclick={(e) => go(v, e)}>
+    <button class:on={current?.path === v.path} class:win={isWindows} title={title(v)} tabindex="-1"
+      onclick={(e) => go(v, e)}
+      onauxclick={(e) => e.button === 1 && go(v, e, true)}
+      onmousedown={(e) => e.button === 1 && e.preventDefault()}>
       <img src={pathIconUrl(v.path, px)} alt="" width="16" height="16" draggable="false" />
       <span class="ellipsis">{label(v)}</span>
     </button>

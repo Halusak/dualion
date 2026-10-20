@@ -301,6 +301,13 @@ button {
 select.input {
   padding-right: 4px;
 }
+/* The drop-down list is drawn by the system: give options opaque theme colours
+   (with a transparent Mica window they would otherwise get light text on white). */
+select option,
+select optgroup {
+  background-color: var(--bg-elevated);
+  color: var(--text);
+}
 
 label.check {
   display: inline-flex;
