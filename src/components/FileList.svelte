@@ -14,7 +14,7 @@
   import type { SideName } from '../lib/state/app.svelte';
   import { settings } from '../lib/state/settings.svelte';
   import type { Tab } from '../lib/state/tab.svelte';
-  import { rowHeight } from '../lib/theme';
+  import { NAME_LINE_H, nameLines, rowHeight } from '../lib/theme';
   import { F, type Entry, type SortKey } from '../lib/types';
   import FileIcon from './FileIcon.svelte';
   import RenameInput from './RenameInput.svelte';
@@ -25,7 +25,8 @@
   let scrollTop = $state(0);
   let height = $state(300);
 
-  const rowH = $derived(rowHeight(settings.density, isWindows));
+  const lines = $derived(nameLines());
+  const rowH = $derived(rowHeight(settings.density, isWindows) + (lines - 1) * NAME_LINE_H);
   const items = $derived(tab.visible);
   const total = $derived(items.length);
   const start = $derived(Math.max(0, Math.floor(scrollTop / rowH) - 10));
@@ -109,7 +110,7 @@
   }
 </script>
 
-<div class="details" style="--cols: {cols}; --row-h: {rowH}px; --min-w: {minWidth}px">
+<div class="details" style="--cols: {cols}; --row-h: {rowH}px; --min-w: {minWidth}px; --lines: {lines}">
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="header"
@@ -191,7 +192,7 @@
             {#if tab.renaming === e.key}
               <RenameInput value={e.name} isDir={e.isDir} onDone={(v) => (v === null ? (tab.renaming = null) : commitRename(tab, e, v))} />
             {:else}
-              <span class="ellipsis label">{vol ? vol.name : e.name}</span>
+              <span class="ellipsis label" class:wrap={lines > 1} title={lines > 1 ? undefined : e.name.length > 40 ? e.name : undefined}>{vol ? vol.name : e.name}</span>
               {#if e.groupSize}
                 <button
                   class="group"
@@ -413,6 +414,15 @@
   }
   .attrs {
     font-size: 11px;
+  }
+  .label.wrap {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: var(--lines);
+    line-clamp: var(--lines);
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+    line-height: 15px;
   }
   .branch {
     color: var(--text-3);

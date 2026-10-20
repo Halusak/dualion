@@ -17,6 +17,8 @@ export interface Settings {
   alwaysShowTabs: boolean;
   /** Drive buttons above each panel. */
   driveBar: boolean;
+  /** How many lines a file name may take in the lists (1 = never wrap). */
+  nameLines: number;
   /** Show related files (icon.png + icon.psd …) as one group. */
   groupFiles: boolean;
   /** Metadata columns (dimensions, duration, artist …) in the details view. */
@@ -64,6 +66,7 @@ export const defaultSettings = (): Settings => ({
   driveBar: true,
   metaColumns: true,
   groupFiles: true,
+  nameLines: 1,
   folderColumns: {},
   metaWidths: {},
   rules: { enabled: true, list: [] },

@@ -116,6 +116,14 @@
         <label class="check"><input type="checkbox" bind:checked={settings.driveBar} /> {t('settings.driveBar')}</label>
         <label class="check"><input type="checkbox" bind:checked={settings.metaColumns} /> {t('settings.metaColumns')}</label>
         <label class="check"><input type="checkbox" bind:checked={settings.groupFiles} /> {t('settings.groupFiles')}</label>
+        <label class="row">
+          <span>{t('settings.nameLines')}</span>
+          <select class="input" bind:value={settings.nameLines}>
+            <option value={1}>{t('settings.nameLines1')}</option>
+            <option value={2}>{t('settings.nameLinesN', { n: 2 })}</option>
+            <option value={3}>{t('settings.nameLinesN', { n: 3 })}</option>
+          </select>
+        </label>
         <label class="check"><input type="checkbox" bind:checked={settings.showAttrs} /> {t('col.attrs')}</label>
         <label class="row">
           <span>{t('settings.thumbSize')}</span>

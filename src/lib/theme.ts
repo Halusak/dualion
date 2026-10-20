@@ -1,3 +1,4 @@
+import { settings } from './state/settings.svelte';
 import { isMac } from './platform';
 
 function parseHex(hex: string): [number, number, number] | null {
@@ -33,6 +34,14 @@ export function applyAccent(hex: string | null, dark: boolean) {
 }
 
 /** Row height in px for the current density (mirrors app.css). */
+/** Height of one extra line of a wrapped file name. */
+export const NAME_LINE_H = 15;
+
+/** Wrapped names (Settings › name lines) make rows taller. */
+export function nameLines(): number {
+  return Math.min(3, Math.max(1, Math.round(settings.nameLines) || 1));
+}
+
 export function rowHeight(density: string, windows: boolean): number {
   if (density === 'compact') return windows ? 21 : 19;
   if (density === 'comfortable') return windows ? 30 : 26;

@@ -8,7 +8,7 @@
   import type { SideName } from '../lib/state/app.svelte';
   import { settings } from '../lib/state/settings.svelte';
   import type { Tab } from '../lib/state/tab.svelte';
-  import { rowHeight } from '../lib/theme';
+  import { NAME_LINE_H, nameLines, rowHeight } from '../lib/theme';
   import { F, type Entry } from '../lib/types';
   import FileIcon from './FileIcon.svelte';
   import RenameInput from './RenameInput.svelte';
@@ -23,7 +23,8 @@
 
   const mode = $derived(tab.view);
   const items = $derived(tab.visible);
-  const rowH = $derived(rowHeight(settings.density, isWindows));
+  const lines = $derived(nameLines());
+  const rowH = $derived(rowHeight(settings.density, isWindows) + (lines - 1) * NAME_LINE_H);
 
   // "list": column flow (top-to-bottom, then next column), horizontal scrolling.
   const listColW = 230;
@@ -33,7 +34,8 @@
   // "icons" / "thumbs": row flow grid, vertical scrolling.
   const iconSize = $derived(mode === 'thumbs' ? settings.thumbSize : 48);
   const cellW = $derived(mode === 'thumbs' ? settings.thumbSize + 28 : 104);
-  const cellH = $derived(mode === 'thumbs' ? settings.thumbSize + 46 : 92);
+  // Cells were sized for two-line names; adjust for the chosen line count.
+  const cellH = $derived((mode === 'thumbs' ? settings.thumbSize + 46 : 92) + (lines - 2) * NAME_LINE_H);
   const perRow = $derived(Math.max(1, Math.floor((width - 8) / cellW)));
   const rowsTotal = $derived(Math.ceil(items.length / perRow));
 
@@ -109,13 +111,14 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="grid {mode}"
+  class:wrap={lines > 1}
   bind:this={viewport}
   bind:clientWidth={width}
   bind:clientHeight={height}
   onscroll={onScroll}
   onpointerdown={(e) => backgroundPointerDown(e, side, tab)}
   oncontextmenu={(e) => onContext(e, null)}
-  style="--row-h: {rowH}px"
+  style="--row-h: {rowH}px; --lines: {lines}"
 >
   <div
     class="spacer"
@@ -201,6 +204,15 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .list.wrap .name {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: var(--lines);
+    line-clamp: var(--lines);
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+    line-height: 15px;
+  }
   .icons .item,
   .thumbs .item {
     flex-direction: column;
@@ -222,8 +234,8 @@
     text-align: center;
     line-height: 1.25;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    -webkit-line-clamp: var(--lines);
+    line-clamp: var(--lines);
     -webkit-box-orient: vertical;
     overflow: hidden;
     word-break: break-word;
