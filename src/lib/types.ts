@@ -514,3 +514,21 @@ export interface RuleActivity {
   error: string | null;
   undo: UndoAction[];
 }
+
+export interface SemanticStatus {
+  state: 'off' | 'unavailable' | 'missingModel' | 'indexing' | 'ready' | 'error';
+  files: number;
+  done: number;
+  total: number;
+  error: string | null;
+  models: string[];
+}
+
+export interface SemanticHit {
+  path: string;
+  name: string;
+  size: number;
+  mtime: number;
+  score: number;
+  snippet: string;
+}

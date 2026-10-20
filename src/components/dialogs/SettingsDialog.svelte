@@ -3,6 +3,7 @@
   import { api } from '../../lib/api';
   import { localeTag, t } from '../../lib/i18n/index.svelte';
   import { index } from '../../lib/state/index.svelte';
+  import { showError } from '../../lib/state/ui.svelte';
   import { isMac } from '../../lib/platform';
   import { app } from '../../lib/state/app.svelte';
   import { settings } from '../../lib/state/settings.svelte';
@@ -27,6 +28,19 @@
   function saveExcludes() {
     const v = excludesText.split('\n').map((s) => s.trim()).filter(Boolean).join(';');
     settings.index.excludes = v === index.defaultExcludes ? null : v;
+  }
+  const sem = $derived(index.semantic);
+  let semRootsText = $state(untrack(() => settings.semantic.roots.join('\n')));
+  let pulling = $state(false);
+  async function pull() {
+    pulling = true;
+    try {
+      await api.semanticPull(settings.semantic.model);
+    } catch (e) {
+      showError(e);
+    } finally {
+      pulling = false;
+    }
   }
   function resetExcludes() {
     settings.index.excludes = null;
@@ -148,6 +162,41 @@
           <label class="check"><input type="checkbox" bind:checked={settings.index.hidden} /> {t('settings.indexHidden')}</label>
           <label class="check"><input type="checkbox" bind:checked={settings.index.meta} /> {t('settings.indexMetaToggle')}</label>
         {/if}
+        <h4>{t('sem.title')}</h4>
+        <label class="check"><input type="checkbox" bind:checked={settings.semantic.enabled} /> {t('sem.enabled')}</label>
+        <small class="muted">{t('sem.hint')}</small>
+        {#if settings.semantic.enabled}
+          <div class="status">
+            <span>
+              {#if sem.state === 'unavailable'}{t('sem.unavailable')}
+              {:else if sem.state === 'missingModel'}{t('sem.missing', { model: settings.semantic.model })}
+              {:else if sem.state === 'indexing'}{t('sem.indexing', { done: sem.done.toLocaleString(locale), total: sem.total.toLocaleString(locale) })}
+              {:else if sem.state === 'error'}{sem.error}
+              {:else if sem.state === 'ready'}{t('sem.ready', { n: sem.files.toLocaleString(locale) })}
+              {:else}…{/if}
+            </span>
+            {#if sem.state === 'missingModel'}
+              <button class="btn" disabled={pulling} onclick={pull}>{pulling ? t('sem.pulling') : t('sem.pull')}</button>
+            {:else if sem.state === 'unavailable'}
+              <button class="btn" onclick={() => api.openUrl('https://ollama.com/download')}>ollama.com</button>
+            {:else}
+              <button class="btn" onclick={() => api.semanticRebuild()}>{t('sem.rebuild')}</button>
+            {/if}
+          </div>
+          <label class="row"><span>{t('sem.model')}</span><input class="input" bind:value={settings.semantic.model} list="sem-models" spellcheck="false" /></label>
+          <datalist id="sem-models">
+            {#each ['embeddinggemma', 'bge-m3', 'nomic-embed-text', 'all-minilm', ...sem.models] as m (m)}<option value={m}></option>{/each}
+          </datalist>
+          <label class="row"><span>{t('sem.endpoint')}</span><input class="input" bind:value={settings.semantic.endpoint} spellcheck="false" /></label>
+          <label class="col">
+            <span>{t('sem.roots')}</span>
+            <textarea class="input" rows="2" bind:value={semRootsText} onchange={() => (settings.semantic.roots = semRootsText.split('\n').map((s) => s.trim()).filter(Boolean))} spellcheck="false"></textarea>
+          </label>
+          <label class="check"><input type="checkbox" bind:checked={settings.semantic.images} /> {t('sem.images')}</label>
+          {#if settings.semantic.images}
+            <label class="row"><span>{t('sem.vision')}</span><input class="input" bind:value={settings.semantic.visionModel} spellcheck="false" /></label>
+          {/if}
+        {/if}
       {:else if section === 'rules'}
         <RulesEditor />
       {:else if section === 'tools'}
@@ -211,6 +260,10 @@
     grid-template-columns: 180px 1fr;
     align-items: center;
     gap: 10px;
+  }
+  h4 {
+    margin: 12px 0 0;
+    font-size: 13px;
   }
   .status {
     display: flex;

@@ -29,6 +29,7 @@ pub struct AppState {
     pub watcher: Arc<DirWatcher>,
     pub index: Arc<crate::index::IndexManager>,
     pub rules: Arc<crate::rules::RulesEngine>,
+    pub semantic: Arc<crate::semantic::SemanticEngine>,
     pub ops: Mutex<HashMap<u64, Arc<AtomicBool>>>,
     pub next_op: AtomicU64,
     pub config_dir: PathBuf,
@@ -434,6 +435,49 @@ pub async fn du_tree(path: String) -> AppResult<crate::diskusage::DuNode> {
             return Err(AppError::invalid("Not scanned"));
         }
         crate::diskusage::tree(&p, 3)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn semantic_configure(state: State<'_, AppState>, config: crate::semantic::SemanticConfig) -> AppResult<()> {
+    let s = state.semantic.clone();
+    blocking(move || {
+        s.configure(config);
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+pub fn semantic_status(state: State<'_, AppState>) -> crate::semantic::SemanticStatus {
+    state.semantic.status()
+}
+
+#[tauri::command]
+pub async fn semantic_search(state: State<'_, AppState>, query: String, limit: usize) -> AppResult<Vec<crate::semantic::SemanticHit>> {
+    let s = state.semantic.clone();
+    blocking(move || s.search(&query, limit.clamp(1, 500))).await
+}
+
+#[tauri::command]
+pub async fn semantic_rebuild(state: State<'_, AppState>) -> AppResult<()> {
+    let s = state.semantic.clone();
+    blocking(move || {
+        s.rebuild();
+        Ok(())
+    })
+    .await
+}
+
+/// Downloads a model into Ollama, then re-checks the setup.
+#[tauri::command]
+pub async fn semantic_pull(state: State<'_, AppState>, model: String) -> AppResult<()> {
+    let s = state.semantic.clone();
+    blocking(move || {
+        s.pull(&model)?;
+        s.rebuild();
+        Ok(())
     })
     .await
 }

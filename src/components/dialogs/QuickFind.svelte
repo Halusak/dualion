@@ -3,6 +3,7 @@
   import CornerDownLeft from '@lucide/svelte/icons/corner-down-left';
   import FolderSearch from '@lucide/svelte/icons/folder-search';
   import Search from '@lucide/svelte/icons/search';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
   import SquareTerminal from '@lucide/svelte/icons/square-terminal';
   import Star from '@lucide/svelte/icons/star';
   import { untrack } from 'svelte';
@@ -17,14 +18,14 @@
   import { index } from '../../lib/state/index.svelte';
   import { settings } from '../../lib/state/settings.svelte';
   import { errorText, toast } from '../../lib/state/ui.svelte';
-  import { F, type Entry, type IndexHit, type Location } from '../../lib/types';
+  import { F, type Entry, type IndexHit, type Location, type SemanticHit } from '../../lib/types';
   import FileIcon from '../FileIcon.svelte';
   import Modal from './Modal.svelte';
 
   let { initial = '', close }: { initial?: string; close: (r: null) => void } = $props();
 
   type Item =
-    | { kind: 'file'; hit: IndexHit; entry: Entry }
+    | { kind: 'file'; hit: IndexHit; entry: Entry; snippet?: string; score?: number }
     | { kind: 'cmd'; cmd: Command }
     | { kind: 'place'; label: string; location: Location; smart?: boolean };
 
@@ -41,7 +42,9 @@
   const tab = app.panel;
   const here = tab.location.kind === 'local' ? tab.location.path : null;
   const isCmd = $derived(text.startsWith('>'));
+  const isSem = $derived(text.startsWith('?'));
   const query = $derived(text.trim());
+  let semHits = $state.raw<SemanticHit[]>([]);
   const words = $derived(
     query
       .split(/\s+/)
@@ -58,6 +61,30 @@
   $effect(() => {
     const q = query;
     const under = scopeHere ? here : null;
+    if (isSem) {
+      hits = [];
+      const sq = q.slice(1).trim();
+      if (!sq) {
+        semHits = [];
+        return;
+      }
+      const my = ++seq;
+      const timer = setTimeout(async () => {
+        try {
+          const r = await api.semanticSearch(sq, 60);
+          if (my !== seq) return;
+          semHits = r;
+          error = '';
+          sel = 0;
+        } catch (e) {
+          if (my !== seq) return;
+          error = errorText(e);
+          semHits = [];
+        }
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+    semHits = [];
     if (isCmd || !q) {
       hits = [];
       total = 0;
@@ -87,7 +114,7 @@
 
   const cmdItems = $derived.by(() => {
     const q = isCmd ? text.slice(1).trim() : query;
-    if (!isCmd && q.length < 2) return [];
+    if (isSem || (!isCmd && q.length < 2)) return [];
     const scored = commands
       .map((c) => ({ c, s: fuzzyScore(q, `${t(c.label)} ${c.id}`) }))
       .filter((x) => x.s >= 0 && (isCmd || x.s > 6))
@@ -96,14 +123,21 @@
   });
 
   const placeItems = $derived.by(() => {
-    if (isCmd || query) return [];
+    if (isCmd || isSem || query) return [];
     const out: Item[] = settings.hotlist.map((h) => ({ kind: 'place', label: h.name, location: h.location, smart: h.location.kind === 'query' }));
     for (const p of app.info.places) out.push({ kind: 'place', label: t(`place.${p.key}`), location: { kind: 'local', path: p.path } });
     return out;
   });
 
   const items = $derived<Item[]>(
-    isCmd ? cmdItems : [...placeItems, ...hits.map((h) => ({ kind: 'file', hit: h, entry: toEntry(h) }) as Item), ...cmdItems],
+    isCmd
+      ? cmdItems
+      : isSem
+        ? semHits.map((h) => {
+            const hit: IndexHit = { path: h.path, name: h.name, isDir: false, size: h.size, mtime: h.mtime };
+            return { kind: 'file', hit, entry: toEntry(hit), snippet: h.snippet, score: h.score } as Item;
+          })
+        : [...placeItems, ...hits.map((h) => ({ kind: 'file', hit: h, entry: toEntry(h) }) as Item), ...cmdItems],
   );
 
   $effect(() => {
@@ -182,7 +216,7 @@
 <Modal width={720} onclose={() => close(null)}>
   <div class="qf">
     <div class="bar">
-      {#if isCmd}<SquareTerminal size={18} />{:else}<Search size={18} />{/if}
+      {#if isCmd}<SquareTerminal size={18} />{:else if isSem}<Sparkles size={18} />{:else}<Search size={18} />{/if}
       <input
         bind:this={input}
         bind:value={text}
@@ -190,11 +224,11 @@
         data-no-submit
         spellcheck="false"
         autocomplete="off"
-        placeholder={isCmd ? t('find.cmdHint') : t('find.hint')}
+        placeholder={isCmd ? t('find.cmdHint') : isSem ? t('find.semHint') : t('find.hint')}
         onkeydown={onKey}
         title={t('query.help')}
       />
-      {#if !isCmd && here}
+      {#if !isCmd && !isSem && here}
         <div class="seg" title="Tab">
           <button class:on={!scopeHere} tabindex="-1" onclick={() => (scopeHere = false)}>{t('find.everywhere')}</button>
           <button class:on={scopeHere} tabindex="-1" onclick={() => (scopeHere = true)}>{t('find.here')}</button>
@@ -202,7 +236,9 @@
       {/if}
     </div>
 
-    {#if !isCmd && !st.ready}
+    {#if isSem && !settings.semantic.enabled}
+      <div class="note">{t('find.semOff')}</div>
+    {:else if !isCmd && !isSem && !st.ready}
       <div class="note">
         {#if st.state === 'off'}
           {t('find.off')}
@@ -226,7 +262,7 @@
               <div class="name ellipsis">
                 {#each highlight(item.hit.name, words) as part, j (j)}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}
               </div>
-              <div class="sub ellipsis">{short(dirName(item.hit.path))}</div>
+              <div class="sub ellipsis" title={item.hit.path}>{item.snippet || short(dirName(item.hit.path))}</div>
             </div>
             <div class="meta">
               {#if !item.hit.isDir}<span>{formatSize(item.hit.size, locale, settings.sizeFormat)}</span>{/if}
@@ -243,14 +279,14 @@
           {#if i === sel}<span class="enter"><CornerDownLeft size={13} /></span>{/if}
         </div>
       {/each}
-      {#if query && !isCmd && st.ready && !error && hits.length === 0 && cmdItems.length === 0}
+      {#if query && !isCmd && !isSem && st.ready && !error && hits.length === 0 && cmdItems.length === 0}
         <div class="empty muted">{t('find.none')}</div>
       {/if}
     </div>
 
     <footer class="muted">
-      {#if isCmd}
-        <span>↵ {t('find.run')}</span>
+      {#if isCmd || isSem}
+        <span>↵ {t(isCmd ? 'find.run' : 'find.go')}</span>
       {:else}
         <span>↵ {t('find.go')}</span>
         <span>{shortcutLabel('Mod+Enter')} {t('find.open')}</span>

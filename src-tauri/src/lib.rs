@@ -20,6 +20,7 @@ mod rename;
 mod rules;
 mod query;
 mod search;
+mod semantic;
 mod tags;
 mod thumbs;
 mod util;
@@ -119,7 +120,8 @@ pub fn run() {
                 let _ = emitter.emit(name, payload);
             });
             let index = index::IndexManager::new(data_dir.join("index.bin"), index_sink.clone());
-            let rules = rules::RulesEngine::new(index_sink);
+            let rules = rules::RulesEngine::new(index_sink.clone());
+            let semantic = semantic::SemanticEngine::new(data_dir.join("semantic.bin"), index_sink);
             let effects = apply_effects(app);
 
             // The window starts hidden and the UI shows it once rendered; never
@@ -152,6 +154,7 @@ pub fn run() {
                 watcher,
                 index,
                 rules,
+                semantic,
                 ops: parking_lot::Mutex::new(HashMap::new()),
                 next_op: AtomicU64::new(1),
                 config_dir,
@@ -222,6 +225,11 @@ pub fn run() {
             commands::du_scan,
             commands::du_tree,
             commands::dupes_start,
+            commands::semantic_configure,
+            commands::semantic_status,
+            commands::semantic_search,
+            commands::semantic_rebuild,
+            commands::semantic_pull,
             commands::rules_configure,
             commands::rules_check,
             commands::rules_run,

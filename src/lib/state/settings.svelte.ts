@@ -25,6 +25,8 @@ export interface Settings {
   folderColumns: Record<string, string[]>;
   /** File index for instant search. `roots` empty = home folder, `excludes` null = defaults. */
   index: { enabled: boolean; roots: string[]; excludes: string | null; hidden: boolean; meta: boolean };
+  /** Semantic (AI) search through a local Ollama. `roots` empty = Documents, Desktop, Downloads. */
+  semantic: { enabled: boolean; endpoint: string; model: string; roots: string[]; images: boolean; visionModel: string };
   /** Folder rules (automatic sorting). */
   rules: { enabled: boolean; list: Rule[] };
   /** Widths of metadata columns (id -> px). */
@@ -65,6 +67,7 @@ export const defaultSettings = (): Settings => ({
   folderColumns: {},
   metaWidths: {},
   rules: { enabled: true, list: [] },
+  semantic: { enabled: false, endpoint: 'http://localhost:11434', model: 'embeddinggemma', roots: [], images: false, visionModel: 'gemma3:4b' },
   index: { enabled: true, roots: [], excludes: null, hidden: false, meta: true },
   functionBar: true,
   toolbar: true,
@@ -100,6 +103,7 @@ export function applySettings(saved: Partial<Settings> | null) {
   settings.colWidths = { ...d.colWidths, ...(saved.colWidths ?? {}) };
   settings.rules = { ...d.rules, ...(saved.rules && typeof saved.rules === 'object' ? saved.rules : {}) };
   if (!Array.isArray(settings.rules.list)) settings.rules.list = [];
+  settings.semantic = { ...d.semantic, ...(saved.semantic && typeof saved.semantic === 'object' ? saved.semantic : {}) };
   settings.index = { ...d.index, ...(saved.index && typeof saved.index === 'object' ? saved.index : {}) };
   if (saved.keymap && typeof saved.keymap === 'object' && !Array.isArray(saved.keymap)) {
     const km: Record<string, string[]> = {};

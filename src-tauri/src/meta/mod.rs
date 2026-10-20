@@ -442,7 +442,8 @@ mod tests {
 /// (up to 16 MB) and the text of office documents.
 pub fn text_content(path: &Path) -> Option<String> {
     let ext = ext_of(path);
-    match kind_of(&ext, false) {
+    let plain = TEXT.contains(&ext.as_str()) || CODE.contains(&ext.as_str()) || ext == "md";
+    match if plain && ext != "rtf" { "text" } else { kind_of(&ext, false) } {
         "code" | "text" => {
             let bytes = crate::viewer::read_bytes(path, 0, 16 << 20).ok()?;
             if bytes.contains(&0) {
@@ -455,6 +456,15 @@ pub fn text_content(path: &Path) -> Option<String> {
         "document" if ext != "pdf" => {
             let doc = crate::preview::document(path).ok()?;
             Some(doc.blocks.iter().map(|b| b.rows.as_ref().map(|r| r.iter().map(|c| c.join(" ")).collect::<Vec<_>>().join("\n")).unwrap_or_else(|| b.text.clone())).collect::<Vec<_>>().join("\n"))
+        }
+        "pdf" => {
+            if std::fs::metadata(path).ok()?.len() > 50 << 20 {
+                return None;
+            }
+            // The PDF parser may panic on broken files.
+            let p = path.to_path_buf();
+            let text = std::panic::catch_unwind(move || pdf_extract::extract_text(&p).ok()).ok()??;
+            Some(text.chars().take(200_000).collect())
         }
         "slides" => {
             let s = crate::preview::slides(path).ok()?;

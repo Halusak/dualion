@@ -15,7 +15,7 @@
   import { applySettings, settings, type Settings } from './lib/state/settings.svelte';
   import { dialogOpen, openDialog, toast, ui } from './lib/state/ui.svelte';
   import { journalLabel, pushHistory } from './lib/state/history.svelte';
-  import { indexConfig, startIndex } from './lib/state/index.svelte';
+  import { indexConfig, semanticConfig, startIndex } from './lib/state/index.svelte';
   import { applyAccent } from './lib/theme';
   import type { Answer, JobDone, JobSnapshot, RuleActivity } from './lib/types';
   import ConflictDialog from './components/dialogs/ConflictDialog.svelte';
@@ -69,6 +69,15 @@
     if (json === lastMenu) return;
     lastMenu = json;
     void api.setMenu(spec).catch((e) => console.warn('menu', e));
+  });
+
+  // Semantic search follows its settings (debounced: fields are typed).
+  let semTimer: ReturnType<typeof setTimeout>;
+  $effect(() => {
+    if (!app.ready) return;
+    const cfg = semanticConfig();
+    clearTimeout(semTimer);
+    semTimer = setTimeout(() => void api.semanticConfigure(cfg).catch(() => {}), 800);
   });
 
   // Folder rules follow their settings.

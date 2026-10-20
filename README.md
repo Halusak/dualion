@@ -13,6 +13,9 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 - Nativní ikony souborů (stejné jako Finder / Průzkumník) a náhledy obrázků, videí, PDF a dokumentů (macOS ImageIO + QuickLook, Windows shell).
 - Vlastní náhledy formátů, které systém často neumí: PSD/PSB (bez Photoshopu), Affinity (`.af`, `.afphoto`, `.afdesign`, `.afpub`), Krita, OpenRaster, Sketch, Procreate, Clip Studio, XMind, 3MF, RAW fotky, obaly alb v MP3/M4A/FLAC, Office (`.docx`, `.xlsx`, `.pptx`), OpenDocument, iWork a EPUB.
 - Virtualizované seznamy – i složky se stovkami tisíc souborů jsou plynulé.
+- **Lišta disků** nad každým panelem jako v TC (pamatuje si poslední složku na disku, tlačítko Síť s uloženými FTP servery a síťovými svazky).
+- **Sloupce s metadaty**: rozměry, datum pořízení, fotoaparát, objektiv, ISO, GPS, délka, kodek, FPS, datový tok, interpret, album, počet stran, autor, řádky… Sloupce se volí automaticky podle obsahu složky (fotky / video / hudba / dokumenty / kód), pravým klikem na záhlaví si je upravíte pro konkrétní složku; lze podle nich řadit. Metadata čte vlastní rychlé parsery (MP4/MOV, MKV/WebM, AVI, EXIF, ID3/FLAC/MP4 tagy, PDF, Office).
+- **Skupiny souborů**: `ikona.png` + `ikona.psd` + `ikona.ico`, `IMG_1.CR2` + `IMG_1.JPG` + `IMG_1.CR2.xmp`, `film.mkv` + `film.cs.srt` se zobrazí jako jedna položka (+N) a kopírují, přesouvají, přejmenovávají a mažou se společně.
 - Disky a místa (s volným místem), oblíbené složky, historie zpět/vpřed, skryté soubory, rychlý filtr, rychlé hledání psaním, panel rychlého náhledu.
 
 **Operace se soubory**
@@ -21,6 +24,22 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 - Řešení konfliktů (nahradit / přeskočit / ponechat oba / nahradit starší, „pro všechny“), opakování po chybě.
 - Rychlé kopírování: APFS klonování na macOS (okamžité), `CopyFileExW` na Windows; volitelné ověření kontrolním součtem, omezení rychlosti, filtr masky (`*.jpg;*.png | thumb*`).
 - Drag & drop mezi panely i z Finderu / Průzkumníka.
+
+**Hledání a index**
+- **Okamžité hledání** (⌘P / Ctrl+P) nad indexem souborů ve stylu Everything: statisíce souborů v paměti, výsledky během psaní za pár milisekund, bez ohledu na diakritiku. Index se ukládá na disk, změny sleduje živě (FSEvents / ReadDirectoryChangesW) a metadata médií doplňuje na pozadí.
+- **Dotazovací jazyk** ve filtru panelu, v rychlém hledání i ve vyhledávání: `faktura ext:pdf modified:2025`, `type:video res>=4k duration>10m codec:hevc`, `type:image camera:canon taken:2024 -ext:heic`, `size:1g..4g`, `artist:"Daft Punk"`, `(a | b)`, české aliasy (`typ:`, `velikost:`, `změněno:`, `délka:` …).
+- **Chytré složky**: uložený dotaz se chová jako složka v oblíbených a při otevření se znovu vyhodnotí.
+- **Sémantické hledání** (volitelné, plně lokální přes Ollama): `?faktura za hosting z loňska` najde dokument podle významu, ne jen podle slov; volitelně i fotky podle popisu z vizuálního modelu.
+- **Paleta příkazů** (⌘⇧P / Ctrl+Shift+P) s fuzzy hledáním všech akcí.
+
+**Bezpečnost a údržba**
+- **Univerzální Zpět** (⌘Z / Ctrl+Z) a **historie operací** (⌘⇧Z): kopírování, přesun, mazání do koše, balení, rozbalení, nové složky i přejmenování jde vrátit; vytvořené položky se při vrácení přesunou do koše.
+- **Simulace před operací**: dialog kopírování/přesunu ukáže počet souborů, velikost, konflikty (novější v cíli, shodné) a zda je na cíli dost místa; potvrzení mazání ukáže souhrn.
+- **Mapa využití disku** (treemap) s proklikem do složek a mazáním do koše.
+- **Duplicity**: shodné soubory podle obsahu (velikost → rychlý otisk → plný hash) i **podobné fotky** podle percepčního otisku; automatické označení všech kromě nejstaršího/nejnovějšího…
+- **Pravidla pro složky** (jako Hazel): např. „PDF faktury ze Stažených přesuň do `Dokumenty/Faktury/{year}/{month}`“; podmínka v dotazovacím jazyce, náhled, spuštění ručně nebo automaticky, vše vratné.
+
+Každou z nových funkcí lze v Nastavení vypnout.
 
 **Nástroje**
 - **Vyhledávání** (engine z ripgrepu): maska nebo regulární výraz názvu, hledání textu v souborech (regex, celá slova, „neobsahuje“), velikost, datum, hloubka, vynechání složek, `.gitignore`. Texty ve Windows‑1250 a dalších kódováních najde i automaticky. Výsledky lze zobrazit v panelu.
@@ -48,9 +67,13 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 | Shift+F5 | Duplikovat | Alt+F1 / Alt+F2 | Disk vlevo / vpravo |
 | F6 | Přesunout | Alt+F5 / Alt+F9 | Zabalit / rozbalit |
 | Tab | Přepnout panel | Mod+T / Mod+W | Nová / zavřít kartu |
-| Insert, Mezerník | Označit | Mod+Shift+P | Zamknout kartu |
+| Insert, Mezerník | Označit | Mod+Shift+L | Zamknout kartu |
 | Num + / − / * | Výběr maskou / obrácení | Mod+K | Připojit k serveru |
 | Mod+L | Psát cestu | Mod+M | Hromadné přejmenování |
+| Mod+P | Okamžité hledání | Mod+Shift+P | Paleta příkazů |
+| Mod+Z | Zpět (poslední operace) | Mod+Shift+Z | Historie operací |
+| Mod+Alt+U | Mapa disku | Mod+Alt+D | Duplicity |
+| Mod+Alt+G | Seskupovat soubory | | |
 
 `Mod` = ⌘ na macOS, Ctrl na Windows. Kompletní seznam je v aplikaci pod F1.
 
@@ -93,7 +116,7 @@ DUALION_FTP=127.0.0.1:2121 DUALION_FTPS=127.0.0.1:2122 cargo test ftp_e2e -- --i
 
 ## Architektura
 
-- `src-tauri/` – Rust backend (Tauri 2): výpisy a svazky (`local.rs`), fronta úloh a kopírovací engine (`jobs/`), FTP (`ftp.rs`), šifrovaný trezor (`vault.rs`), vyhledávání (`search.rs`), nativní ikony a náhledy (`icons/`, `thumbs.rs`), vlastní dekodéry náhledů (`preview/`), prohlížeč (`viewer.rs`), nativní menu (`menu.rs`), sledování změn složek (`watcher.rs`).
+- `src-tauri/` – Rust backend (Tauri 2): výpisy a svazky (`local.rs`), fronta úloh a kopírovací engine (`jobs/`), FTP (`ftp.rs`), šifrovaný trezor (`vault.rs`), vyhledávání (`search.rs`), nativní ikony a náhledy (`icons/`, `thumbs.rs`), vlastní dekodéry náhledů (`preview/`), metadata (`meta/`), dotazovací jazyk (`query.rs`), index souborů (`index/`), vracení akcí a simulace (`jobs/undo.rs`, `jobs/plan.rs`), mapa disku (`diskusage.rs`), duplicity (`dupes.rs`), pravidla (`rules.rs`), sémantické hledání (`semantic.rs`), prohlížeč (`viewer.rs`), nativní menu (`menu.rs`), sledování změn složek (`watcher.rs`).
 - `src/` – Svelte 5 + TypeScript: stav panelů a karet (`lib/state/`), příkazy a klávesové zkratky (`lib/commands.ts`), akce (`lib/actions.ts`), komponenty (`components/`), překlady (`lib/i18n/`).
 
 Nastavení, relace a trezor se ukládají do systémové složky aplikace (`~/Library/Application Support/cz.dualion.commander`, resp. `%APPDATA%\cz.dualion.commander`).
