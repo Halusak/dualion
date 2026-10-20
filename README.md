@@ -409,7 +409,7 @@ Settings, sessions, the index and the vault are stored in the app's system folde
 
 ## License
 
-Copyright © 2026 Haluška. Dualion is free software, licensed under the [GNU General Public License v3.0](LICENSE) or (at your option) any later version.
+Copyright © 2026 Haluška. Dualion is free software, licensed under the [GNU General Public License v3.0](LICENSE).
 
 You may use, study, modify and share it. If you distribute a modified version, you must release its source code under the same license.
 

@@ -222,7 +222,7 @@ Nastavení, relace, index a trezor se ukládají do systémové složky aplikace
 
 ## Licence
 
-Copyright © 2026 Haluška. Dualion je svobodný software pod licencí [GNU General Public License v3.0](LICENSE) nebo (podle vaší volby) kterékoli pozdější verze.
+Copyright © 2026 Haluška. Dualion je svobodný software pod licencí [GNU General Public License v3.0](LICENSE).
 
 Program smíte používat, studovat, upravovat a šířit. Pokud šíříte upravenou verzi, musíte zveřejnit i její zdrojový kód pod stejnou licencí.
 
