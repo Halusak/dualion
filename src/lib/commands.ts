@@ -67,6 +67,7 @@ export const commands: Command[] = [
   { id: 'clipCut', label: 'cmd.clipCut', run: () => A.clipboardSet('cut'), keys: ['Mod+X'] },
   { id: 'clipPaste', label: 'cmd.clipPaste', run: A.pasteFiles, keys: ['Mod+V'] },
   { id: 'copyPath', label: 'cmd.copyPath', run: () => A.copyPath(false), keys: ['Mod+Shift+C'] },
+  { id: 'copyDirPath', label: 'cmd.copyDirPath', run: () => A.copyDirPath(), keys: ['Mod+Alt+Shift+C'] },
   { id: 'copyName', label: 'cmd.copyName', run: () => A.copyPath(true), keys: ['Mod+Alt+C'] },
   { id: 'undo', label: 'cmd.undo', run: () => undo(), keys: ['Mod+Z'] },
   { id: 'history', label: 'cmd.history', run: A.showHistory, keys: ['Mod+Shift+Z'] },
@@ -383,8 +384,8 @@ export function buildMenu(): MenuNode[] {
     type: 'submenu',
     label: t('menu.edit'),
     items: isMac
-      ? [pre('undo', 'sys.undo'), pre('redo', 'sys.redo'), sep, pre('cut', 'sys.cut'), pre('copy', 'sys.copy'), pre('paste', 'sys.paste'), pre('selectAll', 'sys.selectAll'), sep, item('undo'), item('history'), item('copyPath'), item('copyName')]
-      : [item('undo', { noAccel: true }), item('history'), sep, item('clipCut', { noAccel: true }), item('clipCopy', { noAccel: true }), item('clipPaste', { noAccel: true }), sep, item('copyPath'), item('copyName')],
+      ? [pre('undo', 'sys.undo'), pre('redo', 'sys.redo'), sep, pre('cut', 'sys.cut'), pre('copy', 'sys.copy'), pre('paste', 'sys.paste'), pre('selectAll', 'sys.selectAll'), sep, item('undo'), item('history'), item('copyPath'), item('copyDirPath'), item('copyName')]
+      : [item('undo', { noAccel: true }), item('history'), sep, item('clipCut', { noAccel: true }), item('clipCopy', { noAccel: true }), item('clipPaste', { noAccel: true }), sep, item('copyPath'), item('copyDirPath'), item('copyName')],
   });
   menu.push({
     type: 'submenu',

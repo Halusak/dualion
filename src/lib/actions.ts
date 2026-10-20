@@ -443,6 +443,12 @@ export async function copyPath(nameOnly: boolean) {
   if (await copyText(text)) toast(t('copied'));
 }
 
+/** Copies the path of the folder shown in the active panel. */
+export async function copyDirPath() {
+  const p = locPath(app.panel.location);
+  if (p && (await copyText(p))) toast(t('copied'));
+}
+
 export async function createLink() {
   const tab = app.panel;
   const e = tab.current;

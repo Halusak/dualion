@@ -289,6 +289,7 @@ export const en = {
   'pack.encryptNames': 'Encrypt file names too (contents cannot be listed without the password)',
   'pack.aesZip': 'The ZIP is encrypted with AES-256. It opens in Dualion, 7-Zip, WinRAR or Keka; the built-in Windows and macOS unzip cannot read AES.',
   'pack.aes7z': 'The 7z is encrypted with AES-256.',
+  'cmd.copyDirPath': 'Copy Folder Path',
   'drives.network': 'Network',
   'cmd.toggleDriveBar': 'Drive Bar',
   'cmd.nextTab': 'Next Tab',
