@@ -23,12 +23,28 @@
   let dialog: HTMLDivElement;
 
   onMount(() => {
+    // When the focused control disappears (content re-rendered), focus falls to
+    // <body> and keys would go nowhere: keep Esc working and refocus the dialog.
+    const stray = (e: KeyboardEvent) => {
+      const a = document.activeElement;
+      if (a && a !== document.body && a !== document.documentElement) return;
+      const backs = document.querySelectorAll('.backdrop');
+      if (backs[backs.length - 1] !== dialog.parentElement) return;
+      dialog.focus();
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        onclose();
+      }
+    };
+    window.addEventListener('keydown', stray, true);
     const prev = document.activeElement as HTMLElement | null;
     const first =
       dialog.querySelector<HTMLElement>('[data-autofocus]') ??
       dialog.querySelector<HTMLElement>('input:not([type=checkbox]):not([type=radio]), select, textarea, button.primary');
     (first ?? dialog).focus();
     return () => {
+      window.removeEventListener('keydown', stray, true);
       // Panels refocus themselves (the active one); restoring focus to a
       // panel here could silently switch the active side.
       if (prev && document.contains(prev) && !prev.closest('[data-side]')) prev.focus({ preventScroll: true });

@@ -15,7 +15,8 @@
 
   const CHUNK = 4 * 1024 * 1024;
   let probe = $state<ViewerProbe | null>(null);
-  let mode = $state<'text' | 'hex' | 'preview'>('text');
+  // Unknown until probed: no mode-specific controls may grab focus and vanish.
+  let mode = $state<'text' | 'hex' | 'preview' | null>(null);
   let encoding = $state('utf-8');
   let text = $state('');
   let offset = $state(0);
@@ -32,7 +33,10 @@
       encoding = probe.encoding || 'utf-8';
       if (hasPreview(probe.kind)) mode = 'preview';
       else if (probe.kind === 'binary') mode = 'hex';
-      else await loadText(true);
+      else {
+        mode = 'text';
+        await loadText(true);
+      }
     } catch (e) {
       showError(e);
       close(null);
