@@ -15,6 +15,8 @@ export interface Settings {
   showUp: boolean;
   /** Show the tab bar even with a single tab. */
   alwaysShowTabs: boolean;
+  /** Drive buttons above each panel. */
+  driveBar: boolean;
   functionBar: boolean;
   toolbar: boolean;
   restoreSession: boolean;
@@ -45,6 +47,7 @@ export const defaultSettings = (): Settings => ({
   showHidden: false,
   showUp: true,
   alwaysShowTabs: true,
+  driveBar: true,
   functionBar: true,
   toolbar: true,
   restoreSession: true,

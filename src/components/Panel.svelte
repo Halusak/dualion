@@ -8,6 +8,7 @@
   import { app, type SideName } from '../lib/state/app.svelte';
   import { settings } from '../lib/state/settings.svelte';
   import { dialogOpen, errorText, ui } from '../lib/state/ui.svelte';
+  import DriveBar from './DriveBar.svelte';
   import FileGrid from './FileGrid.svelte';
   import FileList from './FileList.svelte';
   import FilterBar from './FilterBar.svelte';
@@ -66,6 +67,9 @@
   onpointerdown={() => (app.activeSide = side)}
   onfocusin={() => (app.activeSide = side)}
 >
+  {#if settings.driveBar}
+    <DriveBar {side} />
+  {/if}
   {#if showTabs}
     <TabBar {side} {active} />
   {/if}
