@@ -16,7 +16,9 @@
   import { open as openDialogNative } from '@tauri-apps/plugin-dialog';
   import { onDestroy } from 'svelte';
   import { api } from '../../lib/api';
-  import { formatDate, formatSize } from '../../lib/format';
+  import { kindOf } from '../../lib/columns';
+  import { formatDate, formatDuration, formatSize } from '../../lib/format';
+  import { metaFor } from '../../lib/state/meta.svelte';
   import { localeTag, t } from '../../lib/i18n/index.svelte';
   import { baseName, dirName, extOf } from '../../lib/paths';
   import { app } from '../../lib/state/app.svelte';
@@ -77,9 +79,79 @@
   let listEl = $state<HTMLDivElement>();
   let scrollTop = $state(0);
   let viewH = $state(300);
-  const rowH = 38;
+  // ---------------------------------------------------------------- result table
+  const COLS = 'minmax(180px, 2fr) minmax(120px, 1.4fr) 64px 120px 84px 128px 56px';
+  type Col = 'name' | 'folder' | 'kind' | 'size' | 'mtime' | 'matches';
+  let sortCol = $state<Col | null>(null);
+  let sortDesc = $state(false);
+  let kindFilter = $state<string | null>(null);
+  const KIND_LABEL: Record<string, string> = { folder: 'kind.folder', image: 'kind.image', raw: 'kind.image', video: 'kind.video', audio: 'kind.audio', doc: 'kind.doc', code: 'kind.code', other: 'kind.other' };
+  const kindOfHit = (h: SearchHit) => (h.isDir ? 'folder' : kindOf(extOf(h.name)) === 'raw' ? 'image' : kindOf(extOf(h.name)));
+  const roots = $derived(rootsText.split(';').map((r) => r.trim().replace(/[\\/]+$/, '')).filter(Boolean));
+  function relFolder(path: string): string {
+    const d = dirName(path);
+    for (const r of roots) {
+      if (d === r) return '.';
+      if (d.startsWith(r) && /[\\/]/.test(d[r.length])) return d.slice(r.length + 1);
+    }
+    return d;
+  }
+  const kinds = $derived.by(() => {
+    const m = new Map<string, { n: number; bytes: number }>();
+    for (const h of hits) {
+      const k = kindOfHit(h);
+      const v = m.get(k) ?? { n: 0, bytes: 0 };
+      v.n++;
+      v.bytes += h.isDir ? 0 : h.size;
+      m.set(k, v);
+    }
+    return [...m].sort((a, b) => b[1].n - a[1].n);
+  });
+  const totalBytes = $derived(hits.reduce((a, h) => a + (h.isDir ? 0 : h.size), 0));
+  const view = $derived.by(() => {
+    let list = kindFilter ? hits.filter((h) => kindOfHit(h) === kindFilter) : hits;
+    if (sortCol) {
+      const c = new Intl.Collator(locale, { numeric: true, sensitivity: 'base' });
+      const key: Record<Col, (a: SearchHit, b: SearchHit) => number> = {
+        name: (a, b) => c.compare(a.name, b.name),
+        folder: (a, b) => c.compare(relFolder(a.path), relFolder(b.path)),
+        kind: (a, b) => c.compare(extOf(a.name), extOf(b.name)),
+        size: (a, b) => a.size - b.size,
+        mtime: (a, b) => a.mtime - b.mtime,
+        matches: (a, b) => a.matchCount - b.matchCount,
+      };
+      const f = key[sortCol];
+      list = [...list].sort((a, b) => (sortDesc ? -f(a, b) : f(a, b)));
+    }
+    return list;
+  });
+  $effect(() => {
+    void kindFilter;
+    void sortCol;
+    void sortDesc;
+    selected = 0;
+  });
+  function sortBy(col: Col) {
+    if (sortCol === col) sortDesc = !sortDesc;
+    else {
+      sortCol = col;
+      sortDesc = col === 'size' || col === 'mtime' || col === 'matches';
+    }
+  }
+  const textMode = $derived(hits.some((h) => h.matches.length > 0));
+  const rowH = $derived(textMode ? 40 : 26);
   const start = $derived(Math.max(0, Math.floor(scrollTop / rowH) - 5));
-  const end = $derived(Math.min(hits.length, Math.ceil((scrollTop + viewH) / rowH) + 5));
+  const end = $derived(Math.min(view.length, Math.ceil((scrollTop + viewH) / rowH) + 5));
+  /** Short metadata summary: dimensions or duration. */
+  function metaText(h: SearchHit): string {
+    if (h.isDir || h.cloud) return '';
+    const m = metaFor(h.path, h.size, h.mtime);
+    if (!m) return '';
+    if (m.duration) return formatDuration(m.duration, locale) + (m.width && m.height ? ` · ${m.width}×${m.height}` : '');
+    if (m.width && m.height) return `${m.width} × ${m.height}`;
+    if (m.pages) return t('search.pages', { count: m.pages });
+    return '';
+  }
 
   async function start_() {
     if (running) return stop();
@@ -163,7 +235,7 @@
     stop();
     const id = `${Date.now()}`;
     const label = `${t('panel.searchResults')}: ${p.name || p.text || '*'}`;
-    app.panel.showSearch(id, label, hits, true, rootsText.split(';').map((r) => r.trim()).filter(Boolean));
+    app.panel.showSearch(id, label, view, true, rootsText.split(';').map((r) => r.trim()).filter(Boolean));
     close(null);
   }
 
@@ -174,7 +246,7 @@
   function listKey(e: KeyboardEvent) {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
-      selected = Math.max(0, Math.min(hits.length - 1, selected + (e.key === 'ArrowDown' ? 1 : -1)));
+      selected = Math.max(0, Math.min(view.length - 1, selected + (e.key === 'ArrowDown' ? 1 : -1)));
       if (listEl) {
         const top = selected * rowH;
         if (top < listEl.scrollTop) listEl.scrollTop = top;
@@ -183,7 +255,7 @@
     } else if (e.key === 'Enter') {
       e.preventDefault();
       e.stopPropagation();
-      void goToHit(hits[selected]);
+      void goToHit(view[selected]);
     }
   }
 </script>
@@ -270,42 +342,70 @@
       onscroll={() => (scrollTop = listEl!.scrollTop)}
       onkeydown={listKey}
     >
-      {#if !hits.length && !running}
+      {#if hits.length}
+        <div class="thead" style="--cols: {COLS}">
+          {#snippet th(col: Col, label: string, right = false)}
+            <button class="th" class:right class:on={sortCol === col} onclick={() => sortBy(col)}>
+              {label}{#if sortCol === col}<span class="arrow">{sortDesc ? '▾' : '▴'}</span>{/if}
+            </button>
+          {/snippet}
+          {@render th('name', t('col.name'))}
+          {@render th('folder', t('col.folder'))}
+          {@render th('kind', t('col.ext'))}
+          <span class="th">{t('search.colInfo')}</span>
+          {@render th('size', t('col.size'), true)}
+          {@render th('mtime', t('col.date'))}
+          {@render th('matches', t('search.colMatches'), true)}
+        </div>
+      {:else if !running}
         <div class="placeholder muted">{summary || t('search.ready')}</div>
       {/if}
-      <div style="height: {hits.length * rowH}px; position: relative">
-        {#each hits.slice(start, end) as h, i (h.path)}
+      <div style="height: {view.length * rowH}px; position: relative">
+        {#each view.slice(start, end) as h, i (h.path)}
           {@const idx = start + i}
           <!-- svelte-ignore a11y_click_events_have_key_events -->
           <div
             class="hit"
             class:sel={idx === selected}
+            class:alt={idx % 2 === 1}
             role="option"
             aria-selected={idx === selected}
             tabindex="-1"
-            style="top: {idx * rowH}px"
+            style="top: {idx * rowH}px; height: {rowH}px; --cols: {COLS}"
             onclick={() => (selected = idx)}
             ondblclick={() => goToHit(h)}
+            title={h.path}
           >
-            <FileIcon entry={entryOf(h)} location={{ kind: 'local', path: dirName(h.path) }} size={20} />
-            <div class="txt">
-              <div class="l1">
+            <div class="cell name">
+              <FileIcon entry={entryOf(h)} location={{ kind: 'local', path: dirName(h.path) }} size={16} />
+              <div class="nmwrap">
                 <span class="nm ellipsis">{h.name}</span>
-                {#if h.matchCount}<span class="badge">{t('search.matches', { count: h.matchCount })}</span>{/if}
-                <span class="meta">{h.isDir ? '' : formatSize(h.size, locale, settings.sizeFormat)} · {formatDate(h.mtime, locale)}</span>
-              </div>
-              <div class="l2 ellipsis">
                 {#if h.matches[0]}
-                  <span class="line">{t('search.lines', { line: h.matches[0].line })}:</span> {h.matches[0].text}
-                {:else}
-                  {dirName(h.path)}
+                  <span class="l2 ellipsis"><span class="line">{h.matches[0].line}:</span> {h.matches[0].text.trim()}</span>
                 {/if}
               </div>
             </div>
+            <div class="cell muted ellipsis">{relFolder(h.path)}</div>
+            <div class="cell muted ellipsis">{h.isDir ? t('panel.dir') : extOf(h.name)}</div>
+            <div class="cell muted ellipsis num">{metaText(h)}</div>
+            <div class="cell num right">{h.isDir ? '' : formatSize(h.size, locale, settings.sizeFormat)}</div>
+            <div class="cell muted num">{formatDate(h.mtime, locale)}</div>
+            <div class="cell num right">{#if h.matchCount}<span class="badge">{h.matchCount}</span>{/if}</div>
           </div>
         {/each}
       </div>
     </div>
+
+    {#if hits.length}
+      <div class="kinds">
+        <button class="chip" class:on={!kindFilter} onclick={() => (kindFilter = null)}>{t('search.all')} <b>{hits.length.toLocaleString(locale)}</b> · {formatSize(totalBytes, locale, settings.sizeFormat)}</button>
+        {#each kinds as [k, v] (k)}
+          <button class="chip" class:on={kindFilter === k} onclick={() => (kindFilter = kindFilter === k ? null : k)}>
+            {t(KIND_LABEL[k] ?? 'kind.other')} <b>{v.n.toLocaleString(locale)}</b>{v.bytes ? ` · ${formatSize(v.bytes, locale, settings.sizeFormat)}` : ''}
+          </button>
+        {/each}
+      </div>
+    {/if}
 
     <div class="statusbar">
       {#if running}
@@ -315,7 +415,7 @@
         <span class="ellipsis">{summary}</span>
       {/if}
       <span class="grow"></span>
-      <button class="btn" disabled={!hits.length} onclick={() => goToHit(hits[selected])}>{t('search.goTo')}</button>
+      <button class="btn" disabled={!view.length} onclick={() => goToHit(view[selected])}>{t('search.goTo')}</button>
       <button class="btn" disabled={!hits.length} onclick={feed}>{t('search.feed')}</button>
       <button class="btn" onclick={() => close(null)}>{t('close')}</button>
       <button class="btn primary" onclick={start_}>{running ? t('stop') : t('search.start')}</button>
@@ -404,16 +504,52 @@
     align-items: center;
     justify-content: center;
   }
+  .thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: var(--cols);
+    padding: 0 16px;
+    height: 26px;
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border);
+  }
+  .th {
+    border: none;
+    background: transparent;
+    text-align: left;
+    font-size: 11px;
+    color: var(--text-2);
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+  }
+  .th.right {
+    justify-content: flex-end;
+  }
+  .th.on {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .arrow {
+    font-size: 9px;
+  }
   .hit {
     position: absolute;
     left: 6px;
     right: 6px;
-    height: 36px;
-    display: flex;
+    display: grid;
+    grid-template-columns: var(--cols);
     align-items: center;
-    gap: 10px;
     padding: 0 10px;
     border-radius: var(--r-s);
+    font-size: 12px;
+  }
+  .hit.alt {
+    background: var(--bg-row-alt);
   }
   .hit:hover {
     background: var(--bg-hover);
@@ -422,30 +558,37 @@
     background: var(--cursor-bg);
     color: var(--cursor-fg);
   }
-  .txt {
-    flex: 1;
-    min-width: 0;
+  .hit.sel .muted {
+    color: inherit;
+    opacity: 0.85;
   }
-  .l1 {
+  .cell {
+    min-width: 0;
+    padding: 0 8px;
+  }
+  .cell.name {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
   }
-  .nm {
-    font-weight: 600;
+  .nmwrap {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .right {
+    text-align: right;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
   .badge {
     font-size: 10px;
-    padding: 0 5px;
+    padding: 0 6px;
     border-radius: 8px;
     background: var(--accent-20);
-  }
-  .meta {
-    margin-left: auto;
-    font-size: 11px;
-    opacity: 0.7;
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
+    color: var(--accent-text);
   }
   .l2 {
     font-size: 11px;
@@ -454,6 +597,28 @@
   }
   .line {
     font-family: var(--font-ui);
+  }
+  .kinds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 16px 0;
+  }
+  .chip {
+    border: 1px solid var(--border);
+    background: var(--bg-subtle);
+    color: var(--text-2);
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 11px;
+  }
+  .chip b {
+    color: var(--text);
+  }
+  .chip.on {
+    background: var(--accent-20);
+    border-color: transparent;
+    color: var(--accent-text);
   }
   .statusbar {
     display: flex;
