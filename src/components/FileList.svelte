@@ -39,12 +39,14 @@
   const w = $derived(settings.colWidths);
   const metaCols = $derived(tab.columns.map((id) => columnById.get(id)!).filter(Boolean));
   const metaW = (c: MetaColumn) => settings.metaWidths[c.id] ?? c.width;
+  // Name fills the free space until the user gives it a width; then a filler
+  // track at the end takes the rest (like Finder / Explorer).
   const cols = $derived(
-    `minmax(120px, 1fr) ${isSearch ? 'minmax(100px, 0.8fr)' : `${w.ext}px`} ${w.size}px ${w.date}px${settings.showAttrs ? ` ${w.attrs}px` : ''}${metaCols.map((c) => ` ${metaW(c)}px`).join('')}`,
+    `${w.name ? `${w.name}px` : 'minmax(160px, 1fr)'} ${isSearch ? w.folder : w.ext}px ${w.size}px ${w.date}px${settings.showAttrs ? ` ${w.attrs}px` : ''}${metaCols.map((c) => ` ${metaW(c)}px`).join('')}${w.name ? ' minmax(0, 1fr)' : ''}`,
   );
   // Narrow panels scroll horizontally instead of squeezing the name column.
   const minWidth = $derived(
-    180 + (isSearch ? 100 : w.ext) + w.size + w.date + (settings.showAttrs ? w.attrs : 0) + metaCols.reduce((a, c) => a + metaW(c), 0) + 16,
+    (w.name || 180) + (isSearch ? w.folder : w.ext) + w.size + w.date + (settings.showAttrs ? w.attrs : 0) + metaCols.reduce((a, c) => a + metaW(c), 0) + 16,
   );
   let headerEl = $state<HTMLDivElement>();
 
@@ -82,17 +84,22 @@
     tab.setSort(key);
   }
 
+  /** The handle on a column's right edge resizes that column (dragging right widens it). */
   function startResize(e: PointerEvent, col: string) {
     e.stopPropagation();
     e.preventDefault();
     const startX = e.clientX;
     const meta = columnById.get(col);
-    const startW = meta ? metaW(meta) : settings.colWidths[col as 'ext'];
     const target = e.currentTarget as HTMLElement;
-    target.setPointerCapture(e.pointerId);
+    // Start from the rendered width (the name column may be auto-sized).
+    const startW = target.parentElement?.getBoundingClientRect().width ?? 100;
+    try {
+      target.setPointerCapture(e.pointerId);
+    } catch {
+      /* synthetic events have no capturable pointer */
+    }
     const move = (ev: PointerEvent) => {
-      // Handles sit on the left edge of their column: dragging left widens it.
-      const width = Math.max(40, Math.min(400, startW - (ev.clientX - startX)));
+      const width = Math.round(Math.max(col === 'name' ? 120 : 40, Math.min(1200, startW + (ev.clientX - startX))));
       if (meta) settings.metaWidths = { ...settings.metaWidths, [col]: width };
       else settings.colWidths = { ...settings.colWidths, [col]: width };
     };
@@ -102,6 +109,19 @@
     };
     target.addEventListener('pointermove', move);
     target.addEventListener('pointerup', up);
+  }
+
+  /** Double click on a handle: back to the default width (name: fill). */
+  function resetWidth(col: string) {
+    const meta = columnById.get(col);
+    if (meta) {
+      const next = { ...settings.metaWidths };
+      delete next[col];
+      settings.metaWidths = next;
+      return;
+    }
+    const defaults: Record<string, number> = { name: 0, folder: 220, ext: 64, size: 92, date: 136, attrs: 84 };
+    settings.colWidths = { ...settings.colWidths, [col]: defaults[col] ?? 100 };
   }
 
   function onContext(e: MouseEvent, entry: Entry | null) {
@@ -126,8 +146,16 @@
     {#snippet col(key: SortKey, label: string, cls: string, resize: string | null)}
       <button class="h {cls}" class:sorted={tab.sortKey === key} onclick={() => header(key)}>
         {#if resize}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <span class="grip" onpointerdown={(e) => startResize(e, resize)}></span>
+          <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
+          <span
+            class="grip"
+            onpointerdown={(e) => startResize(e, resize)}
+            onclick={(e) => e.stopPropagation()}
+            ondblclick={(e) => {
+              e.stopPropagation();
+              resetWidth(resize);
+            }}
+          ></span>
         {/if}
         <span class="ellipsis">{label}</span>
         {#if tab.sortKey === key}
@@ -135,15 +163,15 @@
         {/if}
       </button>
     {/snippet}
-    {@render col('name', t('col.name'), 'name', null)}
+    {@render col('name', t('col.name'), 'name', 'name')}
     {#if isSearch}
-      <div class="h">{t('col.folder')}</div>
+      <div class="h">{t('col.folder')}<span class="grip" role="separator" onpointerdown={(e) => startResize(e, 'folder')} ondblclick={() => resetWidth('folder')}></span></div>
     {:else}
       {@render col('ext', t('col.ext'), '', 'ext')}
     {/if}
     {@render col('size', t('col.size'), 'right', 'size')}
     {@render col('mtime', t('col.date'), '', 'date')}
-    {#if settings.showAttrs}<div class="h">{t('col.attrs')}</div>{/if}
+    {#if settings.showAttrs}<div class="h">{t('col.attrs')}<span class="grip" role="separator" onpointerdown={(e) => startResize(e, 'attrs')} ondblclick={() => resetWidth('attrs')}></span></div>{/if}
     {#each metaCols as c (c.id)}
       {@render col(`m:${c.id}`, t(c.label), c.right ? 'right' : '', c.id)}
     {/each}
@@ -290,12 +318,16 @@
   }
   .grip {
     position: absolute;
-    left: -3px;
+    right: -4px;
     top: 0;
     bottom: 0;
     width: 7px;
     cursor: col-resize;
     z-index: 1;
+  }
+  .grip:hover::after {
+    background: var(--accent);
+    width: 2px;
   }
   .grip::after {
     content: '';

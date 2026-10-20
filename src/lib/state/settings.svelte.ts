@@ -47,7 +47,8 @@ export interface Settings {
   thumbSize: number;
   defaultView: ViewMode;
   defaultSort: SortKey;
-  colWidths: { ext: number; size: number; date: number; attrs: number };
+  /** Column widths in px; `name` 0 = fill the remaining space. */
+  colWidths: { name: number; folder: number; ext: number; size: number; date: number; attrs: number };
   showAttrs: boolean;
   hotlist: HotlistItem[];
   split: number;
@@ -86,7 +87,7 @@ export const defaultSettings = (): Settings => ({
   thumbSize: 128,
   defaultView: 'details',
   defaultSort: 'name',
-  colWidths: { ext: 64, size: 92, date: 136, attrs: 84 },
+  colWidths: { name: 0, folder: 220, ext: 64, size: 92, date: 136, attrs: 84 },
   showAttrs: false,
   hotlist: [],
   split: 0.5,
