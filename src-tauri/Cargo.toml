@@ -1,0 +1,99 @@
+[package]
+name = "dualion"
+version = "0.1.0"
+description = "Dualion – dvoupanelový správce souborů"
+authors = ["Dualion"]
+edition = "2021"
+rust-version = "1.85"
+
+[lib]
+name = "dualion_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+# Capitalized so macOS shows "Dualion" in the Dock and menu bar even in dev
+# builds, and Windows gets Dualion.exe.
+[[bin]]
+name = "Dualion"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+tauri = { version = "2.12", features = ["macos-private-api", "protocol-asset", "image-png"] }
+tauri-plugin-dialog = "2.8"
+tauri-plugin-opener = "2.7"
+tauri-plugin-window-state = "2.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+parking_lot = "0.12"
+crossbeam-channel = "0.5"
+uuid = { version = "1", features = ["v4"] }
+dirs = "7"
+trash = "5"
+notify = "8"
+filetime = "0.2"
+suppaftp = { version = "12", features = ["native-tls", "deprecated"] }
+keyring = "4"
+chacha20poly1305 = "0.11"
+argon2 = "0.6"
+getrandom = "0.3"
+base64 = "0.23"
+zeroize = { version = "1", features = ["derive"] }
+ignore = "0.4"
+grep-searcher = "0.1"
+grep-regex = "0.1"
+grep-matcher = "0.1"
+globset = "0.4"
+regex = "1"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp", "ico", "tiff"] }
+zip = { version = "9", default-features = false, features = ["deflate", "deflate64"] }
+encoding_rs = "0.8"
+chardetng = "1"
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+sha2 = "0.11"
+sha1 = "0.11"
+md-5 = "0.11"
+crc32fast = "1"
+lru = "0.19"
+libc = "0.2"
+percent-encoding = "2"
+sys-locale = "0.3"
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSData", "NSGeometry", "NSDictionary", "NSArray", "NSObject", "NSURL", "NSError"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSWorkspace", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSGraphicsContext", "NSGraphics", "NSColor", "NSColorSpace", "objc2-core-graphics", "objc2-core-foundation"] }
+objc2-core-foundation = "0.3"
+objc2-core-graphics = "0.3"
+objc2-image-io = "0.3"
+objc2-quick-look-thumbnailing = "0.3"
+block2 = "0.6"
+objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-app-kit", "WKWebView", "WKSnapshotConfiguration"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+    "Win32_UI_Controls",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
+    "Win32_System_Com",
+    "Win32_System_Registry",
+    "Win32_System_Time",
+] }
+
+# Dependencies are optimized even in dev builds: thumbnails, hashing and Argon2
+# would otherwise be unusably slow while developing.
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+strip = true

@@ -1,0 +1,98 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Dualion",
+  "version": "0.1.0",
+  "identifier": "cz.dualion.commander",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "macOSPrivateApi": true,
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Dualion",
+        "width": 1320,
+        "height": 820,
+        "minWidth": 780,
+        "minHeight": 480,
+        "center": true,
+        "visible": false,
+        "transparent": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 18,
+          "y": 24
+        },
+        "dragDropEnabled": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' data: blob: asset: http://asset.localhost icon: http://icon.localhost thumb: http://thumb.localhost; media-src 'self' asset: http://asset.localhost; frame-src 'self' asset: http://asset.localhost; object-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost",
+      "devCsp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "allow": [
+            "**"
+          ],
+          "requireLiteralLeadingDot": false
+        }
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "app",
+      "dmg",
+      "msi",
+      "nsis"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "Utility",
+    "publisher": "Haluška",
+    "copyright": "© 2026 Haluška",
+    "shortDescription": "Dvoupanelový správce souborů",
+    "longDescription": "Dualion je rychlý dvoupanelový správce souborů pro Windows a macOS ve stylu Total Commanderu: fronty kopírování, vyhledávání v obsahu, FTP/FTPS se šifrovaným trezorem hesel, náhledy, hromadné přejmenování a ZIP archivy.",
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "dmg": {
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        }
+      }
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "Czech",
+          "English"
+        ],
+        "displayLanguageSelector": true
+      },
+      "wix": {
+        "language": [
+          "cs-CZ",
+          "en-US"
+        ]
+      }
+    }
+  }
+}

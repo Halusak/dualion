@@ -1,0 +1,85 @@
+import type { SizeFormat } from '../format';
+import type { Location, SortKey, ViewMode } from '../types';
+
+export interface HotlistItem {
+  name: string;
+  location: Location;
+}
+
+export interface Settings {
+  lang: 'auto' | 'cs' | 'en';
+  theme: 'system' | 'light' | 'dark';
+  density: 'compact' | 'normal' | 'comfortable';
+  fontSize: number;
+  showHidden: boolean;
+  showUp: boolean;
+  /** Show the tab bar even with a single tab. */
+  alwaysShowTabs: boolean;
+  functionBar: boolean;
+  toolbar: boolean;
+  restoreSession: boolean;
+  confirmDelete: boolean;
+  useTrash: boolean;
+  confirmCopy: boolean;
+  verify: boolean;
+  editor: string;
+  terminal: string;
+  sizeFormat: SizeFormat;
+  typeAhead: 'jump' | 'filter';
+  thumbSize: number;
+  defaultView: ViewMode;
+  defaultSort: SortKey;
+  colWidths: { ext: number; size: number; date: number; attrs: number };
+  showAttrs: boolean;
+  hotlist: HotlistItem[];
+  split: number;
+  /** User overrides of keyboard shortcuts: command id -> combos. */
+  keymap: Record<string, string[]>;
+}
+
+export const defaultSettings = (): Settings => ({
+  lang: 'auto',
+  theme: 'system',
+  density: 'normal',
+  fontSize: 0,
+  showHidden: false,
+  showUp: true,
+  alwaysShowTabs: true,
+  functionBar: true,
+  toolbar: true,
+  restoreSession: true,
+  confirmDelete: true,
+  useTrash: true,
+  confirmCopy: true,
+  verify: false,
+  editor: '',
+  terminal: '',
+  sizeFormat: 'auto',
+  typeAhead: 'jump',
+  thumbSize: 128,
+  defaultView: 'details',
+  defaultSort: 'name',
+  colWidths: { ext: 64, size: 92, date: 136, attrs: 84 },
+  showAttrs: false,
+  hotlist: [],
+  split: 0.5,
+  keymap: {},
+});
+
+export const settings: Settings = $state(defaultSettings());
+
+export function applySettings(saved: Partial<Settings> | null) {
+  if (!saved) return;
+  const d = defaultSettings();
+  for (const k of Object.keys(d) as (keyof Settings)[]) {
+    if (saved[k] !== undefined && typeof saved[k] === typeof d[k]) {
+      (settings as unknown as Record<string, unknown>)[k] = saved[k];
+    }
+  }
+  settings.colWidths = { ...d.colWidths, ...(saved.colWidths ?? {}) };
+  if (saved.keymap && typeof saved.keymap === 'object' && !Array.isArray(saved.keymap)) {
+    const km: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(saved.keymap)) if (Array.isArray(v)) km[k] = v.filter((x) => typeof x === 'string');
+    settings.keymap = km;
+  }
+}

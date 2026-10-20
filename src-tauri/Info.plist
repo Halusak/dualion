@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>en</string>
+    <string>cs</string>
+  </array>
+  <key>NSDesktopFolderUsageDescription</key>
+  <string>Dualion shows and manages the files on your Desktop.</string>
+  <key>NSDocumentsFolderUsageDescription</key>
+  <string>Dualion shows and manages the files in your Documents folder.</string>
+  <key>NSDownloadsFolderUsageDescription</key>
+  <string>Dualion shows and manages the files in your Downloads folder.</string>
+  <key>NSRemovableVolumesUsageDescription</key>
+  <string>Dualion shows and manages files on external drives.</string>
+  <key>NSNetworkVolumesUsageDescription</key>
+  <string>Dualion shows and manages files on network volumes.</string>
+  <key>NSAppleEventsUsageDescription</key>
+  <string>Dualion asks Finder to show the Get Info window.</string>
+</dict>
+</plist>

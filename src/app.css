@@ -1,0 +1,372 @@
+/* Dualion – design tokens per platform (macOS / Windows 11) and theme. */
+
+:root {
+  --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  --fs: 13px;
+  --fs-small: 11px;
+  --fs-dialog: 13px;
+  --row-h: 22px;
+  --icon-s: 16px;
+
+  --accent: #0a64d6;
+  --accent-fg: #ffffff;
+  --accent-12: rgba(10, 100, 214, 0.12);
+  --accent-20: rgba(10, 100, 214, 0.2);
+  --accent-30: rgba(10, 100, 214, 0.3);
+  --accent-text: #0a5bc4;
+
+  --r-s: 5px;
+  --r-m: 7px;
+  --r-l: 11px;
+
+  --bg-window: #ececec;
+  --bg-chrome: #ececec;
+  --bg-panel: #ffffff;
+  --bg-row-alt: #f5f5f5;
+  --bg-header: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-input: #ffffff;
+  --bg-hover: rgba(0, 0, 0, 0.045);
+  --bg-pressed: rgba(0, 0, 0, 0.08);
+  --bg-subtle: rgba(0, 0, 0, 0.035);
+  --border: rgba(0, 0, 0, 0.11);
+  --border-strong: rgba(0, 0, 0, 0.2);
+  --text: rgba(0, 0, 0, 0.86);
+  --text-2: rgba(0, 0, 0, 0.52);
+  --text-3: rgba(0, 0, 0, 0.3);
+  --danger: #d70015;
+  --ok: #248a3d;
+  --warn: #b25000;
+
+  --cursor-bg: var(--accent);
+  --cursor-fg: var(--accent-fg);
+  --cursor-bg-inactive: #dcdcdc;
+  --cursor-fg-inactive: var(--text);
+  --mark-bg: var(--accent-20);
+  --mark-fg: var(--accent-text);
+  --diff-fg: #c93400;
+
+  --btn-bg: #ffffff;
+  --btn-border: rgba(0, 0, 0, 0.14);
+  --btn-shadow: 0 0.5px 1.5px rgba(0, 0, 0, 0.12);
+  --btn-h: 24px;
+  --input-h: 24px;
+  --shadow-pop: 0 10px 40px rgba(0, 0, 0, 0.18), 0 0 0 0.5px rgba(0, 0, 0, 0.18);
+  --shadow-dialog: 0 24px 70px rgba(0, 0, 0, 0.28), 0 0 0 0.5px rgba(0, 0, 0, 0.2);
+  --focus-ring: 0 0 0 3px var(--accent-30);
+  --toolbar-h: 52px;
+  --chrome-left: 84px;
+  color-scheme: light;
+}
+
+/* ---------------------------------------------------------------- macOS dark */
+:root[data-theme='dark'] {
+  --bg-window: #262626;
+  --bg-chrome: #2b2b2b;
+  --bg-panel: #1e1e1e;
+  --bg-row-alt: #242424;
+  --bg-header: #232323;
+  --bg-elevated: #2c2c2c;
+  --bg-input: rgba(255, 255, 255, 0.06);
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --bg-pressed: rgba(255, 255, 255, 0.1);
+  --bg-subtle: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --text: rgba(255, 255, 255, 0.87);
+  --text-2: rgba(255, 255, 255, 0.55);
+  --text-3: rgba(255, 255, 255, 0.28);
+  --danger: #ff453a;
+  --ok: #32d74b;
+  --warn: #ff9f0a;
+  --cursor-bg-inactive: #464646;
+  --diff-fg: #ff9f5a;
+  --btn-bg: rgba(255, 255, 255, 0.14);
+  --btn-border: rgba(255, 255, 255, 0.08);
+  --btn-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(255, 255, 255, 0.15);
+  --shadow-dialog: 0 24px 70px rgba(0, 0, 0, 0.55), 0 0 0 0.5px rgba(255, 255, 255, 0.16);
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------- Windows 11 */
+:root[data-platform='windows'] {
+  --font-ui: 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, monospace;
+  --fs: 12px;
+  --fs-small: 11px;
+  --fs-dialog: 14px;
+  --row-h: 24px;
+  --r-s: 4px;
+  --r-m: 4px;
+  --r-l: 8px;
+  --bg-window: #f3f3f3;
+  --bg-chrome: #f3f3f3;
+  --bg-panel: #ffffff;
+  --bg-row-alt: #ffffff;
+  --bg-header: #ffffff;
+  --bg-elevated: #f9f9f9;
+  --bg-input: #ffffff;
+  --bg-hover: rgba(0, 0, 0, 0.037);
+  --bg-pressed: rgba(0, 0, 0, 0.024);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.16);
+  --text: rgba(0, 0, 0, 0.9);
+  --text-2: rgba(0, 0, 0, 0.61);
+  --text-3: rgba(0, 0, 0, 0.36);
+  --cursor-bg: var(--accent-20);
+  --cursor-fg: var(--text);
+  --cursor-bg-inactive: rgba(0, 0, 0, 0.06);
+  --mark-bg: var(--accent-12);
+  --mark-fg: var(--accent-text);
+  --btn-bg: #fbfbfb;
+  --btn-border: rgba(0, 0, 0, 0.07);
+  --btn-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  --btn-h: 30px;
+  --input-h: 30px;
+  --shadow-pop: 0 8px 16px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --shadow-dialog: 0 32px 64px rgba(0, 0, 0, 0.19), 0 2px 21px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --focus-ring: 0 0 0 2px var(--accent);
+  --toolbar-h: 46px;
+  --chrome-left: 10px;
+}
+
+:root[data-platform='windows'][data-theme='dark'] {
+  --bg-window: #202020;
+  --bg-chrome: #202020;
+  --bg-panel: #191919;
+  --bg-row-alt: #191919;
+  --bg-header: #191919;
+  --bg-elevated: #2b2b2b;
+  --bg-input: rgba(255, 255, 255, 0.06);
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --bg-pressed: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.084);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: #ffffff;
+  --text-2: rgba(255, 255, 255, 0.79);
+  --text-3: rgba(255, 255, 255, 0.36);
+  --cursor-bg: var(--accent-30);
+  --cursor-fg: #ffffff;
+  --cursor-bg-inactive: rgba(255, 255, 255, 0.08);
+  --mark-bg: var(--accent-20);
+  --btn-bg: rgba(255, 255, 255, 0.06);
+  --btn-border: rgba(255, 255, 255, 0.09);
+  --btn-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --shadow-dialog: 0 32px 64px rgba(0, 0, 0, 0.37), 0 2px 21px rgba(0, 0, 0, 0.37), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Backdrop materials: let vibrancy / Mica show through the window chrome. */
+:root[data-effects='vibrancy'] {
+  --bg-window: transparent;
+  --bg-chrome: transparent;
+}
+:root[data-effects='mica'] {
+  --bg-window: transparent;
+  --bg-chrome: transparent;
+}
+
+:root[data-density='compact'] {
+  --row-h: 19px;
+}
+:root[data-platform='windows'][data-density='compact'] {
+  --row-h: 21px;
+}
+:root[data-density='comfortable'] {
+  --row-h: 26px;
+}
+:root[data-platform='windows'][data-density='comfortable'] {
+  --row-h: 30px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-window);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--fs);
+  -webkit-font-smoothing: antialiased;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+#app {
+  height: 100%;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+button {
+  cursor: default;
+}
+
+::selection {
+  background: var(--accent-30);
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.btn {
+  height: var(--btn-h);
+  padding: 0 12px;
+  border-radius: var(--r-s);
+  border: 0.5px solid var(--btn-border);
+  background: var(--btn-bg);
+  box-shadow: var(--btn-shadow);
+  white-space: nowrap;
+  min-width: 72px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+:root[data-platform='windows'] .btn {
+  border-width: 1px;
+  min-width: 96px;
+}
+.btn:hover {
+  filter: brightness(0.98);
+}
+.btn:active {
+  filter: brightness(0.94);
+}
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: transparent;
+}
+.btn.danger {
+  color: var(--danger);
+}
+.btn:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.btn.small {
+  min-width: 0;
+  height: 22px;
+  padding: 0 8px;
+}
+
+.input {
+  height: var(--input-h);
+  padding: 0 8px;
+  border-radius: var(--r-s);
+  border: 0.5px solid var(--border-strong);
+  background: var(--bg-input);
+  outline: none;
+  min-width: 0;
+}
+:root[data-platform='windows'] .input {
+  border: 1px solid var(--border);
+  border-bottom-color: var(--text-3);
+}
+.input:focus {
+  box-shadow: var(--focus-ring);
+  border-color: var(--accent);
+}
+:root[data-platform='windows'] .input:focus {
+  box-shadow: inset 0 -2px 0 var(--accent);
+  border-bottom-color: var(--accent);
+}
+.input.mono {
+  font-family: var(--font-mono);
+}
+
+select.input {
+  padding-right: 4px;
+}
+
+label.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+input[type='checkbox'] {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--r-s);
+  background: transparent;
+  color: var(--text-2);
+  padding: 0;
+}
+.icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.icon-btn:active,
+.icon-btn.on {
+  background: var(--bg-pressed);
+  color: var(--text);
+}
+.icon-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.muted {
+  color: var(--text-2);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Thin overlay-style scrollbars on Windows (macOS draws its own). */
+:root[data-platform='windows'] ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+:root[data-platform='windows'] ::-webkit-scrollbar-thumb {
+  background: var(--text-3);
+  border: 4px solid transparent;
+  border-radius: 8px;
+  background-clip: padding-box;
+}
+:root[data-platform='windows'] ::-webkit-scrollbar-thumb:hover {
+  border-width: 3px;
+}
+:root[data-platform='windows'] ::-webkit-scrollbar-track,
+:root[data-platform='windows'] ::-webkit-scrollbar-corner {
+  background: transparent;
+}
