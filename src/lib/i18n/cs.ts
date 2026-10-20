@@ -546,6 +546,13 @@ export const cs: Record<Key, string> & Record<string, string> = {
   'help.nav.esc': 'Zrušit výběr nebo filtr',
   'help.tip': 'Tip: všechny příkazy najdete i v menu. Většina F-kláves funguje jako v Total Commanderu.',
 
+  'pv.preview': 'Náhled',
+  'pv.rows': '{rows} řádků × {cols} sloupců',
+  'pv.truncated': 'Zobrazen jen začátek',
+  'pv.slide': 'Snímek {n}',
+  'pv.empty': 'Bez čitelného obsahu',
+  'pv.failed': 'Tento soubor nelze zobrazit',
+  'pv.fontSample': 'Příliš žluťoučký kůň úpěl ďábelské ódy',
   'viewer.text': 'Text',
   'viewer.hex': 'Hex',
   'viewer.wrap': 'Zalamovat řádky',

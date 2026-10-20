@@ -5,10 +5,21 @@
     isWindows ? ['exe', 'lnk', 'ico', 'url', 'msc', 'cpl', 'scr', 'appref-ms'] : ['icns', 'webloc', 'fileloc', 'terminal', 'app'],
   );
   const THUMBS = new Set([
-    'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico', 'tif', 'tiff', 'heic', 'heif', 'avif', 'psd', 'svg',
-    'dng', 'cr2', 'cr3', 'nef', 'arw', 'orf', 'raf', 'rw2',
-    'mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', 'wmv', 'mpg', 'mpeg', '3gp',
-    'pdf', 'docx', 'xlsx', 'pptx', 'pages', 'numbers', 'key', 'odt', 'ods', 'epub',
+    // images
+    'jpg', 'jpeg', 'jfif', 'png', 'apng', 'gif', 'webp', 'bmp', 'ico', 'icns', 'tif', 'tiff', 'heic', 'heif', 'avif', 'jxl', 'tga', 'exr', 'hdr', 'svg',
+    // camera raw
+    'dng', 'cr2', 'cr3', 'crw', 'nef', 'nrw', 'arw', 'srf', 'sr2', 'orf', 'rw2', 'raf', 'pef', 'srw', 'x3f', 'erf', 'kdc', 'dcr', 'mrw', '3fr', 'iiq', 'rwl', 'mos',
+    // design apps
+    'psd', 'psb', 'af', 'afphoto', 'afdesign', 'afpub', 'aftemplate', 'clip', 'kra', 'krz', 'ora', 'sketch', 'procreate', 'xmind', 'ai', 'eps', 'indd',
+    // video
+    'mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', 'wmv', 'mpg', 'mpeg', '3gp', 'mts', 'm2ts', 'flv',
+    // audio with cover art
+    'mp3', 'm4a', 'm4b', 'aac', 'flac', 'aiff', 'aif', 'wma', 'dsf',
+    // documents
+    'pdf', 'doc', 'docx', 'docm', 'dotx', 'xls', 'xlsx', 'xlsm', 'xlsb', 'ppt', 'pptx', 'pptm', 'ppsx', 'pps', 'rtf', 'pages', 'numbers', 'key',
+    'odt', 'ott', 'ods', 'ots', 'odp', 'otp', 'odg', 'otg', 'epub', 'mobi', 'azw3', 'vsd', 'pub',
+    // 3D
+    '3mf', 'stl', 'obj', 'usdz', 'fbx',
   ]);
 
   export function hasThumbnail(ext: string): boolean {
@@ -22,7 +33,7 @@
   import Folder from '@lucide/svelte/icons/folder';
   import HardDrive from '@lucide/svelte/icons/hard-drive';
   import { joinLocal } from '../lib/paths';
-  import { dpr, extIconUrl, kindIconUrl, pathIconUrl, thumbUrl } from '../lib/platform';
+  import { assetUrl, dpr, extIconUrl, kindIconUrl, pathIconUrl, thumbUrl } from '../lib/platform';
   import { app } from '../lib/state/app.svelte';
   import { F, type Entry, type Location } from '../lib/types';
 
@@ -44,8 +55,9 @@
     if (entry.isDir) return kindIconUrl('dir', px);
     return ext ? extIconUrl(ext, px) : kindIconUrl('file', px);
   });
+  // SVG renders crisply straight from disk; everything else goes through the thumbnail pipeline.
   const thumbSrc = $derived(
-    thumb && localPath && !entry.isDir && hasThumbnail(ext) ? thumbUrl(localPath, Math.round(px * 1.0), entry.mtime) : null,
+    !thumb || !localPath || entry.isDir || !hasThumbnail(ext) ? null : ext === 'svg' ? assetUrl(localPath) : thumbUrl(localPath, px, entry.mtime),
   );
 
   let failed = $state<string | null>(null);

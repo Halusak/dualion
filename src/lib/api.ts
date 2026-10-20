@@ -4,6 +4,9 @@ import type {
   ChecksumEvent,
   Connected,
   DirSize,
+  DocumentPreview,
+  SheetPreview,
+  SlidePreview,
   JobRequest,
   JobSnapshot,
   Answer,
@@ -80,6 +83,9 @@ export const api = {
   viewerProbe: (path: string) => invoke<ViewerProbe>('viewer_probe', { path }),
   viewerReadText: (path: string, offset: number, max: number, encoding: string) =>
     invoke<TextChunk>('viewer_read_text', { path, offset, max, encoding }),
+  previewSheet: (path: string, sheet: number, maxRows: number) => invoke<SheetPreview>('preview_sheet', { path, sheet, maxRows }),
+  previewDocument: (path: string) => invoke<DocumentPreview>('preview_document', { path }),
+  previewSlides: (path: string) => invoke<SlidePreview[]>('preview_slides', { path }),
   viewerReadBytes: (path: string, offset: number, len: number) =>
     invoke<ArrayBuffer>('viewer_read_bytes', { path, offset, len }),
   iconPng: (kind: 'ext' | 'dir' | 'file' | 'path', value: string, px: number) =>

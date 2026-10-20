@@ -555,6 +555,13 @@ export const en = {
   'help.tip': 'Tip: commands are also in the menu bar. Most F-keys work like in Total Commander.',
 
   // Viewer
+  'pv.preview': 'Preview',
+  'pv.rows': '{rows} rows × {cols} columns',
+  'pv.truncated': 'Showing the beginning only',
+  'pv.slide': 'Slide {n}',
+  'pv.empty': 'No readable content',
+  'pv.failed': 'This file cannot be previewed',
+  'pv.fontSample': 'The quick brown fox jumps over the lazy dog',
   'viewer.text': 'Text',
   'viewer.hex': 'Hex',
   'viewer.wrap': 'Wrap lines',

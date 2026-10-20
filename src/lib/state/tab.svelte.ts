@@ -135,8 +135,12 @@ export class Tab {
   get title(): string {
     const crumbs = this.listing?.crumbs;
     if (this.location.kind === 'search') return this.location.label;
-    if (!crumbs || crumbs.length === 0) return '';
-    return crumbs[crumbs.length - 1].label;
+    if (crumbs && crumbs.length > 0) return crumbs[crumbs.length - 1].label;
+    // Not loaded yet (lazily restored tabs): derive a name from the location.
+    const loc = this.location;
+    if (loc.kind === 'local' || loc.kind === 'ftp') return baseName(loc.path) || loc.path;
+    if (loc.kind === 'archive') return baseName(loc.inner) || baseName(loc.archive);
+    return '';
   }
 
   get canGoBack() {

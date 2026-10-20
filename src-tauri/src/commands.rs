@@ -417,6 +417,21 @@ pub async fn viewer_read_text(path: String, offset: u64, max: usize, encoding: S
 }
 
 #[tauri::command]
+pub async fn preview_sheet(path: String, sheet: usize, max_rows: usize) -> AppResult<crate::preview::sheet::SheetPreview> {
+    blocking(move || crate::preview::sheet::workbook(std::path::Path::new(&path), sheet, max_rows.clamp(1, 20_000))).await
+}
+
+#[tauri::command]
+pub async fn preview_document(path: String) -> AppResult<crate::preview::DocumentPreview> {
+    blocking(move || crate::preview::document(std::path::Path::new(&path))).await
+}
+
+#[tauri::command]
+pub async fn preview_slides(path: String) -> AppResult<Vec<crate::preview::Slide>> {
+    blocking(move || crate::preview::slides(std::path::Path::new(&path))).await
+}
+
+#[tauri::command]
 pub async fn viewer_read_bytes(path: String, offset: u64, len: usize) -> AppResult<Response> {
     let bytes = blocking(move || viewer::read_bytes(std::path::Path::new(&path), offset, len)).await?;
     Ok(Response::new(bytes))

@@ -11,6 +11,7 @@ mod local;
 mod location;
 mod menu;
 mod platform;
+mod preview;
 mod rename;
 mod search;
 mod thumbs;
@@ -198,6 +199,9 @@ pub fn run() {
             commands::viewer_probe,
             commands::viewer_read_text,
             commands::viewer_read_bytes,
+            commands::preview_sheet,
+            commands::preview_document,
+            commands::preview_slides,
             commands::checksum_start,
             commands::icon_png,
             commands::vault_status,

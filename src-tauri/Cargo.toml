@@ -16,6 +16,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 name = "Dualion"
 path = "src/main.rs"
 
+[dev-dependencies]
+# Writes compound files in tests of our own tolerant reader.
+cfb = "0.15"
+
 [build-dependencies]
 tauri-build = { version = "2.7", features = [] }
 
@@ -61,6 +65,8 @@ libc = "0.2"
 percent-encoding = "2"
 sys-locale = "0.3"
 qrcode = { version = "0.14", default-features = false, features = ["svg"] }
+calamine = "0.37"
+quick-xml = "0.42"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"

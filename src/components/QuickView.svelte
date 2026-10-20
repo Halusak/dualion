@@ -3,11 +3,11 @@
   import { api } from '../lib/api';
   import { formatDate, formatSize } from '../lib/format';
   import { localeTag, t } from '../lib/i18n/index.svelte';
-  import { assetUrl } from '../lib/platform';
   import { app } from '../lib/state/app.svelte';
   import { settings } from '../lib/state/settings.svelte';
   import { F, type DirSize, type Entry, type ViewerProbe } from '../lib/types';
   import FileIcon from './FileIcon.svelte';
+  import Preview, { hasPreview } from './preview/Preview.svelte';
 
   const source = $derived(app.panel);
   const entry = $derived<Entry | undefined>(source.current);
@@ -16,6 +16,7 @@
   let text = $state('');
   let dir = $state<DirSize | null>(null);
   let path = $state<string | null>(null);
+  let failed = $state<string | null>(null);
   const locale = $derived(localeTag());
 
   $effect(() => {
@@ -54,17 +55,9 @@
 <div class="qv">
   {#if !entry || entry.flags & F.UP}
     <div class="center muted">{t('qv.select')}</div>
-  {:else if probe && path && probe.kind === 'image'}
-    <div class="media"><img src={assetUrl(path)} alt={entry.name} /></div>
-  {:else if probe && path && probe.kind === 'video'}
-    <div class="media">
-      <!-- svelte-ignore a11y_media_has_caption -->
-      <video src={assetUrl(path)} controls preload="metadata"></video>
-    </div>
-  {:else if probe && path && probe.kind === 'audio'}
-    <div class="center"><audio src={assetUrl(path)} controls preload="metadata"></audio></div>
-  {:else if probe && path && probe.kind === 'pdf'}
-    <iframe class="pdf" src={assetUrl(path)} title={entry.name}></iframe>
+  {:else if probe && path && hasPreview(probe.kind) && failed !== path}
+    {@const p = path}
+    <Preview path={p} name={entry.name} {probe} compact onfail={() => (failed = p)} />
   {:else if probe?.kind === 'text'}
     <pre class="text">{text}</pre>
   {:else}
@@ -105,26 +98,6 @@
     font-size: 14px;
     word-break: break-all;
     margin-top: 6px;
-  }
-  .media {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 10px;
-  }
-  .media img,
-  .media video {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    border-radius: 4px;
-  }
-  .pdf {
-    flex: 1;
-    border: none;
-    width: 100%;
   }
   .text {
     flex: 1;

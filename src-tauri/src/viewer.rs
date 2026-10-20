@@ -2,6 +2,7 @@
 //! and binary reads so multi-gigabyte files open instantly.
 
 use crate::error::{AppError, AppResult};
+use crate::preview;
 use crate::util::system_time_ms;
 use serde::Serialize;
 use std::fs::File;
@@ -13,9 +14,12 @@ use std::path::Path;
 pub struct Probe {
     pub size: u64,
     pub mtime: i64,
-    /// "text" | "binary" | "image" | "video" | "audio" | "pdf"
+    /// "text" | "binary" | "image" | "video" | "audio" | "pdf" |
+    /// "render" | "sheet" | "document" | "slides" | "font"
     pub kind: &'static str,
     pub encoding: String,
+    /// Whether the raw content is readable text (Text mode makes sense).
+    pub textual: bool,
 }
 
 const IMAGE: &[&str] = &["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "ico", "avif"];
@@ -50,20 +54,33 @@ pub fn detect_encoding(head: &[u8]) -> String {
 pub fn probe(path: &Path) -> AppResult<Probe> {
     let meta = std::fs::metadata(path).map_err(|e| AppError::io(e, path))?;
     let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
-    let base = Probe { size: meta.len(), mtime: meta.modified().map(system_time_ms).unwrap_or(0), kind: "text", encoding: String::new() };
-    let kind = if IMAGE.contains(&ext.as_str()) || IMAGE_NATIVE.contains(&ext.as_str()) {
+    let base = Probe { size: meta.len(), mtime: meta.modified().map(system_time_ms).unwrap_or(0), kind: "text", encoding: String::new(), textual: false };
+    let e = ext.as_str();
+    let kind = if IMAGE.contains(&e) || IMAGE_NATIVE.contains(&e) {
         Some("image")
-    } else if VIDEO.contains(&ext.as_str()) {
+    } else if VIDEO.contains(&e) {
         Some("video")
-    } else if AUDIO.contains(&ext.as_str()) {
+    } else if AUDIO.contains(&e) {
         Some("audio")
-    } else if ext == "pdf" {
+    } else if e == "pdf" {
         Some("pdf")
+    } else if preview::SHEET.contains(&e) {
+        Some("sheet")
+    } else if preview::DOCUMENT.contains(&e) {
+        Some("document")
+    } else if preview::SLIDES.contains(&e) {
+        Some("slides")
+    } else if preview::FONT.contains(&e) {
+        Some("font")
+    } else if preview::is_renderable(e) {
+        Some("render")
     } else {
         None
     };
     if let Some(kind) = kind {
-        return Ok(Probe { kind, ..base });
+        let textual = matches!(e, "csv" | "tsv" | "tab" | "rtf" | "svg");
+        let encoding = if textual { probe_encoding(path).unwrap_or_default() } else { String::new() };
+        return Ok(Probe { kind, textual, encoding, ..base });
     }
     let mut f = File::open(path).map_err(|e| AppError::io(e, path))?;
     let mut head = vec![0u8; 64 * 1024];
@@ -74,7 +91,12 @@ pub fn probe(path: &Path) -> AppResult<Probe> {
     if !utf16 && nuls > 0 {
         return Ok(Probe { kind: "binary", ..base });
     }
-    Ok(Probe { kind: "text", encoding: detect_encoding(&head), ..base })
+    Ok(Probe { kind: "text", encoding: detect_encoding(&head), textual: true, ..base })
+}
+
+fn probe_encoding(path: &Path) -> Option<String> {
+    let head = read_bytes(path, 0, 64 * 1024).ok()?;
+    Some(detect_encoding(&head))
 }
 
 fn read_full(f: &mut File, buf: &mut [u8]) -> std::io::Result<usize> {

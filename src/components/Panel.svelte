@@ -22,6 +22,7 @@
   const sideObj = $derived(app.side(side));
   const tab = $derived(sideObj.tab);
   const active = $derived(app.activeSide === side);
+  const showTabs = $derived(settings.alwaysShowTabs || sideObj.tabs.length > 1);
   const showQuickView = $derived(app.quickView && !active);
   const dropHere = $derived(drag.active && drag.over?.side === side && !drag.over.entryKey && drag.from !== side);
 
@@ -58,14 +59,15 @@
   class="panel"
   class:active
   class:drop={dropHere}
+  class:notabs={!showTabs}
   data-side={side}
   bind:this={root}
   tabindex="0"
   onpointerdown={() => (app.activeSide = side)}
   onfocusin={() => (app.activeSide = side)}
 >
-  {#if settings.alwaysShowTabs || sideObj.tabs.length > 1}
-    <TabBar {side} />
+  {#if showTabs}
+    <TabBar {side} {active} />
   {/if}
   <PathBar {tab} {side} {active} />
 
@@ -128,7 +130,8 @@
   .panel.active {
     border-color: var(--border-strong);
   }
-  .panel.active::after {
+  /* Without a tab bar the panel itself carries the accent line. */
+  .panel.active.notabs::after {
     content: '';
     position: absolute;
     left: 0;

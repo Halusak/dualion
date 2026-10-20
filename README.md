@@ -11,6 +11,7 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 - Drobečková navigace nad panelem: klik na libovolnou úroveň vrátí do dané složky, šipka mezi úrovněmi nabídne podsložky, klik za poslední položku přepne do psaní cesty s našeptávačem (`~`, `$HOME`, `%USERPROFILE%`, relativní cesty, cesta k souboru otevře jeho složku).
 - Režimy zobrazení: podrobnosti (řaditelné a roztažitelné sloupce), seznam (sloupcový tok jako „Stručný“ v TC), velké ikony, náhledy.
 - Nativní ikony souborů (stejné jako Finder / Průzkumník) a náhledy obrázků, videí, PDF a dokumentů (macOS ImageIO + QuickLook, Windows shell).
+- Vlastní náhledy formátů, které systém často neumí: PSD/PSB (bez Photoshopu), Affinity (`.af`, `.afphoto`, `.afdesign`, `.afpub`), Krita, OpenRaster, Sketch, Procreate, Clip Studio, XMind, 3MF, RAW fotky, obaly alb v MP3/M4A/FLAC, Office (`.docx`, `.xlsx`, `.pptx`), OpenDocument, iWork a EPUB.
 - Virtualizované seznamy – i složky se stovkami tisíc souborů jsou plynulé.
 - Disky a místa (s volným místem), oblíbené složky, historie zpět/vpřed, skryté soubory, rychlý filtr, rychlé hledání psaním, panel rychlého náhledu.
 
@@ -26,7 +27,7 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 - **FTP / FTPS** (explicitní i implicitní TLS, pasivní/aktivní režim, kódování názvů vč. Windows‑1250). Přístupy jsou uložené v trezoru šifrovaném XChaCha20‑Poly1305; klíč je v Klíčence macOS / Správci pověření Windows, nebo odvozený z hlavního hesla (Argon2id). Hesla nikdy neopustí backend.
 - ZIP archivy: procházení jako složka, rozbalení, zabalení.
 - Hromadné přejmenování s náhledem (`[N] [N2-5] [E] [C] [Y][M][D] [h][m][s] [P]`, hledat/nahradit vč. regexu, velikost písmen, vrácení akce).
-- Prohlížeč F3 (text s detekcí kódování, hex, obrázky, video, audio, PDF), editor F4, terminál F9, kontrolní součty (MD5/SHA‑1/SHA‑256/SHA‑512/CRC32/XXH3), porovnání složek, výpočet velikosti složek, symbolické odkazy.
+- Prohlížeč F3 a panel rychlého náhledu: text s detekcí kódování, hex, obrázky, video, audio, PDF, tabulky (`.xls`, `.xlsx`, `.xlsb`, `.ods`, `.csv`/`.tsv` vč. listů), dokumenty (`.doc`, `.docx`, `.odt`, `.rtf`), prezentace (`.pptx`, `.odp`), vzorník písem (`.ttf`, `.otf`, `.woff`) a vykreslení PSD/Affinity/RAW; editor F4, terminál F9, kontrolní součty (MD5/SHA‑1/SHA‑256/SHA‑512/CRC32/XXH3), porovnání složek, výpočet velikosti složek, symbolické odkazy.
 
 **Vzhled a ovládání**
 - macOS: sjednocený titulek s vibrancy, vycentrované akce, nativní menu a kontextová menu, „sheety“, systémová barva zvýraznění.
@@ -92,7 +93,7 @@ DUALION_FTP=127.0.0.1:2121 DUALION_FTPS=127.0.0.1:2122 cargo test ftp_e2e -- --i
 
 ## Architektura
 
-- `src-tauri/` – Rust backend (Tauri 2): výpisy a svazky (`local.rs`), fronta úloh a kopírovací engine (`jobs/`), FTP (`ftp.rs`), šifrovaný trezor (`vault.rs`), vyhledávání (`search.rs`), nativní ikony a náhledy (`icons/`, `thumbs.rs`), prohlížeč (`viewer.rs`), nativní menu (`menu.rs`), sledování změn složek (`watcher.rs`).
+- `src-tauri/` – Rust backend (Tauri 2): výpisy a svazky (`local.rs`), fronta úloh a kopírovací engine (`jobs/`), FTP (`ftp.rs`), šifrovaný trezor (`vault.rs`), vyhledávání (`search.rs`), nativní ikony a náhledy (`icons/`, `thumbs.rs`), vlastní dekodéry náhledů (`preview/`), prohlížeč (`viewer.rs`), nativní menu (`menu.rs`), sledování změn složek (`watcher.rs`).
 - `src/` – Svelte 5 + TypeScript: stav panelů a karet (`lib/state/`), příkazy a klávesové zkratky (`lib/commands.ts`), akce (`lib/actions.ts`), komponenty (`components/`), překlady (`lib/i18n/`).
 
 Nastavení, relace a trezor se ukládají do systémové složky aplikace (`~/Library/Application Support/cz.dualion.commander`, resp. `%APPDATA%\cz.dualion.commander`).

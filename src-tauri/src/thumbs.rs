@@ -77,7 +77,8 @@ fn cache_key(path: &Path, px: u32) -> Option<String> {
 }
 
 pub fn thumbnail(path: &Path, px: u32) -> Option<Arc<Thumb>> {
-    let px = px.clamp(32, 1024);
+    // Up to 4096 px: the viewer uses this pipeline to render PSD, RAW, Affinity…
+    let px = px.clamp(32, 4096);
     let key = cache_key(path, px)?;
     if let Some(hit) = MEM.lock().get(&key) {
         return Some(hit.clone());
@@ -100,6 +101,13 @@ pub fn thumbnail(path: &Path, px: u32) -> Option<Arc<Thumb>> {
 }
 
 fn generate(path: &Path, px: u32) -> Option<Thumb> {
+    let ext = crate::preview::ext_of(path);
+    let own_first = crate::preview::prefer_own(&ext);
+    if own_first {
+        if let Some(img) = crate::preview::extract_image(path, px) {
+            return encode(img);
+        }
+    }
     #[cfg(target_os = "macos")]
     {
         if let Some(t) = macos::image_io(path, px) {
@@ -115,7 +123,11 @@ fn generate(path: &Path, px: u32) -> Option<Thumb> {
             return Some(Thumb { bytes: png, mime: "image/png" });
         }
     }
-    let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+    if !own_first && crate::preview::may_have_image(&ext) {
+        if let Some(img) = crate::preview::extract_image(path, px) {
+            return encode(img);
+        }
+    }
     if IMAGE_CRATE_EXTS.contains(&ext.as_str()) {
         return with_image_crate(path, px);
     }
@@ -170,8 +182,9 @@ mod macos {
     use std::time::Duration;
 
     const IMAGE_EXTS: &[&str] = &[
-        "jpg", "jpeg", "png", "gif", "webp", "bmp", "ico", "icns", "tif", "tiff", "heic", "heif", "avif", "psd",
-        "tga", "dng", "cr2", "cr3", "nef", "arw", "orf", "raf", "rw2", "pef", "srw", "jp2", "exr", "svg",
+        "jpg", "jpeg", "png", "gif", "webp", "bmp", "ico", "icns", "tif", "tiff", "heic", "heif", "avif", "psd", "psb",
+        "tga", "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "srf", "sr2", "orf", "raf", "rw2", "pef", "srw", "x3f",
+        "erf", "kdc", "dcr", "mrw", "3fr", "iiq", "jp2", "exr", "hdr", "pbm", "pgm", "ppm", "svg",
     ];
 
     fn encode_cg(cg: &CGImage) -> Option<Thumb> {

@@ -288,11 +288,42 @@ export interface Connected {
   welcome: string | null;
 }
 
+export type PreviewKind = 'text' | 'binary' | 'image' | 'video' | 'audio' | 'pdf' | 'render' | 'sheet' | 'document' | 'slides' | 'font';
+
 export interface ViewerProbe {
   size: number;
   mtime: number;
-  kind: 'text' | 'binary' | 'image' | 'video' | 'audio' | 'pdf';
+  kind: PreviewKind;
   encoding: string;
+  /** Raw content is readable text (Text mode makes sense). */
+  textual: boolean;
+}
+
+export interface SheetPreview {
+  sheets: string[];
+  sheet: number;
+  rows: string[][];
+  startRow: number;
+  startCol: number;
+  totalRows: number;
+  totalCols: number;
+  truncated: boolean;
+}
+
+export interface DocBlock {
+  kind: 'h1' | 'h2' | 'h3' | 'p' | 'li' | 'table';
+  text: string;
+  rows?: string[][];
+}
+
+export interface DocumentPreview {
+  blocks: DocBlock[];
+  truncated: boolean;
+}
+
+export interface SlidePreview {
+  title: string;
+  lines: string[];
 }
 
 export interface TextChunk {

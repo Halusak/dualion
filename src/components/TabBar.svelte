@@ -9,7 +9,7 @@
   import { app, type SideName } from '../lib/state/app.svelte';
   import type { Tab } from '../lib/state/tab.svelte';
 
-  let { side }: { side: SideName } = $props();
+  let { side, active = false }: { side: SideName; active?: boolean } = $props();
   const s = $derived(app.side(side));
 
   function label(tab: Tab): string {
@@ -27,6 +27,7 @@
     <div
       class="tab"
       class:on={i === s.active}
+      class:focus={active && i === s.active}
       class:locked={tab.locked}
       class:last-locked={tab.locked && !s.tabs[i + 1]?.locked}
       title={tab.locked ? `${label(tab)} – ${t('tabs.locked')}` : label(tab)}
@@ -82,8 +83,9 @@
     border-bottom: 1px solid var(--border);
     overflow: hidden;
   }
+  /* Tabs share the whole bar evenly, like Safari / Finder. */
   .tab {
-    flex: 0 1 180px;
+    flex: 1 1 0;
     min-width: 54px;
     height: 100%;
     display: flex;
@@ -96,7 +98,6 @@
     position: relative;
   }
   .tab.locked {
-    flex: 0 1 140px;
     padding-right: 10px;
   }
   .tab.last-locked::after {
@@ -119,6 +120,18 @@
       0 1px 0 var(--bg-panel);
     font-weight: 600;
     z-index: 1;
+  }
+  /* Only the active tab of the active panel carries the accent line. */
+  .tab.focus::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 2px;
+    border-radius: var(--r-m) var(--r-m) 0 0;
+    background: var(--accent);
+    pointer-events: none;
   }
   .label {
     flex: 1;

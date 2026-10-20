@@ -5,24 +5,23 @@
   import { api } from '../../lib/api';
   import { formatSize } from '../../lib/format';
   import { localeTag, t } from '../../lib/i18n/index.svelte';
-  import { assetUrl } from '../../lib/platform';
   import { settings } from '../../lib/state/settings.svelte';
   import { showError } from '../../lib/state/ui.svelte';
   import type { ViewerProbe } from '../../lib/types';
+  import Preview, { hasPreview } from '../preview/Preview.svelte';
   import Modal from './Modal.svelte';
 
   let { path, name, close }: { path: string; name: string; close: (r: null) => void } = $props();
 
   const CHUNK = 4 * 1024 * 1024;
   let probe = $state<ViewerProbe | null>(null);
-  let mode = $state<'text' | 'hex' | 'media'>('text');
+  let mode = $state<'text' | 'hex' | 'preview'>('text');
   let encoding = $state('utf-8');
   let text = $state('');
   let offset = $state(0);
   let eof = $state(true);
   let wrap = $state(true);
   let find = $state('');
-  let fit = $state(true);
   let textarea = $state<HTMLTextAreaElement>();
   let findInput = $state<HTMLInputElement>();
   let notFound = $state(false);
@@ -30,12 +29,10 @@
   onMount(async () => {
     try {
       probe = await api.viewerProbe(path);
-      if (['image', 'video', 'audio', 'pdf'].includes(probe.kind)) mode = 'media';
+      encoding = probe.encoding || 'utf-8';
+      if (hasPreview(probe.kind)) mode = 'preview';
       else if (probe.kind === 'binary') mode = 'hex';
-      else {
-        encoding = probe.encoding || 'utf-8';
-        await loadText(true);
-      }
+      else await loadText(true);
     } catch (e) {
       showError(e);
       close(null);
@@ -148,10 +145,10 @@
         <strong class="ellipsis" title={path}>{name}</strong>
         {#if probe}<span class="muted">{formatSize(probe.size, localeTag(), settings.sizeFormat)}</span>{/if}
         <div class="seg">
-          {#if probe && probe.kind !== 'text' && probe.kind !== 'binary'}
-            <button class:on={mode === 'media'} onclick={() => (mode = 'media')}>{name.split('.').pop()?.toUpperCase()}</button>
+          {#if probe && hasPreview(probe.kind)}
+            <button class:on={mode === 'preview'} onclick={() => (mode = 'preview')}>{t('pv.preview')}</button>
           {/if}
-          {#if probe && (probe.kind === 'text' || probe.kind === 'binary')}
+          {#if probe && (!hasPreview(probe.kind) || probe.textual)}
             <button class:on={mode === 'text'} onclick={() => { mode = 'text'; if (!text) void loadText(true); }}>{t('viewer.text')}</button>
           {/if}
           <button class:on={mode === 'hex'} onclick={() => (mode = 'hex')}>{t('viewer.hex')}</button>
@@ -198,17 +195,8 @@
               {/each}
             </div>
           </div>
-        {:else if probe?.kind === 'image'}
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-          <div class="media" class:fit onclick={() => (fit = !fit)}><img src={assetUrl(path)} alt={name} /></div>
-        {:else if probe?.kind === 'video'}
-          <!-- svelte-ignore a11y_media_has_caption -->
-          <div class="media fit"><video src={assetUrl(path)} controls autoplay></video></div>
-        {:else if probe?.kind === 'audio'}
-          <div class="media fit"><audio src={assetUrl(path)} controls autoplay></audio></div>
-        {:else if probe?.kind === 'pdf'}
-          <iframe class="pdf" src={assetUrl(path)} title={name}></iframe>
+        {:else if probe}
+          <Preview {path} {name} {probe} />
         {/if}
       </div>
       {#if mode === 'text'}
@@ -320,31 +308,6 @@
   }
   .ascii {
     color: var(--text-2);
-  }
-  .media {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    background: repeating-conic-gradient(var(--bg-subtle) 0% 25%, transparent 0% 50%) 50% / 20px 20px;
-  }
-  .media.fit img,
-  .media.fit video {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-  }
-  .media:not(.fit) {
-    align-items: flex-start;
-    justify-content: flex-start;
-  }
-  .pdf {
-    flex: 1;
-    border: none;
-    width: 100%;
   }
   footer {
     padding: 6px 12px;
