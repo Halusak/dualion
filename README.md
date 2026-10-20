@@ -24,7 +24,7 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 
 ### Panely a navigace
 
-- **Dva panely s kartami.** Nová karta, duplikace, zavření ostatních, přetažením lze karty přeřadit, prostředním tlačítkem zavřít. Karty se rovnoměrně vejdou do lišty, aktivní karta aktivního panelu má modrou linku.
+- **Dva panely s kartami.** Nová karta, duplikace, zavření ostatních, přetažením lze karty přeřadit, prostředním tlačítkem zavřít. Lišta karet sedí těsně u okrajů panelu, aktivní karta aktivního panelu má modrou linku.
 - **Zamčené karty** zůstávají vždy vlevo; jiná složka se z nich otevře v nové kartě (jako v TC).
 - **Lišta disků** nad každým panelem (lze vypnout): disky s nativními ikonami, aktuální disk zvýrazněný, pamatuje si poslední složku na každém disku; prostřední tlačítko otevře disk v nové kartě. Tlačítko **Síť** nabídne uložené FTP servery a síťové svazky.
 - **Drobečková navigace**: klik na úroveň vrátí do složky, šipka mezi úrovněmi nabídne podsložky, klik za poslední položku přepne do psaní cesty s našeptávačem (`~`, `$HOME`, `%USERPROFILE%`, relativní cesty; cesta k souboru otevře jeho složku a vybere ho).
@@ -140,6 +140,7 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 | Mod+Alt+C | Kopírovat název | Mod+Alt+G | Seskupovat soubory |
 | Mod+Alt+U | Mapa disku | Mod+Alt+D | Duplicity |
 | Mod+1 … 4 | Podrobnosti / seznam / ikony / náhledy | Mod+Alt+L | Symbolický odkaz |
+| F12, Ctrl+Q | Rychlý náhled | | |
 
 `Mod` = ⌘ na macOS, Ctrl na Windows. Kompletní seznam je v aplikaci pod F1 a všechny zkratky lze změnit v Nastavení.
 
