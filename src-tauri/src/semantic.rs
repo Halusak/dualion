@@ -26,6 +26,8 @@ pub struct SemanticConfig {
     /// Describe photos with a vision model (slow) so they can be found too.
     pub images: bool,
     pub vision_model: String,
+    /// Chat model that turns requests into queries (optional).
+    pub assistant_model: String,
 }
 
 impl Default for SemanticConfig {
@@ -37,6 +39,7 @@ impl Default for SemanticConfig {
             roots: Vec::new(),
             images: false,
             vision_model: "gemma3:4b".into(),
+            assistant_model: "gemma3:4b".into(),
         }
     }
 }
@@ -107,6 +110,23 @@ impl SemanticEngine {
             file,
             sink,
         })
+    }
+
+    pub fn config(&self) -> SemanticConfig {
+        self.config.lock().clone()
+    }
+
+    /// Whether the assistant chat model is installed (checked lazily).
+    pub fn has_assistant(&self, cfg: &SemanticConfig) -> bool {
+        if cfg.assistant_model.trim().is_empty() {
+            return false;
+        }
+        let mut models = self.models.lock().clone();
+        if models.is_empty() {
+            models = Self::list_models(cfg).unwrap_or_default();
+            *self.models.lock() = models.clone();
+        }
+        Self::has_model(&models, &cfg.assistant_model)
     }
 
     pub fn status(&self) -> SemanticStatus {

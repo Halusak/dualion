@@ -470,6 +470,66 @@ pub async fn semantic_rebuild(state: State<'_, AppState>) -> AppResult<()> {
     .await
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AskResult {
+    pub interpretation: crate::ask::Interpretation,
+    pub hits: Vec<crate::semantic::SemanticHit>,
+}
+
+/// Natural-language search: request -> filters (+ topic) -> index and semantic results.
+#[tauri::command]
+pub async fn semantic_ask(state: State<'_, AppState>, text: String, limit: usize) -> AppResult<AskResult> {
+    let sem = state.semantic.clone();
+    let index = state.index.clone();
+    blocking(move || {
+        let cfg = sem.config();
+        let interp = (cfg.enabled && sem.has_assistant(&cfg))
+            .then(|| crate::ask::llm(&cfg.endpoint, &cfg.assistant_model, &text))
+            .flatten()
+            .unwrap_or_else(|| crate::ask::rules(&text));
+        let limit = limit.clamp(1, 500);
+        let filter = (!interp.query.is_empty()).then(|| crate::query::Query::parse(&interp.query).ok()).flatten();
+        let mut hits = Vec::new();
+        if !interp.topic.is_empty() && cfg.enabled {
+            if let Ok(found) = sem.search(&interp.topic, limit * 4) {
+                hits = found
+                    .into_iter()
+                    .filter(|h| {
+                        filter.as_ref().is_none_or(|q| q.matches(&crate::query::FileSubject::new(h.path.clone(), false, h.size, h.mtime)))
+                    })
+                    .take(limit)
+                    .collect();
+            }
+        }
+        if hits.is_empty() {
+            // Filters alone (or topic words as names) over the file index.
+            let q = match (interp.query.is_empty(), interp.topic.is_empty()) {
+                (false, true) => interp.query.clone(),
+                (false, false) => format!("{} {}", interp.query, interp.topic),
+                (true, false) => interp.topic.clone(),
+                (true, true) => String::new(),
+            };
+            if !q.is_empty() {
+                let never = AtomicBool::new(false);
+                let mut r = index.search(&q, limit, None, &never);
+                if r.as_ref().is_ok_and(|r| r.total == 0) && !interp.topic.is_empty() && !interp.query.is_empty() {
+                    r = index.search(&interp.query, limit, None, &never);
+                }
+                if let Ok(r) = r {
+                    hits = r
+                        .hits
+                        .into_iter()
+                        .map(|h| crate::semantic::SemanticHit { path: h.path, name: h.name, size: h.size, mtime: h.mtime, score: 0.0, snippet: String::new() })
+                        .collect();
+                }
+            }
+        }
+        Ok(AskResult { interpretation: interp, hits })
+    })
+    .await
+}
+
 /// Downloads a model into Ollama, then re-checks the setup.
 #[tauri::command]
 pub async fn semantic_pull(state: State<'_, AppState>, model: String) -> AppResult<()> {

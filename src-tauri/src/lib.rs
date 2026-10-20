@@ -19,6 +19,7 @@ mod preview;
 mod rename;
 mod rules;
 mod query;
+mod ask;
 mod search;
 mod semantic;
 mod tags;
@@ -234,6 +235,7 @@ pub fn run() {
             commands::semantic_configure,
             commands::semantic_status,
             commands::semantic_search,
+            commands::semantic_ask,
             commands::semantic_rebuild,
             commands::semantic_pull,
             commands::rules_configure,

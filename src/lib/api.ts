@@ -47,6 +47,7 @@ export interface SemanticConfig {
   roots: string[];
   images: boolean;
   visionModel: string;
+  assistantModel: string;
 }
 
 /** Locations the backend understands (search results are frontend-only). */
@@ -138,6 +139,8 @@ export const api = {
   semanticConfigure: (config: SemanticConfig) => invoke<void>('semantic_configure', { config }),
   semanticStatus: () => invoke<SemanticStatus>('semantic_status'),
   semanticSearch: (query: string, limit: number) => invoke<SemanticHit[]>('semantic_search', { query, limit }),
+  semanticAsk: (text: string, limit: number) =>
+    invoke<{ interpretation: { query: string; topic: string; via: 'llm' | 'rules' }; hits: SemanticHit[] }>('semantic_ask', { text, limit }),
   semanticRebuild: () => invoke<void>('semantic_rebuild'),
   semanticPull: (model: string) => invoke<void>('semantic_pull', { model }),
   rulesConfigure: (config: { enabled: boolean; rules: Rule[] }) => invoke<void>('rules_configure', { config }),

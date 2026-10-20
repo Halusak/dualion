@@ -28,7 +28,7 @@ export interface Settings {
   /** File index for instant search. `roots` empty = home folder, `excludes` null = defaults. */
   index: { enabled: boolean; roots: string[]; excludes: string | null; hidden: boolean; meta: boolean; skipCloud: boolean };
   /** Semantic (AI) search through a local Ollama. `roots` empty = Documents, Desktop, Downloads. */
-  semantic: { enabled: boolean; endpoint: string; model: string; roots: string[]; images: boolean; visionModel: string };
+  semantic: { enabled: boolean; endpoint: string; model: string; roots: string[]; images: boolean; visionModel: string; assistantModel: string };
   /** Folder rules (automatic sorting). */
   rules: { enabled: boolean; list: Rule[] };
   /** Column widths of the search results (px). */
@@ -74,7 +74,7 @@ export const defaultSettings = (): Settings => ({
   metaWidths: {},
   searchWidths: {},
   rules: { enabled: true, list: [] },
-  semantic: { enabled: false, endpoint: 'http://localhost:11434', model: 'embeddinggemma', roots: [], images: false, visionModel: 'gemma3:4b' },
+  semantic: { enabled: false, endpoint: 'http://localhost:11434', model: 'embeddinggemma', roots: [], images: false, visionModel: 'gemma3:4b', assistantModel: 'gemma3:4b' },
   index: { enabled: true, roots: [], excludes: null, hidden: false, meta: true, skipCloud: false },
   functionBar: true,
   toolbar: true,

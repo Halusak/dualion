@@ -33,9 +33,12 @@
   let semRootsText = $state(untrack(() => settings.semantic.roots.join('\n')));
   let pulling = $state(false);
   async function pull() {
+    await pullModel(settings.semantic.model);
+  }
+  async function pullModel(model: string) {
     pulling = true;
     try {
-      await api.semanticPull(settings.semantic.model);
+      await api.semanticPull(model);
     } catch (e) {
       showError(e);
     } finally {
@@ -202,6 +205,17 @@
             <span>{t('sem.roots')}</span>
             <textarea class="input" rows="2" bind:value={semRootsText} onchange={() => (settings.semantic.roots = semRootsText.split('\n').map((s) => s.trim()).filter(Boolean))} spellcheck="false"></textarea>
           </label>
+          <label class="row">
+            <span>{t('sem.assistant')}</span>
+            <span class="with-btn">
+              <input class="input" bind:value={settings.semantic.assistantModel} list="sem-chat" spellcheck="false" />
+              {#if settings.semantic.assistantModel && !sem.models.some((m) => m === settings.semantic.assistantModel || m.split(':')[0] === settings.semantic.assistantModel)}
+                <button class="btn" disabled={pulling} onclick={() => pullModel(settings.semantic.assistantModel)}>{pulling ? t('sem.pulling') : t('sem.pull')}</button>
+              {/if}
+            </span>
+          </label>
+          <datalist id="sem-chat">{#each ['gemma3:4b', 'gemma3:1b', 'qwen2.5:3b', 'llama3.2:3b'] as m (m)}<option value={m}></option>{/each}</datalist>
+          <small class="muted">{t('sem.assistantHint')}</small>
           <label class="check"><input type="checkbox" bind:checked={settings.semantic.images} /> {t('sem.images')}</label>
           {#if settings.semantic.images}
             <label class="row"><span>{t('sem.vision')}</span><input class="input" bind:value={settings.semantic.visionModel} spellcheck="false" /></label>
@@ -303,5 +317,12 @@
   }
   small {
     font-size: 11px;
+  }
+  .with-btn {
+    display: flex;
+    gap: 6px;
+  }
+  .with-btn .input {
+    flex: 1;
   }
 </style>

@@ -45,6 +45,7 @@
   const isSem = $derived(text.startsWith('?'));
   const query = $derived(text.trim());
   let semHits = $state.raw<SemanticHit[]>([]);
+  let understood = $state<{ query: string; topic: string; via: string } | null>(null);
   const words = $derived(
     query
       .split(/\s+/)
@@ -71,9 +72,10 @@
       const my = ++seq;
       const timer = setTimeout(async () => {
         try {
-          const r = await api.semanticSearch(sq, 60);
+          const r = await api.semanticAsk(sq, 100);
           if (my !== seq) return;
-          semHits = r;
+          semHits = r.hits;
+          understood = r.interpretation;
           error = '';
           sel = 0;
         } catch (e) {
@@ -81,10 +83,11 @@
           error = errorText(e);
           semHits = [];
         }
-      }, 250);
+      }, 350);
       return () => clearTimeout(timer);
     }
     semHits = [];
+    understood = null;
     if (isCmd || !q) {
       hits = [];
       total = 0;
@@ -236,7 +239,16 @@
       {/if}
     </div>
 
-    {#if isSem && !settings.semantic.enabled}
+    {#if isSem && understood && (understood.query || understood.topic)}
+      <div class="note understood">
+        <span>{t('find.understood')}</span>
+        {#if understood.query}<code>{understood.query}</code>{/if}
+        {#if understood.topic}<span class="muted">{t('find.topic')}: „{understood.topic}“</span>{/if}
+        <span class="grow"></span>
+        <span class="muted small">{understood.via === 'llm' ? settings.semantic.assistantModel : t('find.rules')}</span>
+        {#if understood.query}<button class="btn" onclick={() => (text = understood!.query)}>{t('find.useQuery')}</button>{/if}
+      </div>
+    {:else if isSem && !settings.semantic.enabled}
       <div class="note">{t('find.semOff')}</div>
     {:else if !isCmd && !isSem && !st.ready}
       <div class="note">
@@ -441,5 +453,19 @@
   }
   .grow {
     flex: 1;
+  }
+  .understood code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--accent-20);
+    color: var(--accent-text);
+  }
+  .note .grow {
+    flex: 1;
+  }
+  .small {
+    font-size: 11px;
   }
 </style>
