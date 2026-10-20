@@ -103,6 +103,11 @@ impl IndexData {
         self.children.get(&id).map(|v| v.as_slice()).unwrap_or(&[])
     }
 
+    /// Live children of a directory by lower-case name (for bulk syncs).
+    pub fn child_map(&self, parent: u32) -> HashMap<String, u32> {
+        self.children(parent).iter().copied().filter(|&c| self.alive(c)).map(|c| (key_of(self.name(c)), c)).collect()
+    }
+
     pub fn child_named(&self, parent: u32, name: &str) -> Option<u32> {
         let list = if parent == NONE { &self.roots[..] } else { self.children(parent) };
         list.iter().copied().find(|&c| self.alive(c) && names_equal(self.name(c), name))
@@ -388,6 +393,16 @@ fn floor_char(s: &str, max: usize) -> usize {
         i -= 1;
     }
     i
+}
+
+/// Name as compared by the file system.
+#[cfg(any(target_os = "macos", windows))]
+pub fn key_of(name: &str) -> String {
+    name.to_lowercase()
+}
+#[cfg(not(any(target_os = "macos", windows)))]
+pub fn key_of(name: &str) -> String {
+    name.to_string()
 }
 
 #[cfg(any(target_os = "macos", windows))]

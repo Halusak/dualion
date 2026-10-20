@@ -14,11 +14,12 @@
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import { onMount } from 'svelte';
   import { api } from '../../lib/api';
-  import { t, what } from '../../lib/i18n/index.svelte';
+  import { localeTag, t, what } from '../../lib/i18n/index.svelte';
   import { baseName, dirName, extOf, joinFtp, joinLocal, locPath, stemOf } from '../../lib/paths';
   import { settings } from '../../lib/state/settings.svelte';
-  import { isAppError, showError } from '../../lib/state/ui.svelte';
-  import type { ConflictPolicy } from '../../lib/types';
+  import { formatDate, formatSize } from '../../lib/format';
+  import { errorText, isAppError, showError } from '../../lib/state/ui.svelte';
+  import type { ConflictPolicy, JobPlan } from '../../lib/types';
   import Modal from './Modal.svelte';
 
   let {
@@ -30,6 +31,7 @@
     upload = false,
     download = false,
     unpack = false,
+    sources = [],
     close,
   }: {
     op: 'copy' | 'move';
@@ -40,6 +42,8 @@
     upload?: boolean;
     download?: boolean;
     unpack?: boolean;
+    /** Source items, for the operation preview. */
+    sources?: Location[];
     close: (r: CopyResult | null) => void;
   } = $props();
 
@@ -88,7 +92,7 @@
     } else input.select();
   });
 
-  async function resolve(): Promise<{ dest: Location; newName: string | null } | null> {
+  async function resolve(quiet = false): Promise<{ dest: Location; newName: string | null } | null> {
     const typed = text.trim();
     if (!typed) return null;
     if (typed === initial && !(sameDir && single)) return { dest, newName: null };
@@ -104,10 +108,37 @@
         if (single && !unpack) return { dest: { kind: 'local', path: dirName(typed) }, newName: baseName(typed) };
         return { dest: { kind: 'local', path: typed }, newName: null };
       }
-      showError(e);
+      if (!quiet) showError(e);
       return null;
     }
   }
+
+  // ---------------------------------------------------------------- preview (dry run)
+  let plan = $state<JobPlan | null>(null);
+  let planning = $state(false);
+  let planError = $state('');
+  let showConflicts = $state(false);
+  const locale = localeTag();
+  $effect(() => {
+    void text;
+    void filter;
+    if (!sources.length || unpack || extracting) return;
+    const timer = setTimeout(async () => {
+      planning = true;
+      try {
+        const r = await resolve(true);
+        if (!r) return;
+        plan = await api.jobPlan({ op, sources, dest: r.dest, newName: r.newName, options: { filter: filter.trim() || null } });
+        planError = '';
+      } catch (e) {
+        if (!(isAppError(e) && e.code === 'Cancelled')) planError = errorText(e);
+      } finally {
+        planning = false;
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  });
+  const lowSpace = $derived(!!plan && plan.free !== null && plan.needed > plan.free);
 
   async function submit(toQueue: boolean) {
     if (busy) return;
@@ -152,6 +183,44 @@
       <span>{label}</span>
       <input class="input" bind:this={input} bind:value={text} spellcheck="false" autocomplete="off" />
     </label>
+
+    {#if sources.length && !unpack && !extracting}
+      <div class="plan" class:warn={lowSpace}>
+        {#if plan}
+          <div>
+            {t('plan.files', { count: plan.files })}{plan.dirs ? `, ${t('plan.dirs', { count: plan.dirs })}` : ''} · {formatSize(plan.bytes, locale, settings.sizeFormat)}{plan.truncated ? '+' : ''}
+            {#if plan.renameOnly}<span class="ok"> · {t('plan.renameOnly')}</span>{/if}
+          </div>
+          {#if plan.conflictsTotal}
+            <button class="link" onclick={() => (showConflicts = !showConflicts)}>
+              {t('plan.conflicts', { count: plan.conflictsTotal })}{plan.targetNewer ? ` · ${t('plan.newer', { count: plan.targetNewer })}` : ''}{plan.identical ? ` · ${t('plan.identical', { count: plan.identical })}` : ''}
+            </button>
+          {/if}
+          {#if plan.free !== null && !plan.renameOnly}
+            <div class:bad={lowSpace}>
+              {lowSpace
+                ? t('plan.noSpace', { need: formatSize(plan.needed, locale, settings.sizeFormat), free: formatSize(plan.free, locale, settings.sizeFormat) })
+                : t('plan.space', { free: formatSize(plan.free, locale, settings.sizeFormat) })}
+            </div>
+          {/if}
+          {#if showConflicts}
+            <div class="conflicts">
+              {#each plan.conflicts as c (c.path)}
+                <div class="c">
+                  <span class="ellipsis" title={c.path}>{c.path}</span>
+                  <span class:newer={c.dstMtime > c.srcMtime + 2000}>{formatSize(c.srcSize, locale, settings.sizeFormat)} → {formatSize(c.dstSize, locale, settings.sizeFormat)}, {formatDate(c.dstMtime, locale)}</span>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        {:else if planError}
+          <div class="muted">{planError}</div>
+        {:else}
+          <div class="muted">{t('plan.computing')}</div>
+        {/if}
+        {#if planning && plan}<span class="spin muted">…</span>{/if}
+      </div>
+    {/if}
 
     <button class="disclosure" onclick={() => (showOptions = !showOptions)}>
       {#if showOptions}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
@@ -210,6 +279,53 @@
   }
   .field input {
     width: 100%;
+  }
+  .plan {
+    position: relative;
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: var(--r-m);
+    background: var(--bg-subtle);
+    font-size: 12px;
+    display: grid;
+    gap: 3px;
+  }
+  .plan.warn {
+    box-shadow: inset 0 0 0 1px var(--danger);
+  }
+  .plan .ok {
+    color: var(--success, #2e9d4f);
+  }
+  .plan .bad {
+    color: var(--danger);
+    font-weight: 600;
+  }
+  .plan .spin {
+    position: absolute;
+    right: 10px;
+    top: 6px;
+  }
+  .link {
+    border: none;
+    background: none;
+    padding: 0;
+    text-align: left;
+    color: var(--accent-text);
+    cursor: pointer;
+  }
+  .conflicts {
+    max-height: 140px;
+    overflow-y: auto;
+    margin-top: 4px;
+    font-size: 11px;
+  }
+  .conflicts .c {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+  }
+  .newer {
+    color: var(--danger);
   }
   .disclosure {
     display: inline-flex;

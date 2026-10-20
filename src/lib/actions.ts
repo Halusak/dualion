@@ -5,16 +5,19 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask, open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { api, type BackendLocation } from './api';
 import { copyText } from './clipboard';
-import { t, what } from './i18n/index.svelte';
+import { formatSize } from './format';
+import { localeTag, t, what } from './i18n/index.svelte';
 import { childLoc, dirName, isArchiveName, isResults, joinLocal, locPath, sameLoc, stemOf, extOf } from './paths';
-import { isMac, isWindows } from './platform';
+import { isMac, isWindows, shortcutLabel } from './platform';
 import { links } from './links';
 import { app, Side, type SideName } from './state/app.svelte';
 import { settings } from './state/settings.svelte';
 import { Tab, UP_ENTRY } from './state/tab.svelte';
 import { openDialog, showError, toast } from './state/ui.svelte';
 import QuickFind from '../components/dialogs/QuickFind.svelte';
+import HistoryDialog from '../components/dialogs/HistoryDialog.svelte';
 import { renameGroup } from './groups';
+import { pushHistory } from './state/history.svelte';
 import { F, type Entry, type JobRequest, type Location, type SortKey, type ViewMode } from './types';
 
 import AboutDialog from '../components/dialogs/AboutDialog.svelte';
@@ -131,6 +134,7 @@ export async function copyMove(op: 'copy' | 'move', sameDir = false) {
     result = await openDialog<CopyResult>(CopyDialog, {
       op,
       names: items.map((e) => e.name),
+      sources: extracting ? [] : sources,
       dest,
       sameDir,
       extracting,
@@ -194,11 +198,23 @@ export async function deleteItems(permanent: boolean) {
   const toTrash = !permanent && !remote && settings.useTrash;
   const w = what(items.map((e) => e.name));
   if (settings.confirmDelete || permanent || remote) {
-    const msg = remote
+    // Dry run (bounded in time) so the user sees what is at stake.
+    const sources = items.map((e) => entryLoc(tab, e));
+    const plan = await Promise.race([
+      api.jobPlan({ op: 'delete', sources, options: {} }).catch(() => null),
+      new Promise<null>((r) => setTimeout(() => r(null), 900)),
+    ]);
+    const locale = localeTag();
+    const summary = plan
+      ? `\n\n${t('plan.files', { count: plan.files })}${plan.dirs ? `, ${t('plan.dirs', { count: plan.dirs })}` : ''} · ${formatSize(plan.bytes, locale, settings.sizeFormat)}`
+      : '';
+    const msg = (remote
       ? t('confirm.deleteRemote', { what: w })
       : toTrash
         ? t(isWindows ? 'confirm.recycle' : 'confirm.trash', { what: w })
-        : `${t('confirm.delete', { what: w })}\n${t('confirm.deleteDetail')}`;
+        : `${t('confirm.delete', { what: w })}\n${t('confirm.deleteDetail')}`) +
+      summary +
+      (toTrash ? `\n${t('confirm.undoable', { key: shortcutLabel('Mod+Z') })}` : '');
     const ok = await ask(msg, { title: 'Dualion', kind: 'warning', okLabel: t('delete'), cancelLabel: t('cancel') });
     if (!ok) return;
   }
@@ -227,7 +243,9 @@ export async function makeDir() {
   const r = await openDialog<PromptResult>(PromptDialog, { title: t('prompt.mkdir'), label: t('prompt.mkdirLabel'), value: '' });
   if (!r?.value.trim()) return;
   try {
+    const existed = tab.all.some((x) => x.name.toLowerCase() === r.value.trim().split(/[\\/]/)[0].toLowerCase());
     const first = await api.makeDir(b, r.value.trim());
+    if (b.kind === 'local' && !existed) pushHistory({ label: `${t('history.mkdir')}: ${first}`, actions: [{ type: 'created', path: joinLocal(b.path, first) }] });
     await tab.reload();
     tab.setCursorKey(first);
   } catch (err) {
@@ -244,6 +262,7 @@ export async function newFile() {
   if (!name) return;
   try {
     const path = await api.createFile(b, name);
+    if (b.kind === 'local') pushHistory({ label: `${t('history.newFile')}: ${name}`, actions: [{ type: 'created', path }] });
     await tab.reload();
     tab.setCursorKey(name);
     if (b.kind === 'local') await api.editFile(path, settings.editor);
@@ -273,7 +292,7 @@ export async function commitRename(tab: Tab, e: Entry, newName: string) {
       const pairs = renameGroup(members, e, name);
       const res = await api.batchRename(b.path, pairs);
       const ok = res.filter((r) => !r.error);
-      app.undo = { dir: b.path, pairs: pairs.filter((_, i) => !res[i]?.error).map((p) => ({ from: p.to, to: p.from })) };
+      pushHistory({ label: `${t('history.rename')}: ${e.name}`, rename: { dir: b.path, pairs: pairs.filter((_, i) => !res[i]?.error).map((p) => ({ from: p.to, to: p.from })) } });
       if (ok.length < pairs.length) toast(t('mr.failed', { count: pairs.length - ok.length }), 'error');
       await tab.reload();
       const lead = pairs.find((p) => p.from === e.name);
@@ -285,23 +304,9 @@ export async function commitRename(tab: Tab, e: Entry, newName: string) {
   }
   try {
     await api.renameItem(b, e.name, name);
-    if (b.kind === 'local') app.undo = { dir: b.path, pairs: [{ from: name, to: e.name }] };
+    if (b.kind === 'local') pushHistory({ label: `${t('history.rename')}: ${e.name} → ${name}`, rename: { dir: b.path, pairs: [{ from: name, to: e.name }] } });
     await tab.reload();
     tab.setCursorKey(name);
-  } catch (err) {
-    showError(err);
-  }
-}
-
-export async function undoRename() {
-  const u = app.undo;
-  if (!u) return toast(t('misc.undoNothing'));
-  try {
-    const res = await api.batchRename(u.dir, u.pairs);
-    app.undo = null;
-    const failed = res.filter((r) => r.error);
-    if (failed.length) toast(t('mr.failed', { count: failed.length }), 'error');
-    app.refreshLocation({ kind: 'local', path: u.dir });
   } catch (err) {
     showError(err);
   }
@@ -512,6 +517,10 @@ export async function unpack() {
 
 // ---------------------------------------------------------------- tools
 
+export async function showHistory() {
+  await openDialog(HistoryDialog, {});
+}
+
 /** Instant search over the file index (Spotlight / Everything style). */
 export async function quickFind(initial = '') {
   await openDialog(QuickFind, { initial });
@@ -538,7 +547,7 @@ export async function multiRename() {
   const dir = tab.location.path;
   const done = await openDialog<{ dir: string; pairs: { from: string; to: string }[] }>(MultiRenameDialog, { dir, entries: items });
   if (done) {
-    app.undo = { dir, pairs: done.pairs.map((p) => ({ from: p.to, to: p.from })) };
+    pushHistory({ label: `${t('history.rename')}: ${done.pairs.length}×`, rename: { dir, pairs: done.pairs.map((p) => ({ from: p.to, to: p.from })) } });
     await tab.reload();
     tab.unmarkAll();
   }

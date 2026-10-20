@@ -14,6 +14,7 @@
   import { app, restoreSession, sessionSnapshot } from './lib/state/app.svelte';
   import { applySettings, settings, type Settings } from './lib/state/settings.svelte';
   import { dialogOpen, openDialog, ui } from './lib/state/ui.svelte';
+  import { journalLabel, pushHistory } from './lib/state/history.svelte';
   import { indexConfig, startIndex } from './lib/state/index.svelte';
   import { applyAccent } from './lib/theme';
   import type { Answer, JobDone, JobSnapshot } from './lib/types';
@@ -172,6 +173,11 @@
     unlisteners.push(listen<JobSnapshot[]>('jobs', (e) => (app.jobs = e.payload)));
     unlisteners.push(
       listen<JobDone>('job-done', (e) => {
+        const u = e.payload.undo ?? [];
+        if (u.length) {
+          const kind = { copy: 'copied', move: 'moved', delete: 'trashed', pack: 'packed', extract: 'extracted' }[e.payload.op];
+          pushHistory({ label: journalLabel(kind, u), actions: u });
+        }
         for (const tab of app.visibleTabs()) {
           if (e.payload.touched.some((l) => sameLoc(l, tab.location))) void tab.reload();
         }

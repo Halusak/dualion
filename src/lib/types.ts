@@ -201,6 +201,7 @@ export interface JobDone {
   op: JobOp;
   status: JobStatus;
   touched: Location[];
+  undo: UndoAction[];
 }
 
 export interface SearchParams {
@@ -429,4 +430,30 @@ export interface IndexResults {
   hits: IndexHit[];
   total: number;
   elapsedMs: number;
+}
+
+export type UndoAction =
+  | { type: 'created'; path: string }
+  | { type: 'moved'; from: string; to: string }
+  | { type: 'trashed'; path: string; trashedTo: string | null; time: number };
+
+export interface UndoReport {
+  done: number;
+  failed: AppError[];
+  touched: string[];
+  moves: [string, string][];
+}
+
+export interface JobPlan {
+  files: number;
+  dirs: number;
+  bytes: number;
+  conflicts: { path: string; srcSize: number; srcMtime: number; dstSize: number; dstMtime: number }[];
+  conflictsTotal: number;
+  targetNewer: number;
+  identical: number;
+  needed: number;
+  free: number | null;
+  renameOnly: boolean;
+  truncated: boolean;
 }

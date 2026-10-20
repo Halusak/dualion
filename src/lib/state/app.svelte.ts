@@ -103,8 +103,6 @@ class AppState {
   quickView = $state(false);
   clipboard = $state.raw<FileClipboard | null>(null);
   ready = $state(false);
-  /** Last multi-rename / rename for undo: folder + reversed pairs. */
-  undo = $state.raw<{ dir: string; pairs: { from: string; to: string }[] } | null>(null);
   /** Panel being edited in the address bar ("left"/"right"), focuses its input. */
   editPath = $state<SideName | null>(null);
   /** Drive/places popup requested for a side. */

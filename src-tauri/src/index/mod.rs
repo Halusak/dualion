@@ -86,6 +86,7 @@ pub struct IndexResults {
 
 pub struct IndexManager {
     data: RwLock<IndexData>,
+    counts: Mutex<(usize, usize)>,
     loaded: AtomicBool,
     config: Mutex<IndexConfig>,
     state: Mutex<&'static str>,
@@ -108,6 +109,7 @@ impl IndexManager {
     pub fn new(file: PathBuf, sink: EventSink) -> Arc<Self> {
         let me = Arc::new(IndexManager {
             data: RwLock::new(IndexData::default()),
+            counts: Mutex::new((0, 0)),
             loaded: AtomicBool::new(false),
             config: Mutex::new(IndexConfig::default()),
             state: Mutex::new("off"),
@@ -152,12 +154,19 @@ impl IndexManager {
     }
 
     pub fn status(&self) -> IndexStatus {
-        let d = self.data.read();
+        // Never wait for the index (this runs on the UI thread): reuse the last counts.
+        let (files, dirs) = match self.data.try_read() {
+            Some(d) => {
+                *self.counts.lock() = (d.files, d.dirs);
+                (d.files, d.dirs)
+            }
+            None => *self.counts.lock(),
+        };
         IndexStatus {
             state: *self.state.lock(),
             ready: self.loaded.load(Ordering::Relaxed),
-            files: d.files,
-            dirs: d.dirs,
+            files,
+            dirs,
             scanned_dirs: self.progress.lock().dirs.load(Ordering::Relaxed),
             meta_done: self.meta_done.load(Ordering::Relaxed),
             meta_total: self.meta_total.load(Ordering::Relaxed),
@@ -452,15 +461,20 @@ impl IndexManager {
                 }
             }
             None => {
-                // New item: reconcile the nearest indexed ancestor.
+                // New item: reconcile the nearest indexed ancestor, unless the
+                // change happened inside a folder the index skips on purpose.
+                let mut below = path;
                 let mut cur = path.parent();
                 while let Some(a) = cur {
                     if let Some(id) = d.find(a) {
-                        if d.is_dir(id) {
+                        let name = below.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                        let skipped = ex.excluded(&name, below) || (!hidden && name.starts_with('.'));
+                        if d.is_dir(id) && (below == path || !skipped) {
                             reconcile(d, id, a, ex, hidden);
                         }
                         return;
                     }
+                    below = a;
                     cur = a.parent();
                 }
             }
@@ -494,13 +508,14 @@ fn reconcile(d: &mut IndexData, id: u32, path: &Path, ex: &Excludes, hidden: boo
     let entries = scan::read_dir(path, hidden);
     let mut seen = HashSet::new();
     let mut new_dirs = Vec::new();
+    let existing = d.child_map(id);
     for e in entries {
         let child_path = path.join(&e.name);
         let is_dir = e.flags & flags::DIR != 0;
         if is_dir && e.flags & flags::LINK == 0 && ex.excluded(&e.name, &child_path) {
             continue;
         }
-        match d.child_named(id, &e.name) {
+        match existing.get(&data::key_of(&e.name)).copied().filter(|&c| d.alive(c)) {
             Some(c) if d.is_dir(c) == is_dir => {
                 d.update(c, e.size, e.mtime, e.flags);
                 seen.insert(c);

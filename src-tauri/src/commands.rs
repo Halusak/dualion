@@ -432,9 +432,56 @@ pub async fn preview_slides(path: String) -> AppResult<Vec<crate::preview::Slide
     blocking(move || crate::preview::slides(std::path::Path::new(&path))).await
 }
 
+/// Dry run of a job: counts, conflicts, space. A newer plan cancels an older one.
 #[tauri::command]
-pub fn index_configure(state: State<'_, AppState>, config: crate::index::IndexConfig) {
-    state.index.configure(config);
+pub async fn job_plan(state: State<'_, AppState>, req: crate::jobs::JobRequest) -> AppResult<crate::jobs::plan::Plan> {
+    static CANCEL: parking_lot::Mutex<Option<Arc<AtomicBool>>> = parking_lot::Mutex::new(None);
+    let flag = Arc::new(AtomicBool::new(false));
+    if let Some(old) = CANCEL.lock().replace(flag.clone()) {
+        old.store(true, Ordering::Relaxed);
+    }
+    let ftp = state.ftp.clone();
+    blocking(move || crate::jobs::plan::plan(&req, &ftp, &flag)).await
+}
+
+/// Reverses journaled actions; moves across volumes are queued as jobs.
+#[tauri::command]
+pub async fn undo_apply(state: State<'_, AppState>, actions: Vec<crate::jobs::undo::UndoAction>) -> AppResult<crate::jobs::undo::UndoReport> {
+    let report = blocking(move || Ok(crate::jobs::undo::apply(&actions))).await?;
+    for (from, to) in &report.moves {
+        let p = std::path::Path::new(to);
+        let req = crate::jobs::JobRequest {
+            op: crate::jobs::JobOp::Move,
+            sources: vec![crate::location::Location::local(from.clone())],
+            dest: p.parent().map(|d| crate::location::Location::local(d.to_string_lossy())),
+            new_name: p.file_name().map(|n| n.to_string_lossy().into_owned()),
+            options: Default::default(),
+            queue: None,
+        };
+        state.jobs.enqueue(req)?;
+    }
+    Ok(report)
+}
+
+/// Moves one path to the trash, returning the undo record.
+#[tauri::command]
+pub async fn trash_item(path: String) -> AppResult<crate::jobs::undo::UndoAction> {
+    blocking(move || {
+        let to = crate::jobs::undo::trash(&path)?;
+        Ok(crate::jobs::undo::UndoAction::Trashed { path, trashed_to: to, time: crate::util::now_ms() })
+    })
+    .await
+}
+
+/// Off the UI thread: reconfiguring may wait for the index lock.
+#[tauri::command]
+pub async fn index_configure(state: State<'_, AppState>, config: crate::index::IndexConfig) -> AppResult<()> {
+    let index = state.index.clone();
+    blocking(move || {
+        index.configure(config);
+        Ok(())
+    })
+    .await
 }
 
 #[tauri::command]
@@ -448,8 +495,13 @@ pub fn index_defaults() -> serde_json::Value {
 }
 
 #[tauri::command]
-pub fn index_rescan(state: State<'_, AppState>) {
-    state.index.rescan();
+pub async fn index_rescan(state: State<'_, AppState>) -> AppResult<()> {
+    let index = state.index.clone();
+    blocking(move || {
+        index.rescan();
+        Ok(())
+    })
+    .await
 }
 
 /// Instant search over the index. A newer search cancels older ones.

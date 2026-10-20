@@ -1,18 +1,6 @@
 use super::vfs::{self, Vfs};
 use super::{ErrorChoice, JobCtx, JobStatus};
-use crate::error::{AppError, AppResult, ErrorCode};
-
-pub fn trash_path(path: &str) -> AppResult<()> {
-    #[allow(unused_mut)]
-    let mut t = trash::TrashContext::default();
-    #[cfg(target_os = "macos")]
-    {
-        // NSFileManager is fast and needs no Automation permission (Finder would).
-        use trash::macos::{DeleteMethod, TrashContextExtMacos};
-        t.set_delete_method(DeleteMethod::NsFileManager);
-    }
-    t.delete(path).map_err(|e| AppError::new(ErrorCode::Io, e.to_string()).with_path(path))
-}
+use crate::error::{AppResult, ErrorCode};
 
 #[derive(Clone, Copy)]
 enum Kind {
@@ -33,8 +21,9 @@ pub fn run(ctx: &JobCtx) -> AppResult<()> {
             ctx.checkpoint()?;
             ctx.set_current(p);
             loop {
-                match trash_path(p) {
-                    Ok(()) => {
+                match super::undo::trash(p) {
+                    Ok(trashed_to) => {
+                        ctx.record(super::undo::UndoAction::Trashed { path: p.clone(), trashed_to, time: crate::util::now_ms() });
                         ctx.file_done();
                         break;
                     }

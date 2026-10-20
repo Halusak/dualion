@@ -11,6 +11,8 @@ pub mod delete;
 mod ftp_tests;
 #[cfg(test)]
 mod tests;
+pub mod plan;
+pub mod undo;
 pub mod vfs;
 
 use crate::error::{AppError, AppResult, ErrorCode};
@@ -182,6 +184,8 @@ pub struct JobDone {
     pub status: JobStatus,
     /// Locations whose listings changed (source parents and destination).
     pub touched: Vec<Location>,
+    /// How to reverse what the job did (empty when nothing can be undone).
+    pub undo: Vec<undo::UndoAction>,
 }
 
 struct Progress {
@@ -217,6 +221,7 @@ pub struct Job {
     cv: Condvar,
     progress: Mutex<Progress>,
     labels: (String, usize, String),
+    journal: Mutex<Vec<undo::UndoAction>>,
 }
 
 impl Job {
@@ -307,6 +312,11 @@ impl<'a> JobCtx<'a> {
 
     pub fn req(&self) -> &JobRequest {
         &self.job.req
+    }
+
+    /// Notes a change for undo.
+    pub fn record(&self, a: undo::UndoAction) {
+        self.job.journal.lock().push(a);
     }
 
     pub fn ftp(&self) -> &FtpRegistry {
@@ -609,6 +619,7 @@ impl JobManager {
             }),
             labels,
             req,
+            journal: Mutex::new(Vec::new()),
         });
         self.jobs.lock().push(job);
         self.dirty.store(true, Ordering::Relaxed);
@@ -653,6 +664,7 @@ impl JobManager {
             .name(format!("job-{}", job.id))
             .stack_size(8 * 1024 * 1024)
             .spawn(move || {
+                let before = undo::before(&job.req);
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     let ctx = JobCtx::new(&job, &mgr);
                     match job.req.op {
@@ -681,7 +693,9 @@ impl JobManager {
                     p.status
                 };
                 mgr.dirty.store(true, Ordering::Relaxed);
-                let done = JobDone { id: job.id, op: job.req.op, status, touched: vfs::touched_locations(&job.req) };
+                let journal = std::mem::take(&mut *job.journal.lock());
+                let undo = undo::after(&job.req, before, journal);
+                let done = JobDone { id: job.id, op: job.req.op, status, touched: vfs::touched_locations(&job.req), undo };
                 (mgr.emit)("job-done", serde_json::to_value(done).unwrap_or_default());
                 mgr.schedule();
             })

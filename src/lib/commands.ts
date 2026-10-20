@@ -7,6 +7,7 @@ import { t } from './i18n/index.svelte';
 import { isMac, isWindows } from './platform';
 import { app } from './state/app.svelte';
 import { settings } from './state/settings.svelte';
+import { undo } from './state/history.svelte';
 import { dialogOpen, openDialog } from './state/ui.svelte';
 import PromptDialog from '../components/dialogs/PromptDialog.svelte';
 import { F, type MenuNode } from './types';
@@ -67,7 +68,8 @@ export const commands: Command[] = [
   { id: 'clipPaste', label: 'cmd.clipPaste', run: A.pasteFiles, keys: ['Mod+V'] },
   { id: 'copyPath', label: 'cmd.copyPath', run: () => A.copyPath(false), keys: ['Mod+Shift+C'] },
   { id: 'copyName', label: 'cmd.copyName', run: () => A.copyPath(true), keys: ['Mod+Alt+C'] },
-  { id: 'undoRename', label: 'cmd.undoRename', run: A.undoRename, keys: ['Mod+Z'] },
+  { id: 'undo', label: 'cmd.undo', run: () => undo(), keys: ['Mod+Z'] },
+  { id: 'history', label: 'cmd.history', run: A.showHistory, keys: ['Mod+Shift+Z'] },
 
   // Selection
   { id: 'selectAll', label: 'cmd.selectAll', run: () => app.panel.markAll(), keys: ['Mod+A'] },
@@ -376,8 +378,8 @@ export function buildMenu(): MenuNode[] {
     type: 'submenu',
     label: t('menu.edit'),
     items: isMac
-      ? [pre('undo', 'sys.undo'), pre('redo', 'sys.redo'), sep, pre('cut', 'sys.cut'), pre('copy', 'sys.copy'), pre('paste', 'sys.paste'), pre('selectAll', 'sys.selectAll'), sep, item('undoRename'), item('copyPath'), item('copyName')]
-      : [item('undoRename', { noAccel: true }), sep, item('clipCut', { noAccel: true }), item('clipCopy', { noAccel: true }), item('clipPaste', { noAccel: true }), sep, item('copyPath'), item('copyName')],
+      ? [pre('undo', 'sys.undo'), pre('redo', 'sys.redo'), sep, pre('cut', 'sys.cut'), pre('copy', 'sys.copy'), pre('paste', 'sys.paste'), pre('selectAll', 'sys.selectAll'), sep, item('undo'), item('history'), item('copyPath'), item('copyName')]
+      : [item('undo', { noAccel: true }), item('history'), sep, item('clipCut', { noAccel: true }), item('clipCopy', { noAccel: true }), item('clipPaste', { noAccel: true }), sep, item('copyPath'), item('copyName')],
   });
   menu.push({
     type: 'submenu',
