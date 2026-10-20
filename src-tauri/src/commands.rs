@@ -28,6 +28,7 @@ pub struct AppState {
     pub vault: Arc<Vault>,
     pub watcher: Arc<DirWatcher>,
     pub index: Arc<crate::index::IndexManager>,
+    pub rules: Arc<crate::rules::RulesEngine>,
     pub ops: Mutex<HashMap<u64, Arc<AtomicBool>>>,
     pub next_op: AtomicU64,
     pub config_dir: PathBuf,
@@ -435,6 +436,32 @@ pub async fn du_tree(path: String) -> AppResult<crate::diskusage::DuNode> {
         crate::diskusage::tree(&p, 3)
     })
     .await
+}
+
+#[tauri::command]
+pub fn rules_configure(state: State<'_, AppState>, config: crate::rules::RulesConfig) {
+    state.rules.configure(config);
+}
+
+#[tauri::command]
+pub fn rules_check(rule: crate::rules::Rule) -> AppResult<()> {
+    crate::rules::check(&rule)
+}
+
+/// Runs a rule on the files already in its folder, or previews it (`dry`).
+#[tauri::command]
+pub async fn rules_run(state: State<'_, AppState>, rule: crate::rules::Rule, dry: bool) -> AppResult<Vec<crate::rules::RuleActivity>> {
+    let rules = state.rules.clone();
+    blocking(move || {
+        crate::rules::check(&rule)?;
+        rules.run_now(&rule, dry)
+    })
+    .await
+}
+
+#[tauri::command]
+pub fn rules_log(state: State<'_, AppState>) -> Vec<crate::rules::RuleActivity> {
+    state.rules.log()
 }
 
 /// Duplicate search; returns an op id for `cancel_op`.

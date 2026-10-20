@@ -1,5 +1,5 @@
 import type { SizeFormat } from '../format';
-import type { Location, SortKey, ViewMode } from '../types';
+import type { Location, Rule, SortKey, ViewMode } from '../types';
 
 export interface HotlistItem {
   name: string;
@@ -25,6 +25,8 @@ export interface Settings {
   folderColumns: Record<string, string[]>;
   /** File index for instant search. `roots` empty = home folder, `excludes` null = defaults. */
   index: { enabled: boolean; roots: string[]; excludes: string | null; hidden: boolean; meta: boolean };
+  /** Folder rules (automatic sorting). */
+  rules: { enabled: boolean; list: Rule[] };
   /** Widths of metadata columns (id -> px). */
   metaWidths: Record<string, number>;
   functionBar: boolean;
@@ -62,6 +64,7 @@ export const defaultSettings = (): Settings => ({
   groupFiles: true,
   folderColumns: {},
   metaWidths: {},
+  rules: { enabled: true, list: [] },
   index: { enabled: true, roots: [], excludes: null, hidden: false, meta: true },
   functionBar: true,
   toolbar: true,
@@ -95,6 +98,8 @@ export function applySettings(saved: Partial<Settings> | null) {
     }
   }
   settings.colWidths = { ...d.colWidths, ...(saved.colWidths ?? {}) };
+  settings.rules = { ...d.rules, ...(saved.rules && typeof saved.rules === 'object' ? saved.rules : {}) };
+  if (!Array.isArray(settings.rules.list)) settings.rules.list = [];
   settings.index = { ...d.index, ...(saved.index && typeof saved.index === 'object' ? saved.index : {}) };
   if (saved.keymap && typeof saved.keymap === 'object' && !Array.isArray(saved.keymap)) {
     const km: Record<string, string[]> = {};

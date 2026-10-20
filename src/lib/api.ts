@@ -8,6 +8,8 @@ import type {
   FileMeta,
   IndexConfig,
   JobPlan,
+  Rule,
+  RuleActivity,
   DuNode,
   DupeEvent,
   DupeParams,
@@ -122,6 +124,10 @@ export const api = {
     channel.onmessage = onEvent;
     return invoke<number>('dupes_start', { params, channel });
   },
+  rulesConfigure: (config: { enabled: boolean; rules: Rule[] }) => invoke<void>('rules_configure', { config }),
+  rulesCheck: (rule: Rule) => invoke<void>('rules_check', { rule }),
+  rulesRun: (rule: Rule, dry: boolean) => invoke<RuleActivity[]>('rules_run', { rule, dry }),
+  rulesLog: () => invoke<RuleActivity[]>('rules_log'),
   jobPlan: (req: JobRequest) => invoke<JobPlan>('job_plan', { req }),
   undoApply: (actions: UndoAction[]) => invoke<UndoReport>('undo_apply', { actions }),
   trashItem: (path: string) => invoke<UndoAction>('trash_item', { path }),

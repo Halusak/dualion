@@ -8,14 +8,15 @@
   import { settings } from '../../lib/state/settings.svelte';
   import AboutContent from '../AboutContent.svelte';
   import Modal from './Modal.svelte';
+  import RulesEditor from './RulesEditor.svelte';
   import ShortcutsEditor from './ShortcutsEditor.svelte';
 
-  type Section = 'general' | 'appearance' | 'panels' | 'operations' | 'search' | 'tools' | 'shortcuts' | 'aboutSection';
+  type Section = 'general' | 'appearance' | 'panels' | 'operations' | 'search' | 'rules' | 'tools' | 'shortcuts' | 'aboutSection';
   let { close, section: initial = 'general' }: { close: (r: null) => void; section?: Section } = $props();
 
   // svelte-ignore state_referenced_locally
   let section = $state<Section>(initial);
-  const sections: Section[] = ['general', 'appearance', 'panels', 'operations', 'search', 'shortcuts', 'tools', 'aboutSection'];
+  const sections: Section[] = ['general', 'appearance', 'panels', 'operations', 'search', 'rules', 'shortcuts', 'tools', 'aboutSection'];
   const ix = $derived(index.status);
   const locale = $derived(localeTag());
   let rootsText = $state(untrack(() => settings.index.roots.join('\n')));
@@ -147,6 +148,8 @@
           <label class="check"><input type="checkbox" bind:checked={settings.index.hidden} /> {t('settings.indexHidden')}</label>
           <label class="check"><input type="checkbox" bind:checked={settings.index.meta} /> {t('settings.indexMetaToggle')}</label>
         {/if}
+      {:else if section === 'rules'}
+        <RulesEditor />
       {:else if section === 'tools'}
         <label class="col">
           <span>{t('settings.editor')}</span>

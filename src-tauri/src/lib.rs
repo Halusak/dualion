@@ -17,6 +17,7 @@ mod platform;
 mod meta;
 mod preview;
 mod rename;
+mod rules;
 mod query;
 mod search;
 mod tags;
@@ -117,7 +118,8 @@ pub fn run() {
             let index_sink: jobs::EventSink = Arc::new(move |name, payload| {
                 let _ = emitter.emit(name, payload);
             });
-            let index = index::IndexManager::new(data_dir.join("index.bin"), index_sink);
+            let index = index::IndexManager::new(data_dir.join("index.bin"), index_sink.clone());
+            let rules = rules::RulesEngine::new(index_sink);
             let effects = apply_effects(app);
 
             // The window starts hidden and the UI shows it once rendered; never
@@ -149,6 +151,7 @@ pub fn run() {
                 vault,
                 watcher,
                 index,
+                rules,
                 ops: parking_lot::Mutex::new(HashMap::new()),
                 next_op: AtomicU64::new(1),
                 config_dir,
@@ -219,6 +222,10 @@ pub fn run() {
             commands::du_scan,
             commands::du_tree,
             commands::dupes_start,
+            commands::rules_configure,
+            commands::rules_check,
+            commands::rules_run,
+            commands::rules_log,
             commands::undo_apply,
             commands::trash_item,
             commands::index_configure,

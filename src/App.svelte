@@ -9,15 +9,15 @@
   import { dropPaths } from './lib/dnd.svelte';
   import { i18n, langFromLocale, t } from './lib/i18n/index.svelte';
   import { panelKey, quick } from './lib/panelKeys.svelte';
-  import { locKey, sameLoc } from './lib/paths';
+  import { baseName, locKey, sameLoc } from './lib/paths';
   import { isMac, platform } from './lib/platform';
   import { app, restoreSession, sessionSnapshot } from './lib/state/app.svelte';
   import { applySettings, settings, type Settings } from './lib/state/settings.svelte';
-  import { dialogOpen, openDialog, ui } from './lib/state/ui.svelte';
+  import { dialogOpen, openDialog, toast, ui } from './lib/state/ui.svelte';
   import { journalLabel, pushHistory } from './lib/state/history.svelte';
   import { indexConfig, startIndex } from './lib/state/index.svelte';
   import { applyAccent } from './lib/theme';
-  import type { Answer, JobDone, JobSnapshot } from './lib/types';
+  import type { Answer, JobDone, JobSnapshot, RuleActivity } from './lib/types';
   import ConflictDialog from './components/dialogs/ConflictDialog.svelte';
   import JobErrorDialog from './components/dialogs/JobErrorDialog.svelte';
   import DragGhost from './components/DragGhost.svelte';
@@ -69,6 +69,13 @@
     if (json === lastMenu) return;
     lastMenu = json;
     void api.setMenu(spec).catch((e) => console.warn('menu', e));
+  });
+
+  // Folder rules follow their settings.
+  $effect(() => {
+    if (!app.ready) return;
+    const cfg = JSON.parse(JSON.stringify({ enabled: settings.rules.enabled, rules: settings.rules.list }));
+    void api.rulesConfigure(cfg).catch(() => {});
   });
 
   // File index follows its settings (debounced: roots are edited as text).
@@ -181,6 +188,13 @@
         for (const tab of app.visibleTabs()) {
           if (e.payload.touched.some((l) => sameLoc(l, tab.location))) void tab.reload();
         }
+      }),
+    );
+    unlisteners.push(
+      listen<RuleActivity>('rules-activity', (e) => {
+        const a = e.payload;
+        if (a.error) toast(`${a.rule}: ${a.error}`, 'error');
+        else if (a.undo.length) pushHistory({ label: `${t('rules.applied', { rule: a.rule })}: ${baseName(a.from)}`, actions: a.undo });
       }),
     );
     unlisteners.push(

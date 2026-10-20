@@ -491,3 +491,26 @@ export interface DupeGroup {
 export type DupeEvent =
   | { type: 'progress'; phase: 'scan' | 'quick' | 'hash' | 'images' | 'error'; done: number; total: number }
   | { type: 'done'; groups: DupeGroup[]; elapsedMs: number };
+
+export interface Rule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  folder: string;
+  recursive: boolean;
+  query: string;
+  action: 'move' | 'copy' | 'trash' | 'rename';
+  target: string;
+  rename: string;
+  auto: boolean;
+}
+
+export interface RuleActivity {
+  time: number;
+  rule: string;
+  from: string;
+  to: string | null;
+  action: string;
+  error: string | null;
+  undo: UndoAction[];
+}
