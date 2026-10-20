@@ -311,6 +311,7 @@ export const cs: Record<Key, string> & Record<string, string> = {
   'find.useQuery': 'Použít jako dotaz',
   'sem.assistant': 'Jazykový model',
   'sem.assistantHint': 'Volitelný – převádí věty jako „najdi videa z loňska větší než 1 GB“ na přesný dotaz. Bez něj to zvládnou vestavěná pravidla pro běžné obraty.',
+  'viewer.syntax': 'Barvy syntaxe',
   'drives.network': 'Síť',
   'cmd.toggleDriveBar': 'Lišta disků',
   'cmd.nextTab': 'Další karta',

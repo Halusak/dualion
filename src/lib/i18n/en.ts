@@ -308,6 +308,7 @@ export const en = {
   'find.useQuery': 'Use as query',
   'sem.assistant': 'Language model',
   'sem.assistantHint': 'Optional – turns sentences like “videos from last year larger than 1 GB” into an exact query. Without it, built-in rules handle common phrases.',
+  'viewer.syntax': 'Syntax colours',
   'drives.network': 'Network',
   'cmd.toggleDriveBar': 'Drive Bar',
   'cmd.nextTab': 'Next Tab',

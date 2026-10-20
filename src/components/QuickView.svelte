@@ -7,6 +7,7 @@
   import { settings } from '../lib/state/settings.svelte';
   import { F, type DirSize, type Entry, type ViewerProbe } from '../lib/types';
   import Cloud from '@lucide/svelte/icons/cloud';
+  import { highlight, languageOf } from '../lib/highlight';
   import FileIcon from './FileIcon.svelte';
   import Preview, { hasPreview } from './preview/Preview.svelte';
 
@@ -65,7 +66,13 @@
     {@const p = path}
     <Preview path={p} name={entry.name} {probe} compact onfail={() => (failed = p)} />
   {:else if probe?.kind === 'text'}
-    <pre class="text">{text}</pre>
+    {@const html = highlight(text, languageOf(entry.name), 300_000)}
+    {#if html}
+      <!-- highlight.js escapes the source -->
+      <pre class="text"><code class="hljs">{@html html}</code></pre>
+    {:else}
+      <pre class="text">{text}</pre>
+    {/if}
   {:else}
     <div class="center info">
       <FileIcon {entry} location={source.location} size={96} />

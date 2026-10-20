@@ -9,6 +9,7 @@
   import { showError } from '../../lib/state/ui.svelte';
   import type { ViewerProbe } from '../../lib/types';
   import Preview, { hasPreview } from '../preview/Preview.svelte';
+  import { highlight, languageOf } from '../../lib/highlight';
   import Modal from './Modal.svelte';
 
   let { path, name, close }: { path: string; name: string; close: (r: null) => void } = $props();
@@ -55,7 +56,51 @@
     await loadText(true);
   }
 
+  // ---------------------------------------------------------------- syntax highlighting
+  // svelte-ignore state_referenced_locally
+  const lang = languageOf(name);
+  let colored = $state(true);
+  let codeEl = $state<HTMLElement>();
+  let findPos = -1;
+  const html = $derived(colored && eof ? highlight(text, lang) : null);
+  const lineCount = $derived(html ? text.split('\n').length - (text.endsWith('\n') ? 1 : 0) : 0);
+
+  /** Find in the highlighted view: mark the match with a CSS highlight and scroll to it. */
+  function findInCode(back: boolean) {
+    if (!codeEl || !find) return;
+    const hay = text.toLocaleLowerCase();
+    const needle = find.toLocaleLowerCase();
+    let i = back ? hay.lastIndexOf(needle, Math.max(0, findPos - 1)) : hay.indexOf(needle, findPos + 1);
+    if (i < 0) i = back ? hay.lastIndexOf(needle) : hay.indexOf(needle);
+    notFound = i < 0;
+    if (i < 0) return;
+    findPos = i;
+    // Map the text offset to a DOM range over the highlighted spans.
+    const walker = document.createTreeWalker(codeEl, NodeFilter.SHOW_TEXT);
+    let pos = 0;
+    let start: [Node, number] | null = null;
+    let end: [Node, number] | null = null;
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const len = n.textContent?.length ?? 0;
+      if (!start && i < pos + len) start = [n, i - pos];
+      if (start && i + needle.length <= pos + len) {
+        end = [n, i + needle.length - pos];
+        break;
+      }
+      pos += len;
+    }
+    if (!start || !end) return;
+    const range = document.createRange();
+    range.setStart(start[0], start[1]);
+    range.setEnd(end[0], end[1]);
+    const reg = (globalThis as unknown as { CSS?: { highlights?: Map<string, unknown> } }).CSS?.highlights;
+    const Hl = (globalThis as unknown as { Highlight?: new (r: Range) => unknown }).Highlight;
+    if (reg && Hl) reg.set('viewer-find', new Hl(range));
+    range.startContainer.parentElement?.scrollIntoView({ block: 'center' });
+  }
+
   function findNext(back = false) {
+    if (html) return findInCode(back);
     if (!textarea || !find) return;
     const hay = text.toLocaleLowerCase();
     const needle = find.toLocaleLowerCase();
@@ -164,6 +209,9 @@
             {/each}
           </select>
           <label class="check"><input type="checkbox" bind:checked={wrap} /> {t('viewer.wrap')}</label>
+          {#if lang}
+            <label class="check" title={lang}><input type="checkbox" bind:checked={colored} /> {t('viewer.syntax')}</label>
+          {/if}
           <input
             class="input find"
             class:nf={notFound}
@@ -186,7 +234,15 @@
 
       <div class="body">
         {#if mode === 'text'}
-          <textarea bind:this={textarea} class="text" class:nowrap={!wrap} readonly spellcheck="false" value={text}></textarea>
+          {#if html}
+            <div class="code" class:nowrap={!wrap}>
+              {#if !wrap}<pre class="gutter" aria-hidden="true">{Array.from({ length: lineCount }, (_, i) => i + 1).join('\n')}</pre>{/if}
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -- highlight.js escapes the source -->
+              <pre class="hl"><code bind:this={codeEl} class="hljs">{@html html}</code></pre>
+            </div>
+          {:else}
+            <textarea bind:this={textarea} class="text" class:nowrap={!wrap} readonly spellcheck="false" value={text}></textarea>
+          {/if}
           {#if !eof}
             <div class="more"><button class="btn" onclick={() => loadText(false)}>{t('viewer.more')}</button></div>
           {/if}
@@ -283,6 +339,46 @@
   .text.nowrap {
     white-space: pre;
     overflow-x: auto;
+  }
+  .code {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    align-items: flex-start;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.5;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  .code pre {
+    margin: 0;
+    padding: 12px 16px;
+    font: inherit;
+    tab-size: 4;
+  }
+  .gutter {
+    position: sticky;
+    left: 0;
+    flex: none;
+    text-align: right;
+    color: var(--text-3);
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    padding-right: 10px !important;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .hl {
+    flex: 1;
+    min-width: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .code.nowrap .hl {
+    white-space: pre;
+    word-break: normal;
   }
   .more {
     position: absolute;
