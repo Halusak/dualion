@@ -219,6 +219,8 @@ export interface SearchParams {
   excludeDirs: string;
   kind: 'all' | 'files' | 'dirs';
   maxResults: number | null;
+  /** Query language filter (see query.rs). */
+  query?: string;
 }
 
 export interface SearchHit {
@@ -357,4 +359,34 @@ export type MenuNode =
   | { type: 'predefined'; name: string; label?: string | null };
 
 export type ViewMode = 'details' | 'list' | 'icons' | 'thumbs';
-export type SortKey = 'name' | 'ext' | 'size' | 'mtime';
+/** Built-in keys, or `m:<column>` for metadata columns. */
+export type SortKey = 'name' | 'ext' | 'size' | 'mtime' | `m:${string}`;
+
+export interface FileMeta {
+  width?: number;
+  height?: number;
+  duration?: number;
+  videoCodec?: string;
+  audioCodec?: string;
+  fps?: number;
+  bitrate?: number;
+  sampleRate?: number;
+  channels?: number;
+  camera?: string;
+  lens?: string;
+  taken?: number;
+  iso?: number;
+  focal?: number;
+  aperture?: number;
+  exposure?: string;
+  gps?: [number, number];
+  artist?: string;
+  album?: string;
+  title?: string;
+  genre?: string;
+  year?: number;
+  track?: number;
+  pages?: number;
+  author?: string;
+  lines?: number;
+}

@@ -13,12 +13,12 @@ use zip::ZipArchive;
 
 type Zip = ZipArchive<std::io::BufReader<std::fs::File>>;
 
-fn open(path: &Path) -> AppResult<Zip> {
+pub(crate) fn open(path: &Path) -> AppResult<Zip> {
     let f = std::fs::File::open(path).map_err(|e| AppError::io(e, path))?;
     Ok(ZipArchive::new(std::io::BufReader::new(f))?)
 }
 
-fn read_entry(zip: &mut Zip, name: &str, limit: u64) -> Option<Vec<u8>> {
+pub(crate) fn read_entry(zip: &mut Zip, name: &str, limit: u64) -> Option<Vec<u8>> {
     // Names are case sensitive inside ZIPs, but producers differ.
     let actual = zip.file_names().filter_map(Result::ok).find(|n| n.eq_ignore_ascii_case(name))?.to_string();
     let file = zip.by_name(&actual).ok()?;

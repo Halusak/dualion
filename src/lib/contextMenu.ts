@@ -2,11 +2,13 @@
 
 import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu } from '@tauri-apps/api/menu';
 import { LogicalPosition } from '@tauri-apps/api/dpi';
+import { META_COLUMNS } from './columns';
 import { command, menuAccel, run } from './commands';
 import { t } from './i18n/index.svelte';
 import { isArchiveName } from './paths';
 import { isMac } from './platform';
 import { app } from './state/app.svelte';
+import { settings } from './state/settings.svelte';
 import type { Tab } from './state/tab.svelte';
 import { F } from './types';
 
@@ -148,4 +150,62 @@ async function buildNodes(nodes: MenuNode[]): Promise<Item[]> {
 export async function popupMenuNodes(nodes: MenuNode[], at: { x: number; y: number }) {
   const menu = await Menu.new({ items: await buildNodes(nodes) });
   await menu.popup(new LogicalPosition(at.x, at.y));
+}
+
+// ---------------------------------------------------------------- columns
+
+/** Right click on the list header: choose metadata columns for this folder. */
+export async function columnsMenu(tab: Tab) {
+  const key = tab.columnsKey;
+  const current = tab.columns;
+  const set = (ids: string[] | null) => {
+    if (key === null) return;
+    const next = { ...settings.folderColumns };
+    if (ids === null) delete next[key];
+    else next[key] = ids;
+    // Keep the map bounded.
+    const keys = Object.keys(next);
+    if (keys.length > 500) delete next[keys[0]];
+    settings.folderColumns = next;
+    if (!settings.metaColumns) settings.metaColumns = true;
+  };
+  const items: Item[] = [];
+  items.push(
+    await CheckMenuItem.new({
+      text: t('columns.auto'),
+      checked: key !== null && !settings.folderColumns[key],
+      enabled: key !== null,
+      action: () => set(null),
+    }),
+  );
+  items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
+  for (const group of ['photo', 'video', 'audio', 'doc', 'other'] as const) {
+    const sub: Item[] = [];
+    for (const c of META_COLUMNS.filter((c) => c.group === group)) {
+      const on = current.includes(c.id);
+      sub.push(
+        await CheckMenuItem.new({
+          text: t(c.label),
+          checked: on,
+          enabled: key !== null,
+          action: () => set(on ? current.filter((x) => x !== c.id) : [...current, c.id]),
+        }),
+      );
+    }
+    items.push(await Submenu.new({ text: t(`columns.${group}`), items: sub }));
+  }
+  items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
+  items.push(await MenuItem.new({ text: t('columns.none'), enabled: key !== null && current.length > 0, action: () => set([]) }));
+  items.push(
+    await CheckMenuItem.new({ text: t('col.attrs'), checked: settings.showAttrs, action: () => (settings.showAttrs = !settings.showAttrs) }),
+  );
+  items.push(
+    await CheckMenuItem.new({
+      text: t('settings.metaColumns'),
+      checked: settings.metaColumns,
+      action: () => (settings.metaColumns = !settings.metaColumns),
+    }),
+  );
+  const menu = await Menu.new({ items });
+  await menu.popup();
 }

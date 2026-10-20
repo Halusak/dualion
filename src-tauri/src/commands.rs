@@ -432,6 +432,40 @@ pub async fn preview_slides(path: String) -> AppResult<Vec<crate::preview::Slide
 }
 
 #[tauri::command]
+pub async fn file_meta(paths: Vec<String>) -> AppResult<Vec<Option<crate::meta::FileMeta>>> {
+    blocking(move || Ok(crate::meta::get_many(&paths))).await
+}
+
+/// Validates a query; returns the parse error message if any.
+#[tauri::command]
+pub fn query_check(query: String) -> AppResult<()> {
+    crate::query::Query::parse(&query).map(|_| ())
+}
+
+/// Evaluates a query against listed items: (path, is_dir, size, mtime).
+#[tauri::command]
+pub async fn query_filter(query: String, items: Vec<(String, bool, u64, i64)>) -> AppResult<Vec<bool>> {
+    blocking(move || {
+        let q = crate::query::Query::parse(&query)?;
+        let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).clamp(2, 8);
+        let chunk = items.len().div_ceil(threads).max(1);
+        let mut out = vec![false; items.len()];
+        std::thread::scope(|s| {
+            for (part, slot) in items.chunks(chunk).zip(out.chunks_mut(chunk)) {
+                let q = &q;
+                s.spawn(move || {
+                    for ((path, is_dir, size, mtime), o) in part.iter().zip(slot.iter_mut()) {
+                        *o = q.matches(&crate::query::FileSubject::new(path.clone(), *is_dir, *size, *mtime));
+                    }
+                });
+            }
+        });
+        Ok(out)
+    })
+    .await
+}
+
+#[tauri::command]
 pub async fn viewer_read_bytes(path: String, offset: u64, len: usize) -> AppResult<Response> {
     let bytes = blocking(move || viewer::read_bytes(std::path::Path::new(&path), offset, len)).await?;
     Ok(Response::new(bytes))

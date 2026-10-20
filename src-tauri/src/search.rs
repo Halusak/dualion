@@ -50,6 +50,8 @@ pub struct SearchParams {
     pub exclude_dirs: String,
     pub kind: SearchKind,
     pub max_results: Option<usize>,
+    /// Query language filter (name words, metadata fields …), see `query.rs`.
+    pub query: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -235,6 +237,7 @@ fn grep_with(s: &mut Searcher, m: &RegexMatcher, path: &std::path::Path, stop_at
 
 pub fn run(params: SearchParams, channel: Channel<SearchEvent>, cancel: Arc<AtomicBool>) -> AppResult<()> {
     let compiled = Arc::new(compile(&params)?);
+    let query = Arc::new(if params.query.trim().is_empty() { None } else { Some(crate::query::Query::parse(&params.query)?) });
     let roots: Vec<_> = params.roots.iter().map(|r| local::normalize(r)).filter(|r| r.exists()).collect();
     if roots.is_empty() {
         return Err(AppError::invalid("No folder to search in"));
@@ -298,6 +301,7 @@ pub fn run(params: SearchParams, channel: Channel<SearchEvent>, cancel: Arc<Atom
             }
 
             wb.build_parallel().run(|| {
+                let query = query.clone();
                 let (params, compiled, pending, current, scanned, found, truncated, cancel) = (
                     params.clone(),
                     compiled.clone(),
@@ -344,6 +348,12 @@ pub fn run(params: SearchParams, channel: Channel<SearchEvent>, cancel: Arc<Atom
                     let mtime = meta.modified().map(system_time_ms).unwrap_or(0);
                     if params.newer_than.is_some_and(|t| mtime < t) || params.older_than.is_some_and(|t| mtime > t) {
                         return ignore::WalkState::Continue;
+                    }
+                    if let Some(q) = query.as_ref() {
+                        let s = crate::query::FileSubject::new(entry.path().to_string_lossy().into_owned(), is_dir, size, mtime);
+                        if !q.matches(&s) {
+                            return ignore::WalkState::Continue;
+                        }
                     }
                     let (mut count, mut lines) = (0, Vec::new());
                     if let Some(m) = &compiled.text {

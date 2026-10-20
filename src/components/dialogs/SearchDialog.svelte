@@ -52,6 +52,7 @@
     excludeDirs: '',
     kind: 'all',
     maxResults: 50000,
+    query: '',
   };
   // svelte-ignore state_referenced_locally
   const p = $state<SearchParams>({ ...(last.params ?? defaults), roots: [root] });
@@ -204,6 +205,10 @@
           <label class="check"><input type="checkbox" bind:checked={p.textRegex} /> {t('search.regex')}</label>
           <label class="check"><input type="checkbox" bind:checked={p.textNot} /> {t('search.not')}</label>
         </span>
+      </label>
+      <label class="row">
+        <span>{t('search.query')}</span>
+        <input class="input" bind:value={p.query} placeholder="type:image width>3000 taken:2024 camera:sony" title={t('query.help')} spellcheck="false" />
       </label>
       <label class="row">
         <span>{t('search.in')}</span>

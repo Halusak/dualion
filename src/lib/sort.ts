@@ -22,6 +22,7 @@ export function sortEntries(
   desc: boolean,
   locale: string,
   dirSizes?: ReadonlyMap<string, number>,
+  metaValue?: (e: Entry) => number | string | undefined,
 ): Entry[] {
   const c = collator(locale);
   const byName = (a: Entry, b: Entry) => c.compare(a.name, b.name) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
@@ -41,7 +42,17 @@ export function sortEntries(
       fileCmp = (a, b) => a.mtime - b.mtime || byName(a, b);
       break;
     default:
-      fileCmp = byName;
+      if (key.startsWith('m:') && metaValue) {
+        // Missing values sort last in both directions.
+        const sign = desc ? -1 : 1;
+        fileCmp = (a, b) => {
+          const x = metaValue(a);
+          const y = metaValue(b);
+          if (x === undefined || y === undefined) return x === y ? byName(a, b) : x === undefined ? sign : -sign;
+          const r = typeof x === 'number' && typeof y === 'number' ? x - y : c.compare(String(x), String(y));
+          return r || byName(a, b);
+        };
+      } else fileCmp = byName;
   }
   let dirCmp: (a: Entry, b: Entry) => number = byName;
   if (key === 'mtime') dirCmp = fileCmp;

@@ -11,9 +11,12 @@ mod local;
 mod location;
 mod menu;
 mod platform;
+mod meta;
 mod preview;
 mod rename;
+mod query;
 mod search;
+mod tags;
 mod thumbs;
 mod util;
 mod vault;
@@ -202,6 +205,9 @@ pub fn run() {
             commands::preview_sheet,
             commands::preview_document,
             commands::preview_slides,
+            commands::file_meta,
+            commands::query_check,
+            commands::query_filter,
             commands::checksum_start,
             commands::icon_png,
             commands::vault_status,

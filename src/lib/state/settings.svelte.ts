@@ -17,6 +17,12 @@ export interface Settings {
   alwaysShowTabs: boolean;
   /** Drive buttons above each panel. */
   driveBar: boolean;
+  /** Metadata columns (dimensions, duration, artist …) in the details view. */
+  metaColumns: boolean;
+  /** Columns chosen by hand for a folder (path -> column ids); others use the automatic preset. */
+  folderColumns: Record<string, string[]>;
+  /** Widths of metadata columns (id -> px). */
+  metaWidths: Record<string, number>;
   functionBar: boolean;
   toolbar: boolean;
   restoreSession: boolean;
@@ -48,6 +54,9 @@ export const defaultSettings = (): Settings => ({
   showUp: true,
   alwaysShowTabs: true,
   driveBar: true,
+  metaColumns: true,
+  folderColumns: {},
+  metaWidths: {},
   functionBar: true,
   toolbar: true,
   restoreSession: true,

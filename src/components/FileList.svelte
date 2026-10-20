@@ -2,7 +2,8 @@
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import ChevronUp from '@lucide/svelte/icons/chevron-up';
   import { commitRename } from '../lib/actions';
-  import { backgroundMenu, entryMenu } from '../lib/contextMenu';
+  import { columnById, type MetaColumn } from '../lib/columns';
+  import { backgroundMenu, columnsMenu, entryMenu } from '../lib/contextMenu';
   import { drag } from '../lib/dnd.svelte';
   import { formatAttrs, formatDate, formatSize } from '../lib/format';
   import { localeTag, t } from '../lib/i18n/index.svelte';
@@ -33,9 +34,16 @@
   const isSearch = $derived(tab.location.kind === 'search');
   const isDrives = $derived(tab.location.kind === 'drives');
   const w = $derived(settings.colWidths);
+  const metaCols = $derived(tab.columns.map((id) => columnById.get(id)!).filter(Boolean));
+  const metaW = (c: MetaColumn) => settings.metaWidths[c.id] ?? c.width;
   const cols = $derived(
-    `minmax(120px, 1fr) ${isSearch ? 'minmax(100px, 0.8fr)' : `${w.ext}px`} ${w.size}px ${w.date}px${settings.showAttrs ? ` ${w.attrs}px` : ''}`,
+    `minmax(120px, 1fr) ${isSearch ? 'minmax(100px, 0.8fr)' : `${w.ext}px`} ${w.size}px ${w.date}px${settings.showAttrs ? ` ${w.attrs}px` : ''}${metaCols.map((c) => ` ${metaW(c)}px`).join('')}`,
   );
+  // Narrow panels scroll horizontally instead of squeezing the name column.
+  const minWidth = $derived(
+    180 + (isSearch ? 100 : w.ext) + w.size + w.date + (settings.showAttrs ? w.attrs : 0) + metaCols.reduce((a, c) => a + metaW(c), 0) + 16,
+  );
+  let headerEl = $state<HTMLDivElement>();
 
   $effect(() => {
     setMetrics(tab, { perPage: Math.max(1, Math.floor(height / rowH)), cols: 1, rowsPerCol: Math.max(1, Math.floor(height / rowH)) });
@@ -71,16 +79,19 @@
     tab.setSort(key);
   }
 
-  function startResize(e: PointerEvent, col: 'ext' | 'size' | 'date' | 'attrs') {
+  function startResize(e: PointerEvent, col: string) {
     e.stopPropagation();
     e.preventDefault();
     const startX = e.clientX;
-    const startW = settings.colWidths[col];
+    const meta = columnById.get(col);
+    const startW = meta ? metaW(meta) : settings.colWidths[col as 'ext'];
     const target = e.currentTarget as HTMLElement;
     target.setPointerCapture(e.pointerId);
     const move = (ev: PointerEvent) => {
       // Handles sit on the left edge of their column: dragging left widens it.
-      settings.colWidths = { ...settings.colWidths, [col]: Math.max(40, Math.min(400, startW - (ev.clientX - startX))) };
+      const width = Math.max(40, Math.min(400, startW - (ev.clientX - startX)));
+      if (meta) settings.metaWidths = { ...settings.metaWidths, [col]: width };
+      else settings.colWidths = { ...settings.colWidths, [col]: width };
     };
     const up = () => {
       target.removeEventListener('pointermove', move);
@@ -97,9 +108,19 @@
   }
 </script>
 
-<div class="details" style="--cols: {cols}; --row-h: {rowH}px">
-  <div class="header" role="row">
-    {#snippet col(key: SortKey, label: string, cls: string, resize: 'ext' | 'size' | 'date' | null)}
+<div class="details" style="--cols: {cols}; --row-h: {rowH}px; --min-w: {minWidth}px">
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="header"
+    bind:this={headerEl}
+    oncontextmenu={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      void columnsMenu(tab);
+    }}
+  >
+   <div class="hgrid">
+    {#snippet col(key: SortKey, label: string, cls: string, resize: string | null)}
       <button class="h {cls}" class:sorted={tab.sortKey === key} onclick={() => header(key)}>
         {#if resize}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -120,6 +141,10 @@
     {@render col('size', t('col.size'), 'right', 'size')}
     {@render col('mtime', t('col.date'), '', 'date')}
     {#if settings.showAttrs}<div class="h">{t('col.attrs')}</div>{/if}
+    {#each metaCols as c (c.id)}
+      {@render col(`m:${c.id}`, t(c.label), c.right ? 'right' : '', c.id)}
+    {/each}
+   </div>
   </div>
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -127,7 +152,10 @@
     class="viewport"
     bind:this={viewport}
     bind:clientHeight={height}
-    onscroll={() => (scrollTop = viewport.scrollTop)}
+    onscroll={() => {
+      scrollTop = viewport.scrollTop;
+      if (headerEl) headerEl.scrollLeft = viewport.scrollLeft;
+    }}
     onpointerdown={(e) => backgroundPointerDown(e, side, tab)}
     oncontextmenu={(e) => onContext(e, null)}
   >
@@ -181,6 +209,13 @@
           {#if settings.showAttrs}
             <div class="c muted mono attrs">{e.flags & F.UP ? '' : formatAttrs(e.attrs, isWindows)}</div>
           {/if}
+          {#if metaCols.length}
+            {@const m = tab.meta(e)}
+            {#each metaCols as c (c.id)}
+              {@const v = m ? c.text(m, locale) : ''}
+              <div class="c muted ellipsis meta" class:right={c.right} title={v.length > 14 ? v : undefined}>{v}</div>
+            {/each}
+          {/if}
         </div>
       {/each}
     </div>
@@ -194,9 +229,14 @@
     display: flex;
     flex-direction: column;
   }
-  .header {
+  .hgrid {
     display: grid;
     grid-template-columns: var(--cols);
+    min-width: var(--min-w);
+    height: 100%;
+  }
+  .header {
+    overflow: hidden;
     flex: none;
     height: 24px;
     border-bottom: 1px solid var(--border);
@@ -255,13 +295,17 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     position: relative;
     outline: none;
   }
   .spacer {
     position: relative;
     min-height: 100%;
+    min-width: var(--min-w);
+  }
+  .meta {
+    font-variant-numeric: tabular-nums;
   }
   .row {
     position: absolute;

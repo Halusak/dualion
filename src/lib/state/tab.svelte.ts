@@ -1,6 +1,7 @@
 import { api, type BackendLocation } from '../api';
 import { localeTag } from '../i18n/index.svelte';
-import { baseName, dirName, extOf, maskMatcher, parentLoc, sameLoc } from '../paths';
+import { autoColumns, columnById } from '../columns';
+import { baseName, dirName, extOf, joinLocal, maskMatcher, parentLoc, sameLoc } from '../paths';
 import { sortEntries } from '../sort';
 import {
   F,
@@ -16,6 +17,7 @@ import {
   type Volume,
 } from '../types';
 import type { Side } from './app.svelte';
+import { metaFor, metaPeek } from './meta.svelte';
 import { settings } from './settings.svelte';
 import { showError } from './ui.svelte';
 
@@ -88,6 +90,9 @@ export class Tab {
   locked = $state(false);
   /** Owning panel side (set by Side). */
   side: Side | null = null;
+  /** Result of a query-language filter (`type:image width>2000`). */
+  filterQuery = $state.raw<{ text: string; keys: Set<string> | null; error: string | null } | null>(null);
+  private filterToken = 0;
 
   private history: Location[] = [];
   private histPos = -1;
@@ -120,14 +125,80 @@ export class Tab {
     return { location: loc, view: this.view, sortKey: this.sortKey, sortDesc: this.sortDesc, locked: this.locked };
   }
 
+  /** Folder key for per-folder column choices. */
+  get columnsKey(): string | null {
+    const l = this.location;
+    return l.kind === 'local' ? l.path : l.kind === 'search' ? 'search' : null;
+  }
+
+  /** Metadata column ids shown in the details view. */
+  columns = $derived.by(() => {
+    if (!settings.metaColumns) return [];
+    const key = this.columnsKey;
+    if (key === null) return [];
+    const chosen = settings.folderColumns[key];
+    return (chosen ?? autoColumns(this.all)).filter((id) => columnById.has(id));
+  });
+
+  /** Local path of an entry when it has one (local folders and search results). */
+  pathOf(e: Entry): string | null {
+    if (e.path) return e.path;
+    return this.location.kind === 'local' && !(e.flags & F.UP) ? joinLocal(this.location.path, e.name) : null;
+  }
+
+  /** Metadata of an entry (loads it in the background when missing). */
+  meta(e: Entry, load = true) {
+    if (e.isDir) return null;
+    const p = this.pathOf(e);
+    if (!p) return null;
+    return (load ? metaFor : metaPeek)(p, e.size, e.mtime) ?? null;
+  }
+
+  /** Applies the filter text: masks locally, query language via the backend. */
+  async updateFilter() {
+    const text = this.filter.trim();
+    const token = ++this.filterToken;
+    if (!isQueryText(text)) {
+      this.filterQuery = null;
+      return;
+    }
+    const items = this.all
+      .map((e) => [this.pathOf(e), e] as const)
+      .filter((x): x is readonly [string, Entry] => x[0] !== null);
+    try {
+      const res = await api.queryFilter(
+        text,
+        items.map(([p, e]) => [p, e.isDir, e.size, e.mtime]),
+      );
+      if (token !== this.filterToken) return;
+      this.filterQuery = { text, keys: new Set(items.filter((_, i) => res[i]).map(([, e]) => e.key)), error: null };
+    } catch (err) {
+      if (token !== this.filterToken) return;
+      this.filterQuery = { text, keys: null, error: (err as AppError).message ?? String(err) };
+    }
+  }
+
   private computeVisible(): Entry[] {
     let list = this.all;
     if (!settings.showHidden) list = list.filter((e) => (e.flags & F.HIDDEN) === 0);
     if (this.filter) {
-      const m = maskMatcher(this.filter);
-      list = list.filter((e) => m(e.name));
+      const q = this.filterQuery;
+      if (q && q.text === this.filter.trim()) {
+        if (q.keys) list = list.filter((e) => q.keys!.has(e.key));
+      } else if (!isQueryText(this.filter.trim())) {
+        const m = maskMatcher(this.filter);
+        list = list.filter((e) => m(e.name));
+      }
     }
-    const sorted = this.location.kind === 'drives' ? list : sortEntries(list, this.sortKey, this.sortDesc, localeTag(), this.dirSizes);
+    const key = this.sortKey;
+    const col = key.startsWith('m:') ? columnById.get(key.slice(2)) : undefined;
+    const metaValue = col
+      ? (e: Entry) => {
+          const m = this.meta(e);
+          return m ? col.value(m) : undefined;
+        }
+      : undefined;
+    const sorted = this.location.kind === 'drives' ? list : sortEntries(list, key, this.sortDesc, localeTag(), this.dirSizes, metaValue);
     if (settings.showUp && this.listing?.parent && !this.filter) return [UP_ENTRY, ...sorted];
     return sorted;
   }
@@ -226,6 +297,7 @@ export class Tab {
       const keys = new Set(this.all.map((e) => e.key));
       this.marked = new Set([...keep].filter((k) => keys.has(k)));
       this.dirSizes = new Map([...sizes].filter(([k]) => keys.has(k)));
+      if (this.filterQuery) void this.updateFilter();
       if (cur === null || (!keys.has(cur) && cur !== UP_ENTRY.key)) {
         const v = this.visible;
         this.cursorKey = v[Math.min(oldCursor, v.length - 1)]?.key ?? null;
@@ -447,8 +519,13 @@ export class Tab {
     if (this.sortKey === key) this.sortDesc = !this.sortDesc;
     else {
       this.sortKey = key;
-      this.sortDesc = key === 'mtime' || key === 'size';
+      this.sortDesc = key === 'mtime' || key === 'size' || (key.startsWith('m:') && !!columnById.get(key.slice(2))?.right);
     }
     this.revealTick++;
   }
+}
+
+/** Filter text in the query language rather than a name mask ("width>2000", "type:video"). */
+export function isQueryText(text: string): boolean {
+  return /(^|[\s(|!-])[\p{L}_]+(:|>|<|=)/u.test(text);
 }
