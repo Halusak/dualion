@@ -2,7 +2,8 @@
 name = "dualion"
 version = "0.1.0"
 description = "Dualion – dvoupanelový správce souborů"
-authors = ["Dualion"]
+authors = ["Haluška"]
+license = "GPL-3.0-or-later"
 edition = "2021"
 rust-version = "1.85"
 

@@ -23,6 +23,7 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 - [Vzhled, jazyk a nastavení](#vzhled-jazyk-a-nastavení)
 - [Klávesové zkratky](#klávesové-zkratky-výchozí)
 - [Sestavení, testy, architektura](#sestavení)
+- [Licence](#licence)
 
 ## Funkce
 
@@ -218,6 +219,12 @@ cargo test ollama -- --ignored                                                  
 - `src/` – Svelte 5 + TypeScript: stav panelů, karet, indexu a historie (`lib/state/`), příkazy a klávesové zkratky (`lib/commands.ts`), akce (`lib/actions.ts`), sloupce a skupiny (`lib/columns.ts`, `lib/groups.ts`), zvýraznění syntaxe (`lib/highlight.ts`), komponenty (`components/`), překlady (`lib/i18n/`).
 
 Nastavení, relace, index a trezor se ukládají do systémové složky aplikace (`~/Library/Application Support/cz.dualion.commander`, resp. `%APPDATA%\cz.dualion.commander`).
+
+## Licence
+
+Copyright © 2026 Haluška. Dualion je svobodný software pod licencí [GNU General Public License v3.0](LICENSE) nebo (podle vaší volby) kterékoli pozdější verze.
+
+Program smíte používat, studovat, upravovat a šířit. Pokud šíříte upravenou verzi, musíte zveřejnit i její zdrojový kód pod stejnou licencí.
 
 ## Podpora vývoje
 

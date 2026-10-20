@@ -23,6 +23,7 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
 - [Appearance, language and settings](#appearance-language-and-settings)
 - [Keyboard shortcuts](#keyboard-shortcuts-defaults)
 - [Building, tests, architecture](#building)
+- [License](#license)
 
 ## Features
 
@@ -405,6 +406,12 @@ Settings, sessions, the index and the vault are stored in the app's system folde
 
 - macOS: `~/Library/Application Support/cz.dualion.commander`
 - Windows: `%APPDATA%\cz.dualion.commander`
+
+## License
+
+Copyright © 2026 Haluška. Dualion is free software, licensed under the [GNU General Public License v3.0](LICENSE) or (at your option) any later version.
+
+You may use, study, modify and share it. If you distribute a modified version, you must release its source code under the same license.
 
 ## Support development
 
