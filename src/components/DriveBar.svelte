@@ -108,10 +108,9 @@
   .drives {
     flex: none;
     display: flex;
-    align-items: center;
-    gap: 2px;
+    align-items: stretch;
     height: 28px;
-    padding: 0 4px;
+    padding: 0;
     overflow-x: auto;
     scrollbar-width: none;
     background: var(--bg-subtle);
@@ -120,16 +119,17 @@
   .drives::-webkit-scrollbar {
     display: none;
   }
+  /* Same look as the tab bar: flush segments separated by thin lines. */
   button {
     flex: none;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    height: 22px;
-    max-width: 150px;
-    padding: 0 7px 0 5px;
-    border: 1px solid transparent;
-    border-radius: var(--r-s);
+    gap: 5px;
+    max-width: 160px;
+    padding: 0 10px;
+    border: none;
+    border-right: 1px solid var(--border);
+    border-radius: 0;
     background: transparent;
     color: var(--text-2);
     font-size: 12px;
@@ -144,15 +144,11 @@
   }
   button.on {
     background: var(--bg-panel);
-    border-color: var(--border);
     color: var(--text);
+    font-weight: 600;
   }
   .sep {
-    width: 1px;
-    height: 16px;
-    margin: 0 3px;
-    background: var(--border);
-    flex: none;
+    flex: 1;
   }
   img {
     flex: none;
