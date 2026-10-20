@@ -407,6 +407,54 @@ pub fn search_start(state: State<'_, AppState>, params: SearchParams, channel: C
     Ok(id)
 }
 
+/// Scans a folder for the disk usage map; progress = folders read so far.
+#[tauri::command]
+pub async fn du_scan(state: State<'_, AppState>, path: String, channel: Channel<u64>) -> AppResult<crate::diskusage::DuNode> {
+    let (id, flag) = state.new_op();
+    let _ = channel.send(id);
+    let r = blocking(move || {
+        let p = crate::local::normalize(&path);
+        crate::diskusage::scan(&p, &|dirs| {
+            let _ = channel.send(dirs as u64);
+        }, &flag)?;
+        crate::diskusage::tree(&p, 3)
+    })
+    .await;
+    state.ops.lock().remove(&id);
+    r
+}
+
+/// Subtree of the last scan (drilling down); errors when not scanned.
+#[tauri::command]
+pub async fn du_tree(path: String) -> AppResult<crate::diskusage::DuNode> {
+    blocking(move || {
+        let p = crate::local::normalize(&path);
+        if !crate::diskusage::cached(&p) {
+            return Err(AppError::invalid("Not scanned"));
+        }
+        crate::diskusage::tree(&p, 3)
+    })
+    .await
+}
+
+/// Duplicate search; returns an op id for `cancel_op`.
+#[tauri::command]
+pub fn dupes_start(state: State<'_, AppState>, params: crate::dupes::DupeParams, channel: Channel<crate::dupes::DupeEvent>) -> AppResult<u64> {
+    let (id, flag) = state.new_op();
+    let index = state.index.clone();
+    std::thread::Builder::new()
+        .name("dupes".into())
+        .spawn(move || {
+            if let Err(e) = crate::dupes::run(params, &index, &channel, &flag) {
+                if !e.is_cancelled() {
+                    let _ = channel.send(crate::dupes::DupeEvent::Progress { phase: "error", done: 0, total: 0 });
+                }
+            }
+        })
+        .map_err(|e| AppError::other(e.to_string()))?;
+    Ok(id)
+}
+
 #[tauri::command]
 pub async fn viewer_probe(path: String) -> AppResult<Probe> {
     blocking(move || viewer::probe(std::path::Path::new(&path))).await

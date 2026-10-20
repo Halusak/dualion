@@ -501,6 +501,30 @@ impl IndexManager {
             .collect();
         Ok(IndexResults { hits, total, elapsed_ms: started.elapsed().as_millis() as u64 })
     }
+
+    /// Indexed files grouped by size (for duplicate search): (size, paths) with ≥ 2 files.
+    pub fn same_size_groups(&self, under: &[String], min_size: u64) -> Option<Vec<(u64, Vec<String>)>> {
+        if !self.loaded.load(Ordering::Relaxed) {
+            return None;
+        }
+        let d = self.data.read();
+        let unders: Vec<u32> = under.iter().filter_map(|u| d.find(Path::new(u))).collect();
+        if unders.len() != under.len() {
+            return None;
+        }
+        let mut by_size: HashMap<u64, Vec<u32>> = HashMap::new();
+        for id in 0..d.nodes.len() as u32 {
+            let n = d.nodes[id as usize];
+            if n.flags & (flags::DEAD | flags::DIR | flags::LINK) != 0 || n.size < min_size.max(1) {
+                continue;
+            }
+            if !unders.is_empty() && !unders.iter().any(|&u| d.is_under(id, u)) {
+                continue;
+            }
+            by_size.entry(n.size).or_default().push(id);
+        }
+        Some(by_size.into_iter().filter(|(_, v)| v.len() > 1).map(|(s, v)| (s, v.into_iter().map(|id| d.path(id)).collect())).collect())
+    }
 }
 
 /// Syncs the children of directory `id` with the disk (recursing into new folders).

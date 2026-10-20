@@ -84,6 +84,8 @@ export const commands: Command[] = [
   { id: 'search', label: 'cmd.search', run: A.search, keys: ['Alt+F7', 'Mod+F'], global: true },
   { id: 'quickFind', label: 'cmd.quickFind', run: () => A.quickFind(), keys: ['Mod+P'], global: true },
   { id: 'palette', label: 'cmd.palette', run: () => A.quickFind('>'), keys: ['Mod+Shift+P'], global: true },
+  { id: 'diskUsage', label: 'cmd.diskUsage', run: () => A.diskUsage(), keys: ['Mod+Alt+U'] },
+  { id: 'duplicates', label: 'cmd.duplicates', run: () => A.duplicates(), keys: ['Mod+Alt+D'] },
   { id: 'rescanIndex', label: 'cmd.rescanIndex', run: () => A.rescanIndex() },
   { id: 'multiRename', label: 'cmd.multiRename', run: A.multiRename, keys: ['Mod+M'] },
   { id: 'dirSizes', label: 'cmd.dirSizes', run: A.calcAllDirSizes, keys: ['Alt+Shift+Enter'] },
@@ -389,7 +391,7 @@ export function buildMenu(): MenuNode[] {
   menu.push({
     type: 'submenu',
     label: t('menu.commands'),
-    items: [item('quickFind'), item('palette'), item('search'), item('multiRename'), item('dirSizes'), sep, item('terminal'), sep, item('swapPanels'), item('equalPanels'), sep, item('jobs')],
+    items: [item('quickFind'), item('palette'), item('search'), item('multiRename'), item('dirSizes'), item('diskUsage'), item('duplicates'), sep, item('terminal'), sep, item('swapPanels'), item('equalPanels'), sep, item('jobs')],
   });
   menu.push({ type: 'submenu', label: t('menu.net'), items: [item('ftpConnect'), item('ftpDisconnect')] });
   menu.push({

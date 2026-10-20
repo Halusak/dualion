@@ -8,6 +8,9 @@ import type {
   FileMeta,
   IndexConfig,
   JobPlan,
+  DuNode,
+  DupeEvent,
+  DupeParams,
   UndoAction,
   UndoReport,
   IndexResults,
@@ -107,6 +110,18 @@ export const api = {
   vaultUnlock: (password: string) => invoke<void>('vault_unlock', { password }),
   vaultLock: () => invoke<void>('vault_lock'),
   vaultSetMaster: (password: string | null) => invoke<void>('vault_set_master', { password }),
+  /** First channel message is the op id (for cancelOp), then folder counts. */
+  duScan: (path: string, onProgress: (n: number) => void) => {
+    const channel = new Channel<number>();
+    channel.onmessage = onProgress;
+    return invoke<DuNode>('du_scan', { path, channel });
+  },
+  duTree: (path: string) => invoke<DuNode>('du_tree', { path }),
+  dupesStart: (params: DupeParams, onEvent: (e: DupeEvent) => void) => {
+    const channel = new Channel<DupeEvent>();
+    channel.onmessage = onEvent;
+    return invoke<number>('dupes_start', { params, channel });
+  },
   jobPlan: (req: JobRequest) => invoke<JobPlan>('job_plan', { req }),
   undoApply: (actions: UndoAction[]) => invoke<UndoReport>('undo_apply', { actions }),
   trashItem: (path: string) => invoke<UndoAction>('trash_item', { path }),

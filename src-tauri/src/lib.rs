@@ -2,6 +2,8 @@ mod checksum;
 mod commands;
 #[cfg(debug_assertions)]
 mod devtools;
+mod diskusage;
+mod dupes;
 mod error;
 mod filter;
 mod ftp;
@@ -214,6 +216,9 @@ pub fn run() {
             commands::preview_slides,
             commands::file_meta,
             commands::job_plan,
+            commands::du_scan,
+            commands::du_tree,
+            commands::dupes_start,
             commands::undo_apply,
             commands::trash_item,
             commands::index_configure,

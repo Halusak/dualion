@@ -16,6 +16,8 @@ import { Tab, UP_ENTRY } from './state/tab.svelte';
 import { openDialog, showError, toast } from './state/ui.svelte';
 import QuickFind from '../components/dialogs/QuickFind.svelte';
 import HistoryDialog from '../components/dialogs/HistoryDialog.svelte';
+import DiskUsageDialog from '../components/dialogs/DiskUsageDialog.svelte';
+import DuplicatesDialog from '../components/dialogs/DuplicatesDialog.svelte';
 import { renameGroup } from './groups';
 import { pushHistory } from './state/history.svelte';
 import { F, type Entry, type JobRequest, type Location, type SortKey, type ViewMode } from './types';
@@ -516,6 +518,22 @@ export async function unpack() {
 }
 
 // ---------------------------------------------------------------- tools
+
+/** Disk usage map of the active panel's folder. */
+export async function diskUsage() {
+  const loc = app.panel.location;
+  if (loc.kind !== 'local') return toast(t('misc.notLocal'));
+  await openDialog(DiskUsageDialog, { path: loc.path });
+}
+
+/** Duplicate finder over both panels' folders. */
+export async function duplicates() {
+  const roots = [app.panel.location, app.other.location]
+    .filter((l): l is { kind: 'local'; path: string } => l.kind === 'local')
+    .map((l) => l.path)
+    .filter((p, i, a) => a.indexOf(p) === i && !a.some((o, j) => j !== i && p.startsWith(o.replace(/[\\/]+$/, '') + (isWindows ? '\\' : '/'))));
+  await openDialog(DuplicatesDialog, { roots: roots.length ? roots : [app.info.home] });
+}
 
 export async function showHistory() {
   await openDialog(HistoryDialog, {});

@@ -457,3 +457,37 @@ export interface JobPlan {
   renameOnly: boolean;
   truncated: boolean;
 }
+
+export interface DuNode {
+  name: string;
+  path: string;
+  size: number;
+  files: number;
+  isDir: boolean;
+  other?: boolean;
+  children?: DuNode[];
+  mtime: number;
+}
+
+export interface DupeParams {
+  roots: string[];
+  minSize: number;
+  hidden: boolean;
+  similar: boolean;
+  threshold: number;
+}
+
+export interface DupeFile {
+  path: string;
+  size: number;
+  mtime: number;
+}
+
+export interface DupeGroup {
+  kind: 'exact' | 'similar';
+  files: DupeFile[];
+}
+
+export type DupeEvent =
+  | { type: 'progress'; phase: 'scan' | 'quick' | 'hash' | 'images' | 'error'; done: number; total: number }
+  | { type: 'done'; groups: DupeGroup[]; elapsedMs: number };
