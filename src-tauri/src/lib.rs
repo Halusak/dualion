@@ -87,8 +87,9 @@ pub fn run() {
                 .decode_utf8_lossy()
                 .into_owned();
             let px = query_px(&req);
+            let download = req.uri().query().is_some_and(|q| q.split('&').any(|kv| kv == "dl=1"));
             thumbs::spawn(move || {
-                let t = thumbs::thumbnail(std::path::Path::new(&path), px);
+                let t = thumbs::thumbnail_opts(std::path::Path::new(&path), px, download);
                 respond(responder, t.map(|t| (t.bytes.clone(), t.mime)));
             });
         })

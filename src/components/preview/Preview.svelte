@@ -30,7 +30,7 @@
 
   // Rendered previews (PSD, RAW, Affinity…) come from the thumbnail pipeline.
   const renderPx = $derived(Math.min(4096, Math.round((compact ? 900 : Math.max(window.screen.width, window.screen.height)) * dpr())));
-  const renderSrc = $derived(thumbUrl(path, renderPx, probe.mtime));
+  const renderSrc = $derived(thumbUrl(path, renderPx, probe.mtime, true));
 </script>
 
 {#if probe.kind === 'sheet'}
@@ -51,7 +51,7 @@
 {:else if probe.kind === 'audio'}
   <div class="media fit audio">
     {#if coverFailed !== path}
-      <img class="cover" src={thumbUrl(path, Math.round(320 * dpr()), probe.mtime)} alt="" onerror={() => (coverFailed = path)} />
+      <img class="cover" src={thumbUrl(path, Math.round(320 * dpr()), probe.mtime, true)} alt="" onerror={() => (coverFailed = path)} />
     {/if}
     <audio src={assetUrl(path)} controls autoplay={!compact}></audio>
   </div>

@@ -49,7 +49,8 @@
   const src = $derived.by(() => {
     if (entry.flags & F.UP) return null;
     if (entry.flags & F.VOLUME) return pathIconUrl(entry.name, px);
-    if (localPath && (entry.flags & F.PACKAGE || PER_FILE.has(ext) || (entry.isDir && special.has(localPath.toLowerCase())))) {
+    const cloud = (entry.flags & F.CLOUD) !== 0;
+    if (localPath && (entry.flags & F.PACKAGE || (PER_FILE.has(ext) && !cloud) || (entry.isDir && special.has(localPath.toLowerCase())))) {
       return pathIconUrl(localPath, px);
     }
     if (entry.isDir) return kindIconUrl('dir', px);
@@ -57,7 +58,7 @@
   });
   // SVG renders crisply straight from disk; everything else goes through the thumbnail pipeline.
   const thumbSrc = $derived(
-    !thumb || !localPath || entry.isDir || !hasThumbnail(ext) ? null : ext === 'svg' ? assetUrl(localPath) : thumbUrl(localPath, px, entry.mtime),
+    !thumb || !localPath || entry.isDir || entry.flags & F.CLOUD || !hasThumbnail(ext) ? null : ext === 'svg' ? assetUrl(localPath) : thumbUrl(localPath, px, entry.mtime),
   );
 
   let failed = $state<string | null>(null);

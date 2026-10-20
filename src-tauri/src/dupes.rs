@@ -85,7 +85,7 @@ fn candidates(params: &DupeParams, index: &IndexManager, cancel: &AtomicBool, pr
     let mut images = Vec::new();
     for id in 0..d.nodes.len() as u32 {
         let n = d.nodes[id as usize];
-        if n.flags & (flags::DIR | flags::LINK | flags::DEAD) != 0 || n.parent == NONE || n.size < min {
+        if n.flags & (flags::DIR | flags::LINK | flags::DEAD | flags::CLOUD) != 0 || n.parent == NONE || n.size < min {
             continue;
         }
         let c = (d.path(id), n.size, n.mtime);

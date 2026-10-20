@@ -159,6 +159,9 @@ pub fn ext_of(path: &Path) -> String {
 
 /// Reads metadata of one file (uncached).
 pub fn extract(path: &Path) -> FileMeta {
+    if crate::util::path_is_cloud_only(path) {
+        return FileMeta::default();
+    }
     let ext = ext_of(path);
     let mut m = FileMeta::default();
     match kind_of(&ext, false) {
@@ -364,6 +367,10 @@ static CACHE: LazyLock<Mutex<LruCache<Key, FileMeta>>> =
 
 /// Cached metadata for `path` with known size and mtime (avoids a stat).
 pub fn get_known(path: &Path, size: u64, mtime: i64) -> FileMeta {
+    // Online-only cloud files: never read (and never cache the empty result).
+    if crate::util::path_is_cloud_only(path) {
+        return FileMeta::default();
+    }
     let key = (path.to_string_lossy().into_owned(), size, mtime);
     if let Some(m) = CACHE.lock().get(&key) {
         return m.clone();
@@ -441,6 +448,9 @@ mod tests {
 /// Searchable text of a file for `content:` queries: plain text and code
 /// (up to 16 MB) and the text of office documents.
 pub fn text_content(path: &Path) -> Option<String> {
+    if crate::util::path_is_cloud_only(path) {
+        return None;
+    }
     let ext = ext_of(path);
     let plain = TEXT.contains(&ext.as_str()) || CODE.contains(&ext.as_str()) || ext == "md";
     match if plain && ext != "rtf" { "text" } else { kind_of(&ext, false) } {

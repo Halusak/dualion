@@ -610,7 +610,8 @@ pub fn index_status(state: State<'_, AppState>) -> crate::index::IndexStatus {
 
 #[tauri::command]
 pub fn index_defaults() -> serde_json::Value {
-    serde_json::json!({ "excludes": crate::index::DEFAULT_EXCLUDES })
+    let cloud: Vec<String> = crate::util::cloud_roots().iter().map(|p| p.to_string_lossy().into_owned()).collect();
+    serde_json::json!({ "excludes": crate::index::DEFAULT_EXCLUDES, "cloud": cloud })
 }
 
 #[tauri::command]

@@ -6,6 +6,7 @@
   import { app } from '../lib/state/app.svelte';
   import { settings } from '../lib/state/settings.svelte';
   import { F, type DirSize, type Entry, type ViewerProbe } from '../lib/types';
+  import Cloud from '@lucide/svelte/icons/cloud';
   import FileIcon from './FileIcon.svelte';
   import Preview, { hasPreview } from './preview/Preview.svelte';
 
@@ -17,6 +18,9 @@
   let dir = $state<DirSize | null>(null);
   let path = $state<string | null>(null);
   let failed = $state<string | null>(null);
+  /** Online-only cloud file the user chose to download for previewing. */
+  let allowCloud = $state<string | null>(null);
+  const cloudOnly = $derived(!!entry && (entry.flags & F.CLOUD) !== 0 && allowCloud !== entry.key);
   const locale = $derived(localeTag());
 
   $effect(() => {
@@ -27,6 +31,8 @@
     dir = null;
     path = null;
     if (!e || e.flags & F.UP) return;
+    // Do not touch online-only cloud files until asked (reading downloads them).
+    if (e.flags & F.CLOUD && allowCloud !== e.key) return;
     const loc = entryLoc(tab, e);
     if (loc.kind !== 'local') return;
     let cancelled = false;
@@ -70,6 +76,10 @@
       {:else if !entry.isDir}
         <div class="muted">{formatSize(entry.size, locale, settings.sizeFormat)}</div>
       {/if}
+      {#if cloudOnly}
+        <div class="cloud muted"><Cloud size={14} /> {t('cloud.onlineOnly')}</div>
+        <button class="btn" onclick={() => entry && (allowCloud = entry.key)}>{t('cloud.download')}</button>
+      {/if}
       <div class="muted">{formatDate(entry.mtime, locale, true)}</div>
     </div>
   {/if}
@@ -92,6 +102,12 @@
     gap: 6px;
     padding: 20px;
     text-align: center;
+  }
+  .cloud {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
   }
   .info .name {
     font-weight: 600;

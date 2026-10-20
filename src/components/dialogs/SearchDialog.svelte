@@ -168,7 +168,7 @@
   }
 
   function entryOf(h: SearchHit): Entry {
-    return { name: h.name, flags: h.isDir ? F.DIR : 0, size: h.size, mtime: h.mtime, attrs: 0, ext: h.isDir ? '' : extOf(h.name), isDir: h.isDir, key: h.path, path: h.path };
+    return { name: h.name, flags: (h.isDir ? F.DIR : 0) | (h.cloud ? F.CLOUD : 0), size: h.size, mtime: h.mtime, attrs: 0, ext: h.isDir ? '' : extOf(h.name), isDir: h.isDir, key: h.path, path: h.path };
   }
 
   function listKey(e: KeyboardEvent) {

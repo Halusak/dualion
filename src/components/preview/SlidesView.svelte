@@ -29,7 +29,7 @@
 
 <div class="wrap" class:compact>
   {#if !coverFailed}
-    <img class="cover" src={thumbUrl(path, Math.round((compact ? 480 : 1100) * dpr()), mtime)} alt="" onerror={() => (coverFailed = true)} />
+    <img class="cover" src={thumbUrl(path, Math.round((compact ? 480 : 1100) * dpr()), mtime, true)} alt="" onerror={() => (coverFailed = true)} />
   {/if}
   {#if error}
     <div class="msg muted">{error}</div>

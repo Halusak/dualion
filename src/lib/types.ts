@@ -20,6 +20,8 @@ export const F = {
   BROKEN: 64,
   PACKAGE: 128,
   VOLUME: 256,
+  /** Online-only cloud file (OneDrive, iCloud…): never read automatically. */
+  CLOUD: 512,
   /** Frontend only: the ".." entry. */
   UP: 1 << 16,
 } as const;
@@ -239,6 +241,7 @@ export interface SearchHit {
   mtime: number;
   matches: { line: number; text: string }[];
   matchCount: number;
+  cloud?: boolean;
 }
 
 export type SearchEvent =
@@ -422,6 +425,7 @@ export interface IndexHit {
   path: string;
   name: string;
   isDir: boolean;
+  cloud?: boolean;
   size: number;
   mtime: number;
 }

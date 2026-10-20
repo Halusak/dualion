@@ -149,7 +149,7 @@ export const api = {
   trashItem: (path: string) => invoke<UndoAction>('trash_item', { path }),
   indexConfigure: (config: IndexConfig) => invoke<void>('index_configure', { config }),
   indexStatus: () => invoke<IndexStatus>('index_status'),
-  indexDefaults: () => invoke<{ excludes: string }>('index_defaults'),
+  indexDefaults: () => invoke<{ excludes: string; cloud: string[] }>('index_defaults'),
   indexRescan: () => invoke<void>('index_rescan'),
   indexSearch: (query: string, limit: number, under: string | null = null) => invoke<IndexResults>('index_search', { query, limit, under }),
   fileMeta: (paths: string[]) => invoke<(FileMeta | null)[]>('file_meta', { paths }),

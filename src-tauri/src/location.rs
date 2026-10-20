@@ -32,6 +32,8 @@ pub mod flags {
     pub const PACKAGE: u32 = 128;
     /// Entry of the drives list.
     pub const VOLUME: u32 = 256;
+    /// Cloud placeholder: content is online only (not downloaded).
+    pub const CLOUD: u32 = 512;
 }
 
 /// One directory entry. Serialized as a compact tuple

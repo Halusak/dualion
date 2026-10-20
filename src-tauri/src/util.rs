@@ -96,6 +96,36 @@ pub fn validate_file_name(name: &str) -> Result<(), &'static str> {
     Ok(())
 }
 
+/// A cloud placeholder whose content is not on this computer (OneDrive /
+/// Dropbox / Google Drive / iCloud "online only"). Reading its content would
+/// make the sync client download it, so automatic features must not.
+pub fn is_cloud_only(md: &std::fs::Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const OFFLINE: u32 = 0x1000;
+        const RECALL_ON_OPEN: u32 = 0x40000;
+        const RECALL_ON_DATA_ACCESS: u32 = 0x400000;
+        md.file_attributes() & (OFFLINE | RECALL_ON_OPEN | RECALL_ON_DATA_ACCESS) != 0
+    }
+    #[cfg(target_os = "macos")]
+    {
+        use std::os::macos::fs::MetadataExt;
+        const SF_DATALESS: u32 = 0x4000_0000;
+        md.st_flags() & SF_DATALESS != 0
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        let _ = md;
+        false
+    }
+}
+
+/// [`is_cloud_only`] for a path (no content is read).
+pub fn path_is_cloud_only(p: &Path) -> bool {
+    std::fs::symlink_metadata(p).map(|m| is_cloud_only(&m)).unwrap_or(false)
+}
+
 pub fn path_str(p: &Path) -> String {
     p.to_string_lossy().into_owned()
 }
@@ -277,6 +307,36 @@ pub fn days_from_civil(y: i32, m: u32, d: u32) -> i64 {
     let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d as i64 - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     era * 146_097 + doe - 719_468
+}
+
+/// Folders synced by cloud clients (OneDrive accounts, Dropbox, Google Drive, iCloud).
+pub fn cloud_roots() -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = Vec::new();
+    let home = dirs::home_dir().unwrap_or_default();
+    for var in ["OneDrive", "OneDriveCommercial", "OneDriveConsumer"] {
+        if let Some(v) = std::env::var_os(var) {
+            out.push(PathBuf::from(v));
+        }
+    }
+    if let Ok(rd) = std::fs::read_dir(&home) {
+        for e in rd.flatten() {
+            let n = e.file_name().to_string_lossy().to_lowercase();
+            if n.starts_with("onedrive") || n == "dropbox" || n.starts_with("dropbox (") || n == "google drive" || n == "icloud drive" || n == "iclouddrive" || n == "box" {
+                out.push(e.path());
+            }
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(rd) = std::fs::read_dir(home.join("Library/CloudStorage")) {
+            out.extend(rd.flatten().map(|e| e.path()));
+        }
+        out.push(home.join("Library/Mobile Documents/com~apple~CloudDocs"));
+    }
+    out.retain(|p| p.is_dir());
+    out.sort();
+    out.dedup();
+    out
 }
 
 #[cfg(test)]

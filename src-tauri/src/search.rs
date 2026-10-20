@@ -71,6 +71,8 @@ pub struct Hit {
     pub mtime: i64,
     pub matches: Vec<LineHit>,
     pub match_count: u32,
+    /// Online-only cloud file (its content was not searched).
+    pub cloud: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -356,6 +358,11 @@ pub fn run(params: SearchParams, channel: Channel<SearchEvent>, cancel: Arc<Atom
                         }
                     }
                     let (mut count, mut lines) = (0, Vec::new());
+                    let cloud = !is_dir && crate::util::is_cloud_only(&meta);
+                    // Never download online-only cloud files just to search them.
+                    if cloud && compiled.text.is_some() {
+                        return ignore::WalkState::Continue;
+                    }
                     if let Some(m) = &compiled.text {
                         let (c, l) = grepper.grep(m, entry.path(), params.text_not);
                         if params.text_not {
@@ -376,6 +383,7 @@ pub fn run(params: SearchParams, channel: Channel<SearchEvent>, cancel: Arc<Atom
                         mtime,
                         matches: lines,
                         match_count: count,
+                        cloud,
                     };
                     pending.lock().push(hit);
                     if found.fetch_add(1, Ordering::Relaxed) + 1 >= limit {

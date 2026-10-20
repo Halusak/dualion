@@ -1,6 +1,7 @@
 <script lang="ts">
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import ChevronUp from '@lucide/svelte/icons/chevron-up';
+  import Cloud from '@lucide/svelte/icons/cloud';
   import { commitRename } from '../lib/actions';
   import { isResults } from '../lib/paths';
   import { columnById, type MetaColumn } from '../lib/columns';
@@ -193,6 +194,7 @@
               <RenameInput value={e.name} isDir={e.isDir} onDone={(v) => (v === null ? (tab.renaming = null) : commitRename(tab, e, v))} />
             {:else}
               <span class="ellipsis label" class:wrap={lines > 1} title={lines > 1 ? undefined : e.name.length > 40 ? e.name : undefined}>{vol ? vol.name : e.name}</span>
+              {#if e.flags & F.CLOUD}<span class="cloudmark" title={t('cloud.onlineOnly')}><Cloud size={12} /></span>{/if}
               {#if e.groupSize}
                 <button
                   class="group"
@@ -423,6 +425,15 @@
     -webkit-box-orient: vertical;
     word-break: break-word;
     line-height: 15px;
+  }
+  .cloudmark {
+    display: inline-flex;
+    flex: none;
+    color: var(--text-3);
+  }
+  .row.cursor.active .cloudmark {
+    color: inherit;
+    opacity: 0.8;
   }
   .branch {
     color: var(--text-3);

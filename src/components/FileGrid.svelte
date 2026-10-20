@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Cloud from '@lucide/svelte/icons/cloud';
+  import { t } from '../lib/i18n/index.svelte';
   import { commitRename } from '../lib/actions';
   import { backgroundMenu, entryMenu } from '../lib/contextMenu';
   import { drag } from '../lib/dnd.svelte';
@@ -147,6 +149,7 @@
       >
         <div class="icon">
           <FileIcon entry={e} location={tab.location} size={mode === 'list' ? 16 : iconSize} thumb={mode === 'thumbs'} />
+          {#if e.flags & F.CLOUD}<span class="cloudmark" title={t('cloud.onlineOnly')}><Cloud size={12} /></span>{/if}
           {#if e.groupSize}
             <button
               class="group"
@@ -302,5 +305,15 @@
   }
   .group.open {
     background: var(--text-2);
+  }
+  .cloudmark {
+    position: absolute;
+    left: -3px;
+    bottom: -2px;
+    display: inline-flex;
+    padding: 1px;
+    border-radius: 50%;
+    background: var(--bg-panel);
+    color: var(--text-2);
   }
 </style>

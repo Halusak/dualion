@@ -13,6 +13,8 @@ pub mod flags {
     pub const DIR: u8 = 1;
     pub const HIDDEN: u8 = 2;
     pub const LINK: u8 = 4;
+    /// Online-only cloud file (content not on disk).
+    pub const CLOUD: u8 = 8;
     pub const DEAD: u8 = 128;
 }
 

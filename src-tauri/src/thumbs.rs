@@ -77,6 +77,11 @@ fn cache_key(path: &Path, px: u32) -> Option<String> {
 }
 
 pub fn thumbnail(path: &Path, px: u32) -> Option<Arc<Thumb>> {
+    thumbnail_opts(path, px, false)
+}
+
+/// `download`: also for online-only cloud files (an explicit user request).
+pub fn thumbnail_opts(path: &Path, px: u32, download: bool) -> Option<Arc<Thumb>> {
     // Up to 4096 px: the viewer uses this pipeline to render PSD, RAW, Affinity…
     let px = px.clamp(32, 4096);
     let key = cache_key(path, px)?;
@@ -91,6 +96,9 @@ pub fn thumbnail(path: &Path, px: u32) -> Option<Arc<Thumb>> {
             MEM.lock().put(key, t.clone());
             return Some(t);
         }
+    }
+    if !download && crate::util::path_is_cloud_only(path) {
+        return None;
     }
     let t = Arc::new(generate(path, px)?);
     if let Some(d) = &disk {

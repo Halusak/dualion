@@ -168,6 +168,8 @@
             </span>
           </label>
           <label class="check"><input type="checkbox" bind:checked={settings.index.hidden} /> {t('settings.indexHidden')}</label>
+          <label class="check"><input type="checkbox" bind:checked={settings.index.skipCloud} /> {t('settings.indexSkipCloud')}</label>
+          <small class="muted">{t('settings.indexCloudHint', { dirs: index.cloudRoots.length ? index.cloudRoots.join(', ') : '—' })}</small>
           <label class="check"><input type="checkbox" bind:checked={settings.index.meta} /> {t('settings.indexMetaToggle')}</label>
         {/if}
         <h4>{t('sem.title')}</h4>

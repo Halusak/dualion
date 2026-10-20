@@ -64,6 +64,9 @@ pub fn entry_for(path: &Path, name: String, md: Option<std::fs::Metadata>, hidde
     if le.flags & lf::SYMLINK != 0 {
         fl |= flags::LINK;
     }
+    if le.flags & lf::CLOUD != 0 {
+        fl |= flags::CLOUD;
+    }
     // Bundles (.app …) are indexed as files; their insides are noise.
     if le.flags & lf::DIR != 0 && le.flags & lf::PACKAGE == 0 {
         fl |= flags::DIR;

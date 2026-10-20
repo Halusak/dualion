@@ -111,6 +111,9 @@ pub fn entry_from_metadata(name: String, path: &Path, meta: &fs::Metadata) -> En
         a
     };
 
+    if !is_dir && util::is_cloud_only(meta) {
+        f |= flags::CLOUD;
+    }
     Entry { name, flags: f, size, mtime, attrs }
 }
 

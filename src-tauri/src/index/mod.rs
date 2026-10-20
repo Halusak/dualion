@@ -72,6 +72,8 @@ pub struct IndexHit {
     pub path: String,
     pub name: String,
     pub is_dir: bool,
+    /// Online-only cloud file.
+    pub cloud: bool,
     pub size: u64,
     pub mtime: i64,
 }
@@ -351,7 +353,7 @@ impl IndexManager {
         let todo: Vec<(u32, String, u64, i64)> = {
             let d = self.data.read();
             (0..d.nodes.len() as u32)
-                .filter(|&id| d.alive(id) && !d.is_dir(id) && !d.meta.contains_key(&id))
+                .filter(|&id| d.alive(id) && !d.is_dir(id) && !d.meta.contains_key(&id) && d.nodes[id as usize].flags & flags::CLOUD == 0)
                 .filter(|&id| {
                     let n = d.name(id);
                     let ext = n.rsplit_once('.').map(|(_, e)| e.to_lowercase()).unwrap_or_default();
@@ -496,7 +498,7 @@ impl IndexManager {
             .into_iter()
             .map(|id| {
                 let n = d.nodes[id as usize];
-                IndexHit { path: d.path(id), name: d.name(id).to_string(), is_dir: d.is_dir(id), size: n.size, mtime: n.mtime }
+                IndexHit { path: d.path(id), name: d.name(id).to_string(), is_dir: d.is_dir(id), cloud: n.flags & flags::CLOUD != 0, size: n.size, mtime: n.mtime }
             })
             .collect();
         Ok(IndexResults { hits, total, elapsed_ms: started.elapsed().as_millis() as u64 })
@@ -515,7 +517,7 @@ impl IndexManager {
         let mut by_size: HashMap<u64, Vec<u32>> = HashMap::new();
         for id in 0..d.nodes.len() as u32 {
             let n = d.nodes[id as usize];
-            if n.flags & (flags::DEAD | flags::DIR | flags::LINK) != 0 || n.size < min_size.max(1) {
+            if n.flags & (flags::DEAD | flags::DIR | flags::LINK | flags::CLOUD) != 0 || n.size < min_size.max(1) {
                 continue;
             }
             if !unders.is_empty() && !unders.iter().any(|&u| d.is_under(id, u)) {

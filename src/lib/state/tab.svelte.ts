@@ -156,7 +156,8 @@ export class Tab {
 
   /** Metadata of an entry (loads it in the background when missing). */
   meta(e: Entry, load = true) {
-    if (e.isDir) return null;
+    // Reading an online-only cloud file would download it.
+    if (e.isDir || e.flags & F.CLOUD) return null;
     const p = this.pathOf(e);
     if (!p) return null;
     return (load ? metaFor : metaPeek)(p, e.size, e.mtime) ?? null;
@@ -402,7 +403,7 @@ export class Tab {
         label,
         hits: hits.map((h) => ({
           name: h.name,
-          flags: h.isDir ? F.DIR : 0,
+          flags: (h.isDir ? F.DIR : 0) | (h.cloud ? F.CLOUD : 0),
           size: h.size,
           mtime: h.mtime,
           attrs: 0,

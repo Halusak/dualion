@@ -7,7 +7,8 @@ import type { SemanticConfig } from '../api';
 import { app } from './app.svelte';
 import { settings } from './settings.svelte';
 
-export const index = $state<{ status: IndexStatus; defaultExcludes: string; semantic: SemanticStatus }>({
+export const index = $state<{ status: IndexStatus; defaultExcludes: string; cloudRoots: string[]; semantic: SemanticStatus }>({
+  cloudRoots: [],
   semantic: { state: 'off', files: 0, done: 0, total: 0, error: null, models: [] },
   status: { state: 'off', ready: false, files: 0, dirs: 0, scannedDirs: 0, metaDone: 0, metaTotal: 0, lastScan: 0 },
   defaultExcludes: '',
@@ -24,7 +25,9 @@ export async function startIndex() {
   void listen<SemanticStatus>('semantic-status', (e) => {
     index.semantic = e.payload;
   });
-  index.defaultExcludes = (await api.indexDefaults().catch(() => ({ excludes: '' }))).excludes;
+  const defs = await api.indexDefaults().catch(() => ({ excludes: '', cloud: [] as string[] }));
+  index.defaultExcludes = defs.excludes;
+  index.cloudRoots = defs.cloud ?? [];
   index.status = await api.indexStatus().catch(() => index.status);
 }
 
@@ -33,7 +36,8 @@ export function indexConfig(): IndexConfig {
   return {
     enabled: s.enabled,
     roots: s.roots.length ? s.roots : [app.info.home],
-    excludes: s.excludes ?? index.defaultExcludes,
+    // Cloud sync folders can be left out entirely (their names are indexed otherwise).
+    excludes: [s.excludes ?? index.defaultExcludes, ...(s.skipCloud ? index.cloudRoots : [])].filter(Boolean).join(';'),
     hidden: s.hidden,
     meta: s.meta,
   };

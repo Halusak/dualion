@@ -200,7 +200,7 @@ impl SemanticEngine {
         let mut files: Vec<(String, u64, i64)> = Vec::new();
         for id in 0..d.nodes.len() as u32 {
             let n = d.nodes[id as usize];
-            if n.flags & (flags::DIR | flags::LINK) != 0 || n.parent == NONE || n.size == 0 || n.size > 100 << 20 {
+            if n.flags & (flags::DIR | flags::LINK | flags::CLOUD) != 0 || n.parent == NONE || n.size == 0 || n.size > 100 << 20 {
                 continue;
             }
             let name = d.name(id);

@@ -68,9 +68,10 @@ export function pathIconUrl(path: string, px: number): string {
   return `${iconBase}path/${encodeURIComponent(path)}?s=${px}`;
 }
 
-export function thumbUrl(path: string, px: number, mtime: number): string {
+/** `download`: render online-only cloud files too (explicit user request). */
+export function thumbUrl(path: string, px: number, mtime: number, download = false): string {
   thumbBase ??= base('thumb');
-  return `${thumbBase}${encodeURIComponent(path)}?s=${px}&m=${mtime}`;
+  return `${thumbBase}${encodeURIComponent(path)}?s=${px}&m=${mtime}${download ? '&dl=1' : ''}`;
 }
 
 export function assetUrl(path: string): string {
