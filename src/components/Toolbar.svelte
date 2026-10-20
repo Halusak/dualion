@@ -9,7 +9,6 @@
   import LayoutGrid from '@lucide/svelte/icons/layout-grid';
   import List from '@lucide/svelte/icons/list';
   import Archive from '@lucide/svelte/icons/archive';
-  import ArchiveRestore from '@lucide/svelte/icons/archive-restore';
   import PackageOpen from '@lucide/svelte/icons/package-open';
   import PanelRight from '@lucide/svelte/icons/panel-right';
   import PencilLine from '@lucide/svelte/icons/pencil-line';
@@ -98,9 +97,6 @@
     </button>
     <button class="icon-btn" title={tip('cmd.pack', 'pack')} onclick={() => run('pack')}>
       <Archive {size} strokeWidth={sw} />
-    </button>
-    <button class="icon-btn" title={tip('cmd.unpack', 'unpack')} onclick={() => run('unpack')}>
-      <ArchiveRestore {size} strokeWidth={sw} />
     </button>
     <button class="icon-btn" title={tip('cmd.unpack', 'unpack')} onclick={() => run('unpack')}>
       <PackageOpen {size} strokeWidth={sw} />
