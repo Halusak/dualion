@@ -484,50 +484,103 @@ pub async fn semantic_ask(state: State<'_, AppState>, text: String, limit: usize
     let index = state.index.clone();
     blocking(move || {
         let cfg = sem.config();
-        let interp = (cfg.enabled && sem.has_assistant(&cfg))
-            .then(|| crate::ask::llm(&cfg.endpoint, &cfg.assistant_model, &text))
-            .flatten()
-            .unwrap_or_else(|| crate::ask::rules(&text));
         let limit = limit.clamp(1, 500);
-        let filter = (!interp.query.is_empty()).then(|| crate::query::Query::parse(&interp.query).ok()).flatten();
-        let mut hits = Vec::new();
-        if !interp.topic.is_empty() && cfg.enabled {
-            if let Ok(found) = sem.search(&interp.topic, limit * 4) {
-                hits = found
+        let llm = (cfg.enabled && sem.has_assistant(&cfg)).then(|| crate::ask::llm(&cfg.endpoint, &cfg.assistant_model, &text)).flatten();
+        let rules = crate::ask::rules(&text);
+        // The model's reading first; when it finds nothing, the rules'; finally meaning only.
+        let mut tried = Vec::new();
+        for interp in llm.into_iter().chain(std::iter::once(rules)) {
+            if tried.contains(&interp) {
+                continue;
+            }
+            let hits = ask_run(&sem, &index, &cfg, &interp, limit);
+            if !hits.is_empty() {
+                return Ok(AskResult { interpretation: interp, hits });
+            }
+            tried.push(interp);
+        }
+        let first = tried.into_iter().next().unwrap_or_default();
+        if cfg.enabled {
+            if let Ok(hits) = sem.search(text.trim_start_matches('?'), limit) {
+                if !hits.is_empty() {
+                    let interp = crate::ask::Interpretation { query: String::new(), topic: text.trim().to_string(), via: first.via };
+                    return Ok(AskResult { interpretation: interp, hits });
+                }
+            }
+        }
+        Ok(AskResult { interpretation: first, hits: Vec::new() })
+    })
+    .await
+}
+
+fn ask_run(
+    sem: &crate::semantic::SemanticEngine,
+    index: &crate::index::IndexManager,
+    cfg: &crate::semantic::SemanticConfig,
+    interp: &crate::ask::Interpretation,
+    limit: usize,
+) -> Vec<crate::semantic::SemanticHit> {
+    let filter = (!interp.query.is_empty()).then(|| crate::query::Query::parse(&interp.query).ok()).flatten();
+    let mut hits = Vec::new();
+    // Distinctive words of the topic (domains, codes, numbers) often appear in file names.
+    let mut named: Vec<crate::semantic::SemanticHit> = Vec::new();
+    for w in interp.topic.split_whitespace() {
+        let w = w.trim_matches(|c: char| !c.is_alphanumeric() && c != '.');
+        let distinctive = (w.contains('.') && w.len() > 4) || (w.len() >= 4 && w.chars().any(|c| c.is_ascii_digit()));
+        if !distinctive {
+            continue;
+        }
+        let base = w.split('.').next().unwrap_or(w);
+        let q = if interp.query.is_empty() { base.to_string() } else { format!("{} {base}", interp.query) };
+        if let Ok(r) = index.search(&q, 20, None, &AtomicBool::new(false)) {
+            for h in r.hits.into_iter().filter(|h| !h.is_dir) {
+                if !named.iter().any(|n| n.path == h.path) {
+                    named.push(crate::semantic::SemanticHit { path: h.path, name: h.name, size: h.size, mtime: h.mtime, score: 1.0, snippet: String::new() });
+                }
+            }
+        }
+    }
+    if !interp.topic.is_empty() && cfg.enabled {
+        if let Ok(found) = sem.search(&interp.topic, limit * 4) {
+            hits = found
+                .into_iter()
+                .filter(|h| {
+                    filter.as_ref().is_none_or(|q| q.matches(&crate::query::FileSubject::new(h.path.clone(), false, h.size, h.mtime)))
+                })
+                .take(limit)
+                .collect();
+        }
+    }
+    if !named.is_empty() {
+        hits.retain(|h: &crate::semantic::SemanticHit| !named.iter().any(|n| n.path == h.path));
+        named.extend(hits);
+        hits = named;
+        hits.truncate(limit);
+    }
+    if hits.is_empty() {
+        // Filters alone (or topic words as names) over the file index.
+        let q = match (interp.query.is_empty(), interp.topic.is_empty()) {
+            (false, true) => interp.query.clone(),
+            (false, false) => format!("{} {}", interp.query, interp.topic),
+            (true, false) => interp.topic.clone(),
+            (true, true) => String::new(),
+        };
+        if !q.is_empty() {
+            let never = AtomicBool::new(false);
+            let mut r = index.search(&q, limit, None, &never);
+            if r.as_ref().is_ok_and(|r| r.total == 0) && !interp.topic.is_empty() && !interp.query.is_empty() {
+                r = index.search(&interp.query, limit, None, &never);
+            }
+            if let Ok(r) = r {
+                hits = r
+                    .hits
                     .into_iter()
-                    .filter(|h| {
-                        filter.as_ref().is_none_or(|q| q.matches(&crate::query::FileSubject::new(h.path.clone(), false, h.size, h.mtime)))
-                    })
-                    .take(limit)
+                    .map(|h| crate::semantic::SemanticHit { path: h.path, name: h.name, size: h.size, mtime: h.mtime, score: 0.0, snippet: String::new() })
                     .collect();
             }
         }
-        if hits.is_empty() {
-            // Filters alone (or topic words as names) over the file index.
-            let q = match (interp.query.is_empty(), interp.topic.is_empty()) {
-                (false, true) => interp.query.clone(),
-                (false, false) => format!("{} {}", interp.query, interp.topic),
-                (true, false) => interp.topic.clone(),
-                (true, true) => String::new(),
-            };
-            if !q.is_empty() {
-                let never = AtomicBool::new(false);
-                let mut r = index.search(&q, limit, None, &never);
-                if r.as_ref().is_ok_and(|r| r.total == 0) && !interp.topic.is_empty() && !interp.query.is_empty() {
-                    r = index.search(&interp.query, limit, None, &never);
-                }
-                if let Ok(r) = r {
-                    hits = r
-                        .hits
-                        .into_iter()
-                        .map(|h| crate::semantic::SemanticHit { path: h.path, name: h.name, size: h.size, mtime: h.mtime, score: 0.0, snippet: String::new() })
-                        .collect();
-                }
-            }
-        }
-        Ok(AskResult { interpretation: interp, hits })
-    })
-    .await
+    }
+    hits
 }
 
 /// Downloads a model into Ollama, then re-checks the setup.

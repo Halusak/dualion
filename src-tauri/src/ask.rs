@@ -192,12 +192,23 @@ struct LlmOut {
 pub fn llm(endpoint: &str, model: &str, text: &str) -> Option<Interpretation> {
     let (y, m, d, ..) = local_parts(now_ms());
     let prompt = format!(
-        "Convert a file search request (Czech or English) into JSON {{\"filters\": string, \"topic\": string}}.\n\
-filters uses this syntax (space separated, all must match): ext:pdf,docx  type:image|video|audio|document|sheet|slides|archive|code|folder  \
-size>100mb size<1gb  modified:2025 modified:2025-03 modified:today modified:yesterday modified:week modified:month modified:30d  \
-taken:2024 (photo date)  width>=3000  res>=4k  duration>10m  camera:canon  artist:\"name\"  name words without key match file names.\n\
-topic = what the content is about in a few words (for semantic search), empty if the request is only about names/types/dates.\n\
-Today is {y}-{m:02}-{d:02}. Answer with JSON only.\n\nRequest: {text}"
+        r#"You turn a file search request into JSON with two fields:
+"filters": structured conditions, or "" when the request names none.
+"topic": what the wanted file is about, in the SAME language as the request, keeping names, domains and numbers exactly; "" when only names/types/dates are asked for.
+
+Allowed filter keys (combine with spaces): ext:pdf  ext:jpg,png  type:image  type:video  type:audio  type:document  type:sheet  type:slides  type:archive  type:code  type:folder  size>100mb  size<1gb  modified:2025  modified:2025-03  modified:today  modified:yesterday  modified:week  modified:month  modified:30d  taken:2024  res>=4k  duration>10m  camera:canon
+Never invent conditions and never copy these instructions. Today is {y}-{m:02}-{d:02}.
+
+Examples:
+Request: najdi mi všechny .dart soubory -> {{"filters":"ext:dart","topic":""}}
+Request: fotky z loňska -> {{"filters":"type:image taken:{py}","topic":""}}
+Request: faktura za hosting od wedos -> {{"filters":"","topic":"faktura za hosting wedos"}}
+Request: smlouva o nájmu pdf -> {{"filters":"ext:pdf","topic":"smlouva o nájmu"}}
+Request: videa větší než 2 GB z tohoto měsíce -> {{"filters":"type:video size>2gb modified:month","topic":""}}
+Request: invoice for domain example.com -> {{"filters":"","topic":"invoice for domain example.com"}}
+
+Request: {text} ->"#,
+        py = y - 1
     );
     #[derive(Deserialize)]
     struct R {
@@ -210,11 +221,33 @@ Today is {y}-{m:02}-{d:02}. Answer with JSON only.\n\nRequest: {text}"
         .ok()?;
     let r: R = res.body_mut().read_json().ok()?;
     let out: LlmOut = serde_json::from_str(r.response.trim()).ok()?;
-    let filters = out.filters.trim().to_string();
-    if !filters.is_empty() && Query::parse(&filters).is_err() {
+    let (filters, extra) = sanitize_filters(&out.filters)?;
+    let topic = [out.topic.trim(), extra.as_str()].iter().filter(|s| !s.is_empty()).cloned().collect::<Vec<_>>().join(" ");
+    Some(Interpretation { query: filters, topic, via: "llm" })
+}
+
+/// Splits the model's filters into real conditions (known keys) and the
+/// rest, which is treated as topic text (models sometimes write
+/// "topic:…" or echo instructions as plain words).
+fn sanitize_filters(filters: &str) -> Option<(String, String)> {
+    let mut keep = Vec::new();
+    let mut rest = Vec::new();
+    for w in filters.split_whitespace() {
+        let key_end = w.find([':', '>', '<', '=']);
+        match key_end {
+            Some(i) if crate::query::is_field(w[..i].trim_start_matches(['-', '!'])) => keep.push(w),
+            Some(i) => rest.push(&w[i + 1..]),
+            None => rest.push(w),
+        }
+    }
+    let q = keep.join(" ");
+    if !q.is_empty() && Query::parse(&q).is_err() {
         return None;
     }
-    Some(Interpretation { query: filters, topic: out.topic.trim().to_string(), via: "llm" })
+    let rest = rest.join(" ").trim_matches('"').to_string();
+    // Echoed instructions are not a topic.
+    let rest = if rest.contains("words without key") { String::new() } else { rest };
+    Some((q, rest))
 }
 
 #[cfg(test)]
@@ -238,12 +271,31 @@ mod tests {
     }
 
     #[test]
+    fn drops_echoed_instructions() {
+        assert_eq!(sanitize_filters("name words without key match file names").unwrap(), (String::new(), String::new()));
+        assert_eq!(sanitize_filters("ext:pdf topic:faktura za domenu").unwrap(), ("ext:pdf".into(), "faktura za domenu".into()));
+        assert_eq!(sanitize_filters("type:image taken:2025 topic:Chorvatsku").unwrap(), ("type:image taken:2025".into(), "Chorvatsku".into()));
+    }
+
+    #[test]
     fn english_requests() {
         assert_eq!(q("show me big videos from this week").0, "type:video size>100mb modified:week");
         assert_eq!(q("find all *.ts and .tsx files").0, "ext:ts,tsx");
         for s in ["najdi mi všechny .dart soubory", "videa větší než 2 GB", "invoice for hosting"] {
             let i = rules(s);
             assert!(i.query.is_empty() || Query::parse(&i.query).is_ok(), "{s}: {}", i.query);
+        }
+    }
+}
+
+#[cfg(test)]
+mod llm_tests {
+    /// Needs Ollama with gemma3:4b: cargo test llm_live -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn llm_live() {
+        for r in ["faktura za doménu streamlet.info", "najdi mi všechny .dart soubory", "fotky z dovolené v Chorvatsku z loňska", "videa větší než 1 GB"] {
+            println!("{r:50} => {:?}", super::llm("http://localhost:11434", "gemma3:4b", r));
         }
     }
 }

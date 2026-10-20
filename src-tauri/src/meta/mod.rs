@@ -498,3 +498,15 @@ mod sample_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod pdf_text_tests {
+    /// DUALION_PDF=<file> cargo test pdf_text_live -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn pdf_text_live() {
+        let p = std::env::var("DUALION_PDF").unwrap();
+        let t = super::text_content(std::path::Path::new(&p)).unwrap_or_default();
+        println!("CHARS={} SAMPLE={:?}", t.len(), t.split_whitespace().take(40).collect::<Vec<_>>().join(" "));
+    }
+}

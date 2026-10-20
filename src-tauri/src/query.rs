@@ -193,6 +193,11 @@ impl Query {
     }
 }
 
+/// Whether `key` (before `:` / `>` / `<`) is a field of the query language.
+pub fn is_field(key: &str) -> bool {
+    Field::parse(key).is_some()
+}
+
 // ---------------------------------------------------------------- tokens
 
 #[derive(Debug, Clone, PartialEq)]
