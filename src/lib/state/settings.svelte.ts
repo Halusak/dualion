@@ -31,6 +31,8 @@ export interface Settings {
   semantic: { enabled: boolean; endpoint: string; model: string; roots: string[]; images: boolean; visionModel: string };
   /** Folder rules (automatic sorting). */
   rules: { enabled: boolean; list: Rule[] };
+  /** Column widths of the search results (px). */
+  searchWidths: Record<string, number>;
   /** Widths of metadata columns (id -> px). */
   metaWidths: Record<string, number>;
   functionBar: boolean;
@@ -70,6 +72,7 @@ export const defaultSettings = (): Settings => ({
   nameLines: 1,
   folderColumns: {},
   metaWidths: {},
+  searchWidths: {},
   rules: { enabled: true, list: [] },
   semantic: { enabled: false, endpoint: 'http://localhost:11434', model: 'embeddinggemma', roots: [], images: false, visionModel: 'gemma3:4b' },
   index: { enabled: true, roots: [], excludes: null, hidden: false, meta: true, skipCloud: false },

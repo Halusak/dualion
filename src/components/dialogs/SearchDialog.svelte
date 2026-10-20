@@ -80,7 +80,40 @@
   let scrollTop = $state(0);
   let viewH = $state(300);
   // ---------------------------------------------------------------- result table
-  const COLS = 'minmax(180px, 2fr) minmax(120px, 1.4fr) 64px 120px 84px 128px 56px';
+  const DEFAULT_W: Record<Col | 'info', number> = { name: 300, folder: 220, kind: 64, info: 120, size: 84, mtime: 128, matches: 56 };
+  const ORDER: (Col | 'info')[] = ['name', 'folder', 'kind', 'info', 'size', 'mtime', 'matches'];
+  const sw = (c: Col | 'info') => settings.searchWidths[c] ?? DEFAULT_W[c];
+  // Fixed widths (remembered); a filler track takes the rest.
+  const COLS = $derived(ORDER.map((c) => `${sw(c)}px`).join(' ') + ' minmax(0, 1fr)');
+  const tableW = $derived(ORDER.reduce((a, c) => a + sw(c), 0) + 40);
+
+  function startResize(e: PointerEvent, col: Col | 'info') {
+    e.stopPropagation();
+    e.preventDefault();
+    const target = e.currentTarget as HTMLElement;
+    const startX = e.clientX;
+    const startW = target.parentElement?.getBoundingClientRect().width ?? sw(col);
+    try {
+      target.setPointerCapture(e.pointerId);
+    } catch {
+      /* synthetic event */
+    }
+    const move = (ev: PointerEvent) => {
+      settings.searchWidths = { ...settings.searchWidths, [col]: Math.round(Math.max(40, Math.min(1200, startW + ev.clientX - startX))) };
+    };
+    const up = () => {
+      target.removeEventListener('pointermove', move);
+      target.removeEventListener('pointerup', up);
+    };
+    target.addEventListener('pointermove', move);
+    target.addEventListener('pointerup', up);
+  }
+
+  function resetWidth(col: Col | 'info') {
+    const next = { ...settings.searchWidths };
+    delete next[col];
+    settings.searchWidths = next;
+  }
   type Col = 'name' | 'folder' | 'kind' | 'size' | 'mtime' | 'matches';
   let sortCol = $state<Col | null>(null);
   let sortDesc = $state(false);
@@ -343,16 +376,29 @@
       onkeydown={listKey}
     >
       {#if hits.length}
-        <div class="thead" style="--cols: {COLS}">
+        <div class="thead" style="--cols: {COLS}; min-width: {tableW}px">
+          {#snippet grip(col: Col | 'info')}
+            <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
+            <span
+              class="grip"
+              onpointerdown={(e) => startResize(e, col)}
+              onclick={(e) => e.stopPropagation()}
+              ondblclick={(e) => {
+                e.stopPropagation();
+                resetWidth(col);
+              }}
+            ></span>
+          {/snippet}
           {#snippet th(col: Col, label: string, right = false)}
             <button class="th" class:right class:on={sortCol === col} onclick={() => sortBy(col)}>
-              {label}{#if sortCol === col}<span class="arrow">{sortDesc ? '▾' : '▴'}</span>{/if}
+              <span class="ellipsis">{label}</span>{#if sortCol === col}<span class="arrow">{sortDesc ? '▾' : '▴'}</span>{/if}
+              {@render grip(col)}
             </button>
           {/snippet}
           {@render th('name', t('col.name'))}
           {@render th('folder', t('col.folder'))}
           {@render th('kind', t('col.ext'))}
-          <span class="th">{t('search.colInfo')}</span>
+          <span class="th">{t('search.colInfo')}{@render grip('info')}</span>
           {@render th('size', t('col.size'), true)}
           {@render th('mtime', t('col.date'))}
           {@render th('matches', t('search.colMatches'), true)}
@@ -371,7 +417,7 @@
             role="option"
             aria-selected={idx === selected}
             tabindex="-1"
-            style="top: {idx * rowH}px; height: {rowH}px; --cols: {COLS}"
+            style="top: {idx * rowH}px; height: {rowH}px; --cols: {COLS}; min-width: {tableW - 12}px"
             onclick={() => (selected = idx)}
             ondblclick={() => goToHit(h)}
             title={h.path}
@@ -516,6 +562,8 @@
     border-bottom: 1px solid var(--border);
   }
   .th {
+    position: relative;
+    min-width: 0;
     border: none;
     background: transparent;
     text-align: left;
@@ -526,6 +574,28 @@
     align-items: center;
     gap: 3px;
     white-space: nowrap;
+  }
+  .grip {
+    position: absolute;
+    right: -4px;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    cursor: col-resize;
+    z-index: 1;
+  }
+  .grip::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 5px;
+    bottom: 5px;
+    width: 1px;
+    background: var(--border);
+  }
+  .grip:hover::after {
+    width: 2px;
+    background: var(--accent);
   }
   .th.right {
     justify-content: flex-end;
