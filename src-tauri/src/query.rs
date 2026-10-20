@@ -176,6 +176,21 @@ impl Query {
     pub fn matches(&self, s: &dyn Subject) -> bool {
         eval(&self.root, s)
     }
+
+    /// Plain name words that every match must contain (for fast prefiltering).
+    pub fn name_words(&self) -> Vec<String> {
+        let terms: &[Node] = match &self.root {
+            Node::All(v) => v,
+            other => std::slice::from_ref(other),
+        };
+        terms
+            .iter()
+            .filter_map(|n| match n {
+                Node::Term { field: Field::Name, op: Op::Is, value: Value::Text { text, glob: None } } => Some(text.clone()),
+                _ => None,
+            })
+            .collect()
+    }
 }
 
 // ---------------------------------------------------------------- tokens
@@ -604,6 +619,10 @@ pub fn fold(s: &str) -> String {
             out.push(c.to_ascii_lowercase());
             continue;
         }
+        // Combining marks of decomposed (NFD) names, as macOS stores them.
+        if ('\u{300}'..='\u{36f}').contains(&c) {
+            continue;
+        }
         let base = match c {
             'á' | 'à' | 'â' | 'ä' | 'ã' | 'å' | 'ą' | 'ă' | 'Á' | 'À' | 'Â' | 'Ä' | 'Ã' | 'Å' | 'Ą' | 'Ă' => 'a',
             'č' | 'ć' | 'ç' | 'Č' | 'Ć' | 'Ç' => 'c',
@@ -883,5 +902,6 @@ mod tests {
         assert_eq!(parse_duration("1:30"), Some(90.0));
         assert_eq!(parse_duration("1h2m3s"), Some(3723.0));
         assert_eq!(fold("Příliš ŽLUŤOUČKÝ"), "prilis zlutoucky");
+        assert_eq!(fold("Za\u{301}znam"), "zaznam");
     }
 }

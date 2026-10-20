@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isResults } from '../lib/paths';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import HardDrive from '@lucide/svelte/icons/hard-drive';
   import House from '@lucide/svelte/icons/house';
@@ -218,7 +219,7 @@
           {#if c.icon === 'home'}<House size={13} strokeWidth={1.75} />{/if}
           {#if c.icon === 'server'}<Server size={13} strokeWidth={1.75} />{/if}
           {#if c.icon === 'archive'}<Archive size={13} strokeWidth={1.75} />{/if}
-          {#if tab.location.kind === 'search'}<Search size={13} strokeWidth={1.75} />{/if}
+          {#if isResults(tab.location)}<Search size={13} strokeWidth={1.75} />{/if}
           <span class="ellipsis">{crumbLabel(c)}</span>
         </button>
         {/if}

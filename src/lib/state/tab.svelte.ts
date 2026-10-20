@@ -128,7 +128,7 @@ export class Tab {
   /** Folder key for per-folder column choices. */
   get columnsKey(): string | null {
     const l = this.location;
-    return l.kind === 'local' ? l.path : l.kind === 'search' ? 'search' : null;
+    return l.kind === 'local' ? l.path : l.kind === 'search' || l.kind === 'query' ? 'search' : null;
   }
 
   /** Metadata column ids shown in the details view. */
@@ -205,7 +205,7 @@ export class Tab {
 
   get title(): string {
     const crumbs = this.listing?.crumbs;
-    if (this.location.kind === 'search') return this.location.label;
+    if (this.location.kind === 'search' || this.location.kind === 'query') return this.location.label;
     if (crumbs && crumbs.length > 0) return crumbs[crumbs.length - 1].label;
     // Not loaded yet (lazily restored tabs): derive a name from the location.
     const loc = this.location;
@@ -257,6 +257,23 @@ export class Tab {
       this.showSearch(loc.id, res.label, null, push);
       return true;
     }
+    if (loc.kind === 'query') {
+      // Smart folder: re-run the saved index query.
+      this.loading = true;
+      try {
+        const r = await api.indexSearch(loc.query, 10_000);
+        if (token !== this.navToken) return false;
+        this.showSearch(`q:${loc.query}`, loc.label, r.hits.map((h) => ({ ...h, matches: [], matchCount: 0 })), push, [], loc);
+        return true;
+      } catch (e) {
+        if (token !== this.navToken) return false;
+        if (!this.listing) this.error = e as AppError;
+        else showError(e);
+        return false;
+      } finally {
+        if (token === this.navToken) this.loading = false;
+      }
+    }
     this.loading = true;
     try {
       const listing = await api.listDir(loc as BackendLocation);
@@ -284,6 +301,12 @@ export class Tab {
   /** Re-reads the current folder keeping cursor, marks and calculated sizes. */
   async reload(): Promise<void> {
     if (this.location.kind === 'search') return;
+    if (this.location.kind === 'query') {
+      const cur = this.cursorKey;
+      await this.navigate(this.location, { push: false });
+      if (cur) this.setCursorKey(cur);
+      return;
+    }
     const token = ++this.navToken;
     const oldCursor = this.cursor;
     try {
@@ -321,12 +344,12 @@ export class Tab {
     }
   }
 
-  showSearch(id: string, label: string, hits: SearchHit[] | null, push = true, roots: string[] = []) {
+  showSearch(id: string, label: string, hits: SearchHit[] | null, push = true, roots: string[] = [], at?: Location) {
     if (this.locked && this.side && hits) {
       // A locked tab keeps its folder: results go to a new tab.
       const tab = new Tab({ view: this.view, sortKey: this.sortKey, sortDesc: this.sortDesc });
       this.side.addTab(tab);
-      tab.showSearch(id, label, hits, push, roots);
+      tab.showSearch(id, label, hits, push, roots, at);
       return;
     }
     // Folder column: path relative to the searched folder ("Photos/2024").
@@ -358,7 +381,7 @@ export class Tab {
     }
     const res = searchResults.get(id);
     if (!res) return;
-    const location: Location = { kind: 'search', id, label };
+    const location: Location = at ?? { kind: 'search', id, label };
     this.navToken++;
     this.listing = {
       location,

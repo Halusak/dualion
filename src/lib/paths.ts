@@ -55,6 +55,8 @@ export function locKey(loc: Location): string {
       return 'drives';
     case 'search':
       return `search:${loc.id}`;
+    case 'query':
+      return `query:${loc.query}`;
   }
 }
 
@@ -75,6 +77,7 @@ export function childLoc(dir: Location, e: Entry): Location {
     case 'drives':
       return { kind: 'local', path: e.name };
     case 'search':
+    case 'query':
       return { kind: 'local', path: e.name };
   }
 }
@@ -114,6 +117,7 @@ export function locPath(loc: Location): string {
     case 'drives':
       return '';
     case 'search':
+    case 'query':
       return loc.label;
   }
 }
@@ -140,4 +144,9 @@ export function maskMatcher(mask: string, caseSensitive = false): (name: string)
   const incs = compile(inc);
   const excs = compile(exc);
   return (name) => (incs.length === 0 || incs.some((r) => r.test(name))) && !excs.some((r) => r.test(name));
+}
+
+/** Locations that list search results (files from many folders). */
+export function isResults(loc: Location): boolean {
+  return loc.kind === 'search' || loc.kind === 'query';
 }

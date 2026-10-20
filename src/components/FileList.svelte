@@ -2,6 +2,7 @@
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import ChevronUp from '@lucide/svelte/icons/chevron-up';
   import { commitRename } from '../lib/actions';
+  import { isResults } from '../lib/paths';
   import { columnById, type MetaColumn } from '../lib/columns';
   import { backgroundMenu, columnsMenu, entryMenu } from '../lib/contextMenu';
   import { drag } from '../lib/dnd.svelte';
@@ -31,7 +32,7 @@
   const end = $derived(Math.min(total, Math.ceil((scrollTop + height) / rowH) + 10));
   const slice = $derived(items.slice(start, end));
   const locale = $derived(localeTag());
-  const isSearch = $derived(tab.location.kind === 'search');
+  const isSearch = $derived(isResults(tab.location));
   const isDrives = $derived(tab.location.kind === 'drives');
   const w = $derived(settings.colWidths);
   const metaCols = $derived(tab.columns.map((id) => columnById.get(id)!).filter(Boolean));

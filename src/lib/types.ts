@@ -4,7 +4,9 @@ export type Location =
   | { kind: 'archive'; archive: string; inner: string }
   | { kind: 'drives' }
   /** Frontend only: search results fed into a panel. */
-  | { kind: 'search'; id: string; label: string };
+  | { kind: 'search'; id: string; label: string }
+  /** Frontend only: a saved index query ("smart folder"), re-run on open. */
+  | { kind: 'query'; query: string; label: string };
 
 export type RawEntry = [name: string, flags: number, size: number, mtime: number, attrs: number];
 
@@ -389,4 +391,37 @@ export interface FileMeta {
   pages?: number;
   author?: string;
   lines?: number;
+}
+
+export interface IndexConfig {
+  enabled: boolean;
+  roots: string[];
+  excludes: string;
+  hidden: boolean;
+  meta: boolean;
+}
+
+export interface IndexStatus {
+  state: 'off' | 'loading' | 'scanning' | 'ready';
+  ready: boolean;
+  files: number;
+  dirs: number;
+  scannedDirs: number;
+  metaDone: number;
+  metaTotal: number;
+  lastScan: number;
+}
+
+export interface IndexHit {
+  path: string;
+  name: string;
+  isDir: boolean;
+  size: number;
+  mtime: number;
+}
+
+export interface IndexResults {
+  hits: IndexHit[];
+  total: number;
+  elapsedMs: number;
 }

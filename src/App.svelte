@@ -14,6 +14,7 @@
   import { app, restoreSession, sessionSnapshot } from './lib/state/app.svelte';
   import { applySettings, settings, type Settings } from './lib/state/settings.svelte';
   import { dialogOpen, openDialog, ui } from './lib/state/ui.svelte';
+  import { indexConfig, startIndex } from './lib/state/index.svelte';
   import { applyAccent } from './lib/theme';
   import type { Answer, JobDone, JobSnapshot } from './lib/types';
   import ConflictDialog from './components/dialogs/ConflictDialog.svelte';
@@ -67,6 +68,15 @@
     if (json === lastMenu) return;
     lastMenu = json;
     void api.setMenu(spec).catch((e) => console.warn('menu', e));
+  });
+
+  // File index follows its settings (debounced: roots are edited as text).
+  let indexTimer: ReturnType<typeof setTimeout>;
+  $effect(() => {
+    if (!app.ready) return;
+    const cfg = indexConfig();
+    clearTimeout(indexTimer);
+    indexTimer = setTimeout(() => void api.indexConfigure(cfg), 600);
   });
 
   // Watch the folders on screen for external changes.
@@ -187,6 +197,7 @@
         applySettings(await api.storeLoad<Partial<Settings>>('settings').catch(() => null));
         await restoreSession();
         app.jobs = await api.jobsList();
+        await startIndex();
       } finally {
         app.ready = true;
         const w = getCurrentWindow();

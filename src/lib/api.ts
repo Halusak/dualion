@@ -6,6 +6,9 @@ import type {
   DirSize,
   DocumentPreview,
   FileMeta,
+  IndexConfig,
+  IndexResults,
+  IndexStatus,
   SheetPreview,
   SlidePreview,
   JobRequest,
@@ -28,7 +31,7 @@ import type {
 } from './types';
 
 /** Locations the backend understands (search results are frontend-only). */
-export type BackendLocation = Exclude<Location, { kind: 'search' }>;
+export type BackendLocation = Exclude<Location, { kind: 'search' } | { kind: 'query' }>;
 
 export const api = {
   appInfo: () => invoke<AppInfo>('app_info'),
@@ -101,6 +104,11 @@ export const api = {
   vaultUnlock: (password: string) => invoke<void>('vault_unlock', { password }),
   vaultLock: () => invoke<void>('vault_lock'),
   vaultSetMaster: (password: string | null) => invoke<void>('vault_set_master', { password }),
+  indexConfigure: (config: IndexConfig) => invoke<void>('index_configure', { config }),
+  indexStatus: () => invoke<IndexStatus>('index_status'),
+  indexDefaults: () => invoke<{ excludes: string }>('index_defaults'),
+  indexRescan: () => invoke<void>('index_rescan'),
+  indexSearch: (query: string, limit: number, under: string | null = null) => invoke<IndexResults>('index_search', { query, limit, under }),
   fileMeta: (paths: string[]) => invoke<(FileMeta | null)[]>('file_meta', { paths }),
   queryCheck: (query: string) => invoke<void>('query_check', { query }),
   queryFilter: (query: string, items: [string, boolean, number, number][]) => invoke<boolean[]>('query_filter', { query, items }),

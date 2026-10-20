@@ -6,7 +6,7 @@ import { run } from './commands';
 import { api, type BackendLocation } from './api';
 import { formatSize } from './format';
 import { localeTag, t } from './i18n/index.svelte';
-import { childLoc } from './paths';
+import { childLoc, isResults } from './paths';
 import { dpr, isWindows } from './platform';
 import { collator } from './sort';
 import { app } from './state/app.svelte';
@@ -83,7 +83,7 @@ export async function placesMenu(tab: Tab, at: { x: number; y: number }) {
 
 /** Subfolders of `loc` (Explorer-style chevron in the breadcrumb). */
 export async function subfoldersMenu(tab: Tab, loc: Location, at: { x: number; y: number }) {
-  if (loc.kind === 'search') return;
+  if (isResults(loc)) return;
   let listing;
   try {
     listing = await api.listDir(loc as BackendLocation);

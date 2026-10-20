@@ -5,7 +5,7 @@ import { LogicalPosition } from '@tauri-apps/api/dpi';
 import { META_COLUMNS } from './columns';
 import { command, menuAccel, run } from './commands';
 import { t } from './i18n/index.svelte';
-import { isArchiveName } from './paths';
+import { isArchiveName, isResults } from './paths';
 import { isMac } from './platform';
 import { app } from './state/app.svelte';
 import { settings } from './state/settings.svelte';
@@ -50,8 +50,8 @@ export async function popup(specs: Spec[], at?: { x: number; y: number }) {
 export async function entryMenu(tab: Tab) {
   const items = tab.targets();
   const e = tab.current;
-  const writable = tab.location.kind === 'local' || tab.location.kind === 'ftp' || tab.location.kind === 'search';
-  const local = tab.location.kind === 'local' || tab.location.kind === 'search';
+  const writable = tab.location.kind === 'local' || tab.location.kind === 'ftp' || isResults(tab.location);
+  const local = tab.location.kind === 'local' || isResults(tab.location);
   const single = items.length === 1;
   const isFile = single && !items[0].isDir;
   const archive = items.some((x) => !x.isDir && isArchiveName(x.name));

@@ -6,6 +6,7 @@ mod error;
 mod filter;
 mod ftp;
 mod icons;
+mod index;
 mod jobs;
 mod local;
 mod location;
@@ -110,6 +111,11 @@ pub fn run() {
             let jobs = jobs::JobManager::new(sink, ftp.clone());
             let vault = Arc::new(vault::Vault::new(data_dir.join("sites.vault")));
             let watcher = watcher::DirWatcher::new(handle.clone());
+            let emitter = handle.clone();
+            let index_sink: jobs::EventSink = Arc::new(move |name, payload| {
+                let _ = emitter.emit(name, payload);
+            });
+            let index = index::IndexManager::new(data_dir.join("index.bin"), index_sink);
             let effects = apply_effects(app);
 
             // The window starts hidden and the UI shows it once rendered; never
@@ -140,6 +146,7 @@ pub fn run() {
                 jobs,
                 vault,
                 watcher,
+                index,
                 ops: parking_lot::Mutex::new(HashMap::new()),
                 next_op: AtomicU64::new(1),
                 config_dir,
@@ -206,6 +213,11 @@ pub fn run() {
             commands::preview_document,
             commands::preview_slides,
             commands::file_meta,
+            commands::index_configure,
+            commands::index_status,
+            commands::index_defaults,
+            commands::index_rescan,
+            commands::index_search,
             commands::query_check,
             commands::query_filter,
             commands::checksum_start,
@@ -225,6 +237,11 @@ pub fn run() {
         .expect("error while building Dualion");
 
     app.run(|handle, event| {
+        if let RunEvent::Exit = event {
+            if let Some(state) = handle.try_state::<AppState>() {
+                state.index.save();
+            }
+        }
         if let RunEvent::ExitRequested { api, code, .. } = event {
             // Cmd+Q / last window closed while files are still being copied.
             if code.is_none() {

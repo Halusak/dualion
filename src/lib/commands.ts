@@ -80,6 +80,9 @@ export const commands: Command[] = [
 
   // Tools
   { id: 'search', label: 'cmd.search', run: A.search, keys: ['Alt+F7', 'Mod+F'], global: true },
+  { id: 'quickFind', label: 'cmd.quickFind', run: () => A.quickFind(), keys: ['Mod+P'], global: true },
+  { id: 'palette', label: 'cmd.palette', run: () => A.quickFind('>'), keys: ['Mod+Shift+P'], global: true },
+  { id: 'rescanIndex', label: 'cmd.rescanIndex', run: () => A.rescanIndex() },
   { id: 'multiRename', label: 'cmd.multiRename', run: A.multiRename, keys: ['Mod+M'] },
   { id: 'dirSizes', label: 'cmd.dirSizes', run: A.calcAllDirSizes, keys: ['Alt+Shift+Enter'] },
   { id: 'swapPanels', label: 'cmd.swapPanels', run: A.swapPanels, keys: ['Mod+U'] },
@@ -125,7 +128,7 @@ export const commands: Command[] = [
   { id: 'manageHotlist', label: 'cmd.manageHotlist', run: A.hotlistManage },
   { id: 'newTab', label: 'cmd.newTab', run: () => A.newTab(), keys: ['Mod+T'] },
   { id: 'closeTab', label: 'cmd.closeTab', run: () => A.closeTab(), keys: ['Mod+W'] },
-  { id: 'lockTab', label: 'cmd.lockTab', run: () => A.toggleLockTab(), keys: ['Mod+Shift+P'], checked: () => app.panel.locked },
+  { id: 'lockTab', label: 'cmd.lockTab', run: () => A.toggleLockTab(), keys: ['Mod+Shift+L'], checked: () => app.panel.locked },
   { id: 'duplicateTab', label: 'cmd.duplicateTab', run: () => A.duplicateTab() },
   { id: 'closeOtherTabs', label: 'cmd.closeOtherTabs', run: () => app.activeSideObj.closeOthers() },
   { id: 'nextTab', label: 'cmd.nextTab', run: () => A.cycleTab(1), keys: isMac ? ['Ctrl+Tab', 'Mod+Shift+]'] : ['Ctrl+Tab'] },
@@ -383,7 +386,7 @@ export function buildMenu(): MenuNode[] {
   menu.push({
     type: 'submenu',
     label: t('menu.commands'),
-    items: [item('search'), item('multiRename'), item('dirSizes'), sep, item('terminal'), sep, item('swapPanels'), item('equalPanels'), sep, item('jobs')],
+    items: [item('quickFind'), item('palette'), item('search'), item('multiRename'), item('dirSizes'), sep, item('terminal'), sep, item('swapPanels'), item('equalPanels'), sep, item('jobs')],
   });
   menu.push({ type: 'submenu', label: t('menu.net'), items: [item('ftpConnect'), item('ftpDisconnect')] });
   menu.push({

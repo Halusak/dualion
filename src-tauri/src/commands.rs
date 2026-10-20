@@ -27,6 +27,7 @@ pub struct AppState {
     pub jobs: Arc<JobManager>,
     pub vault: Arc<Vault>,
     pub watcher: Arc<DirWatcher>,
+    pub index: Arc<crate::index::IndexManager>,
     pub ops: Mutex<HashMap<u64, Arc<AtomicBool>>>,
     pub next_op: AtomicU64,
     pub config_dir: PathBuf,
@@ -429,6 +430,50 @@ pub async fn preview_document(path: String) -> AppResult<crate::preview::Documen
 #[tauri::command]
 pub async fn preview_slides(path: String) -> AppResult<Vec<crate::preview::Slide>> {
     blocking(move || crate::preview::slides(std::path::Path::new(&path))).await
+}
+
+#[tauri::command]
+pub fn index_configure(state: State<'_, AppState>, config: crate::index::IndexConfig) {
+    state.index.configure(config);
+}
+
+#[tauri::command]
+pub fn index_status(state: State<'_, AppState>) -> crate::index::IndexStatus {
+    state.index.status()
+}
+
+#[tauri::command]
+pub fn index_defaults() -> serde_json::Value {
+    serde_json::json!({ "excludes": crate::index::DEFAULT_EXCLUDES })
+}
+
+#[tauri::command]
+pub fn index_rescan(state: State<'_, AppState>) {
+    state.index.rescan();
+}
+
+/// Instant search over the index. A newer search cancels older ones.
+#[tauri::command]
+pub async fn index_search(
+    state: State<'_, AppState>,
+    query: String,
+    limit: usize,
+    under: Option<String>,
+) -> AppResult<crate::index::IndexResults> {
+    static CANCEL: parking_lot::Mutex<Option<Arc<AtomicBool>>> = parking_lot::Mutex::new(None);
+    let flag = Arc::new(AtomicBool::new(false));
+    if let Some(old) = CANCEL.lock().replace(flag.clone()) {
+        old.store(true, Ordering::Relaxed);
+    }
+    let index = state.index.clone();
+    blocking(move || {
+        let r = index.search(&query, limit, under.as_deref(), &flag);
+        if flag.load(Ordering::Relaxed) {
+            return Err(AppError::cancelled());
+        }
+        r
+    })
+    .await
 }
 
 #[tauri::command]

@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { t } from '../../lib/i18n/index.svelte';
+  import { untrack } from 'svelte';
+  import { api } from '../../lib/api';
+  import { localeTag, t } from '../../lib/i18n/index.svelte';
+  import { index } from '../../lib/state/index.svelte';
   import { isMac } from '../../lib/platform';
   import { app } from '../../lib/state/app.svelte';
   import { settings } from '../../lib/state/settings.svelte';
@@ -7,12 +10,27 @@
   import Modal from './Modal.svelte';
   import ShortcutsEditor from './ShortcutsEditor.svelte';
 
-  type Section = 'general' | 'appearance' | 'panels' | 'operations' | 'tools' | 'shortcuts' | 'aboutSection';
+  type Section = 'general' | 'appearance' | 'panels' | 'operations' | 'search' | 'tools' | 'shortcuts' | 'aboutSection';
   let { close, section: initial = 'general' }: { close: (r: null) => void; section?: Section } = $props();
 
   // svelte-ignore state_referenced_locally
   let section = $state<Section>(initial);
-  const sections: Section[] = ['general', 'appearance', 'panels', 'operations', 'shortcuts', 'tools', 'aboutSection'];
+  const sections: Section[] = ['general', 'appearance', 'panels', 'operations', 'search', 'shortcuts', 'tools', 'aboutSection'];
+  const ix = $derived(index.status);
+  const locale = $derived(localeTag());
+  let rootsText = $state(untrack(() => settings.index.roots.join('\n')));
+  let excludesText = $state(untrack(() => settings.index.excludes ?? index.defaultExcludes).replaceAll(';', '\n'));
+  function saveRoots() {
+    settings.index.roots = rootsText.split('\n').map((s) => s.trim()).filter(Boolean);
+  }
+  function saveExcludes() {
+    const v = excludesText.split('\n').map((s) => s.trim()).filter(Boolean).join(';');
+    settings.index.excludes = v === index.defaultExcludes ? null : v;
+  }
+  function resetExcludes() {
+    settings.index.excludes = null;
+    excludesText = index.defaultExcludes.replaceAll(';', '\n');
+  }
 </script>
 
 <Modal title={t('settings.title')} width={760} onclose={() => close(null)}>
@@ -98,6 +116,36 @@
         <ShortcutsEditor />
       {:else if section === 'aboutSection'}
         <AboutContent />
+      {:else if section === 'search'}
+        <label class="check"><input type="checkbox" bind:checked={settings.index.enabled} /> {t('settings.indexEnabled')}</label>
+        <small class="muted">{t('settings.indexHint')}</small>
+        {#if settings.index.enabled}
+          <div class="status">
+            {#if ix.state === 'scanning' && !ix.ready}
+              {t('find.building', { dirs: ix.scannedDirs.toLocaleString(locale) })}
+            {:else}
+              {t('settings.indexStats', { files: ix.files.toLocaleString(locale), dirs: ix.dirs.toLocaleString(locale) })}
+              {#if ix.state === 'scanning'} · {t('find.updating')}…{/if}
+              {#if ix.metaTotal > ix.metaDone} · {t('settings.indexMeta', { done: ix.metaDone.toLocaleString(locale), total: ix.metaTotal.toLocaleString(locale) })}{/if}
+            {/if}
+            <button class="btn" onclick={() => api.indexRescan()}>{t('cmd.rescanIndex')}</button>
+          </div>
+          <label class="col">
+            <span>{t('settings.indexRoots')}</span>
+            <textarea class="input" rows="3" bind:value={rootsText} onchange={saveRoots} placeholder={app.info.home} spellcheck="false"></textarea>
+            <small class="muted">{t('settings.indexRootsHint')}</small>
+          </label>
+          <label class="col">
+            <span>{t('settings.indexExcludes')}</span>
+            <textarea class="input" rows="4" bind:value={excludesText} onchange={saveExcludes} spellcheck="false"></textarea>
+            <span class="hint-row">
+              <small class="muted">{t('settings.indexExcludesHint')}</small>
+              <button class="btn" onclick={resetExcludes}>{t('settings.reset')}</button>
+            </span>
+          </label>
+          <label class="check"><input type="checkbox" bind:checked={settings.index.hidden} /> {t('settings.indexHidden')}</label>
+          <label class="check"><input type="checkbox" bind:checked={settings.index.meta} /> {t('settings.indexMetaToggle')}</label>
+        {/if}
       {:else if section === 'tools'}
         <label class="col">
           <span>{t('settings.editor')}</span>
@@ -159,6 +207,27 @@
     grid-template-columns: 180px 1fr;
     align-items: center;
     gap: 10px;
+  }
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: var(--r-m);
+    background: var(--bg-subtle);
+    font-size: 12px;
+  }
+  .hint-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  textarea {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    resize: vertical;
   }
   .col {
     display: flex;

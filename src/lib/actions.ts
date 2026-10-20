@@ -6,13 +6,14 @@ import { ask, open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { api, type BackendLocation } from './api';
 import { copyText } from './clipboard';
 import { t, what } from './i18n/index.svelte';
-import { childLoc, dirName, isArchiveName, joinLocal, locPath, sameLoc, stemOf, extOf } from './paths';
+import { childLoc, dirName, isArchiveName, isResults, joinLocal, locPath, sameLoc, stemOf, extOf } from './paths';
 import { isMac, isWindows } from './platform';
 import { links } from './links';
 import { app, Side, type SideName } from './state/app.svelte';
 import { settings } from './state/settings.svelte';
 import { Tab, UP_ENTRY } from './state/tab.svelte';
 import { openDialog, showError, toast } from './state/ui.svelte';
+import QuickFind from '../components/dialogs/QuickFind.svelte';
 import { F, type Entry, type JobRequest, type Location, type SortKey, type ViewMode } from './types';
 
 import AboutDialog from '../components/dialogs/AboutDialog.svelte';
@@ -32,7 +33,7 @@ import type { Connected } from './types';
 const nothing = () => toast(t('misc.noSelection'));
 
 function backend(loc: Location): BackendLocation | null {
-  return loc.kind === 'search' ? null : loc;
+  return isResults(loc) ? null : (loc as BackendLocation);
 }
 
 function writable(loc: Location): boolean {
@@ -187,7 +188,7 @@ export async function deleteItems(permanent: boolean) {
   const tab = app.panel;
   const items = tab.targets();
   if (!items.length) return nothing();
-  if (!writable(tab.location) && tab.location.kind !== 'search') return toast(t('err.Unsupported'), 'error');
+  if (!writable(tab.location) && !isResults(tab.location)) return toast(t('err.Unsupported'), 'error');
   const remote = tab.location.kind === 'ftp';
   const toTrash = !permanent && !remote && settings.useTrash;
   const w = what(items.map((e) => e.name));
@@ -439,7 +440,7 @@ export async function pack() {
   const tab = app.panel;
   const items = tab.targets();
   if (!items.length) return nothing();
-  if (tab.location.kind !== 'local' && tab.location.kind !== 'search') return toast(t('misc.notLocal'));
+  if (tab.location.kind !== 'local' && !isResults(tab.location)) return toast(t('misc.notLocal'));
   const destDir = app.other.location.kind === 'local' ? app.other.location.path : tab.location.kind === 'local' ? tab.location.path : app.info.home;
   const base = items.length === 1 ? stemOf(items[0].name) || items[0].name : tab.title || 'archive';
   const r = await openDialog<{ path: string; level: number; queue: number | null }>(PackDialog, {
@@ -464,7 +465,7 @@ export async function pack() {
 export async function unpack() {
   const tab = app.panel;
   const archives = tab.targets().filter((e) => !e.isDir && isArchiveName(e.name));
-  if (!archives.length || tab.location.kind !== 'local' && tab.location.kind !== 'search') return nothing();
+  if (!archives.length || tab.location.kind !== 'local' && !isResults(tab.location)) return nothing();
   const dest = app.other.location.kind === 'local' ? app.other.location : tab.location;
   const r = await openDialog<CopyResult>(CopyDialog, {
     op: 'copy',
@@ -492,6 +493,17 @@ export async function unpack() {
 }
 
 // ---------------------------------------------------------------- tools
+
+/** Instant search over the file index (Spotlight / Everything style). */
+export async function quickFind(initial = '') {
+  await openDialog(QuickFind, { initial });
+}
+
+export function rescanIndex() {
+  if (!settings.index.enabled) settings.index.enabled = true;
+  void api.indexRescan();
+  toast(t('find.rescanning'));
+}
 
 export async function search() {
   const tab = app.panel;

@@ -21,6 +21,8 @@ export interface Settings {
   metaColumns: boolean;
   /** Columns chosen by hand for a folder (path -> column ids); others use the automatic preset. */
   folderColumns: Record<string, string[]>;
+  /** File index for instant search. `roots` empty = home folder, `excludes` null = defaults. */
+  index: { enabled: boolean; roots: string[]; excludes: string | null; hidden: boolean; meta: boolean };
   /** Widths of metadata columns (id -> px). */
   metaWidths: Record<string, number>;
   functionBar: boolean;
@@ -57,6 +59,7 @@ export const defaultSettings = (): Settings => ({
   metaColumns: true,
   folderColumns: {},
   metaWidths: {},
+  index: { enabled: true, roots: [], excludes: null, hidden: false, meta: true },
   functionBar: true,
   toolbar: true,
   restoreSession: true,
@@ -89,6 +92,7 @@ export function applySettings(saved: Partial<Settings> | null) {
     }
   }
   settings.colWidths = { ...d.colWidths, ...(saved.colWidths ?? {}) };
+  settings.index = { ...d.index, ...(saved.index && typeof saved.index === 'object' ? saved.index : {}) };
   if (saved.keymap && typeof saved.keymap === 'object' && !Array.isArray(saved.keymap)) {
     const km: Record<string, string[]> = {};
     for (const [k, v] of Object.entries(saved.keymap)) if (Array.isArray(v)) km[k] = v.filter((x) => typeof x === 'string');
