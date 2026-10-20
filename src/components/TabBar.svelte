@@ -74,40 +74,33 @@
 <style>
   .tabs {
     display: flex;
-    align-items: flex-end;
-    gap: 2px;
+    align-items: stretch;
     height: 30px;
-    padding: 4px 6px 0;
+    padding: 0 4px 0 0;
     flex: none;
     background: var(--bg-subtle);
     border-bottom: 1px solid var(--border);
     overflow: hidden;
   }
-  /* Tabs share the whole bar evenly, like Safari / Finder. */
   .tab {
-    flex: 1 1 0;
+    flex: 0 1 180px;
     min-width: 54px;
     height: 100%;
     display: flex;
     align-items: center;
     gap: 5px;
     padding: 0 4px 0 10px;
-    border-radius: var(--r-m) var(--r-m) 0 0;
+    border-right: 1px solid var(--border);
     color: var(--text-2);
     font-size: 12px;
     position: relative;
   }
   .tab.locked {
+    flex: 0 1 140px;
     padding-right: 10px;
   }
-  .tab.last-locked::after {
-    content: '';
-    position: absolute;
-    right: -2px;
-    top: 6px;
-    bottom: 6px;
-    width: 1px;
-    background: var(--border-strong);
+  .tab.last-locked {
+    border-right-color: var(--border-strong);
   }
   .tab:hover {
     background: var(--bg-hover);
@@ -115,9 +108,7 @@
   .tab.on {
     background: var(--bg-panel);
     color: var(--text);
-    box-shadow:
-      0 0 0 1px var(--border),
-      0 1px 0 var(--bg-panel);
+    box-shadow: 0 1px 0 var(--bg-panel);
     font-weight: 600;
     z-index: 1;
   }
@@ -129,7 +120,6 @@
     right: 0;
     top: 0;
     height: 2px;
-    border-radius: var(--r-m) var(--r-m) 0 0;
     background: var(--accent);
     pointer-events: none;
   }
@@ -167,7 +157,8 @@
   .add {
     width: 24px;
     height: 22px;
-    margin-bottom: 2px;
+    align-self: center;
+    margin-left: 2px;
     border: none;
     border-radius: var(--r-s);
     background: transparent;

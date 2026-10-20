@@ -121,3 +121,31 @@ export async function tabMenu(side: import('./state/app.svelte').Side, index: nu
   const menu = await Menu.new({ items });
   await menu.popup();
 }
+
+// ---------------------------------------------------------------- menu bar
+
+type MenuNode = import('./types').MenuNode;
+
+async function buildNodes(nodes: MenuNode[]): Promise<Item[]> {
+  const out: Item[] = [];
+  for (const n of nodes) {
+    if (n.type === 'separator') {
+      if (out.length && !(out[out.length - 1] instanceof PredefinedMenuItem)) out.push(await PredefinedMenuItem.new({ item: 'Separator' }));
+    } else if (n.type === 'submenu') {
+      out.push(await Submenu.new({ text: n.label, items: await buildNodes(n.items) }));
+    } else if (n.type === 'item' || n.type === 'check') {
+      const id = n.id;
+      const opts = { text: n.label, enabled: n.enabled ?? true, accelerator: n.accel ?? undefined, action: () => run(id) };
+      out.push(n.type === 'check' ? await CheckMenuItem.new({ ...opts, checked: n.checked }) : await MenuItem.new(opts));
+    }
+    // Predefined (macOS-only) items have no meaning in the in-window menu bar.
+  }
+  while (out.length && out[out.length - 1] instanceof PredefinedMenuItem) out.pop();
+  return out;
+}
+
+/** Opens one top-level menu of the in-window menu bar (Windows / Linux) as a native popup. */
+export async function popupMenuNodes(nodes: MenuNode[], at: { x: number; y: number }) {
+  const menu = await Menu.new({ items: await buildNodes(nodes) });
+  await menu.popup(new LogicalPosition(at.x, at.y));
+}

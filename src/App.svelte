@@ -21,6 +21,7 @@
   import DragGhost from './components/DragGhost.svelte';
   import FunctionBar from './components/FunctionBar.svelte';
   import JobsPanel from './components/JobsPanel.svelte';
+  import MenuBar from './components/MenuBar.svelte';
   import Panel from './components/Panel.svelte';
   import Toasts from './components/Toasts.svelte';
   import Toolbar from './components/Toolbar.svelte';
@@ -56,10 +57,15 @@
     root.lang = i18n.lang;
   });
 
-  // Native menu follows language and check-mark state.
+  // Native menu (macOS) follows language and check-mark state. Other
+  // platforms draw their menu bar in the window (MenuBar.svelte).
+  let lastMenu = '';
   $effect(() => {
-    if (!app.ready) return;
+    if (!app.ready || !isMac) return;
     const spec = buildMenu();
+    const json = JSON.stringify(spec);
+    if (json === lastMenu) return;
+    lastMenu = json;
     void api.setMenu(spec).catch((e) => console.warn('menu', e));
   });
 
@@ -204,6 +210,9 @@
 </script>
 
 <div class="shell" class:mac={isMac}>
+  {#if !isMac}
+    <MenuBar />
+  {/if}
   {#if settings.toolbar}
     <Toolbar />
   {:else if isMac}
