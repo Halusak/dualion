@@ -7,7 +7,7 @@ import { api, type BackendLocation } from './api';
 import { copyText } from './clipboard';
 import { formatSize } from './format';
 import { localeTag, t, what } from './i18n/index.svelte';
-import { childLoc, dirName, isArchiveName, isResults, joinLocal, locPath, sameLoc, stemOf, extOf } from './paths';
+import { childLoc, dirName, isArchiveName, isDiskImage, isResults, joinLocal, locPath, sameLoc, stemOf, extOf } from './paths';
 import { isMac, isWindows, shortcutLabel } from './platform';
 import { links } from './links';
 import { app, Side, type SideName } from './state/app.svelte';
@@ -18,6 +18,7 @@ import QuickFind from '../components/dialogs/QuickFind.svelte';
 import HistoryDialog from '../components/dialogs/HistoryDialog.svelte';
 import DiskUsageDialog from '../components/dialogs/DiskUsageDialog.svelte';
 import DuplicatesDialog from '../components/dialogs/DuplicatesDialog.svelte';
+import { ensureArchiveAccess, mount } from './archives';
 import { renameGroup } from './groups';
 import { pushHistory } from './state/history.svelte';
 import { F, type Entry, type JobRequest, type Location, type SortKey, type ViewMode } from './types';
@@ -29,7 +30,7 @@ import FtpDialog from '../components/dialogs/FtpDialog.svelte';
 import HelpDialog from '../components/dialogs/HelpDialog.svelte';
 import HotlistDialog from '../components/dialogs/HotlistDialog.svelte';
 import MultiRenameDialog from '../components/dialogs/MultiRenameDialog.svelte';
-import PackDialog from '../components/dialogs/PackDialog.svelte';
+import PackDialog, { type PackResult } from '../components/dialogs/PackDialog.svelte';
 import PromptDialog, { type PromptResult } from '../components/dialogs/PromptDialog.svelte';
 import SearchDialog from '../components/dialogs/SearchDialog.svelte';
 import SettingsDialog from '../components/dialogs/SettingsDialog.svelte';
@@ -126,6 +127,7 @@ export async function copyMove(op: 'copy' | 'move', sameDir = false) {
   if (!writable(dest)) return toast(t('err.Unsupported'), 'error');
 
   const sources = items.map((e) => entryLoc(src, e));
+  if (extracting && src.location.kind === 'archive' && !(await ensureArchiveAccess(src.location.archive))) return;
   let result: CopyResult | null = {
     dest,
     newName: null,
@@ -168,6 +170,8 @@ export async function pasteFiles() {
   if (!cb || !cb.items.length) return;
   if (!writable(tab.location)) return toast(t('err.Unsupported'), 'error');
   const extracting = cb.items[0].kind === 'archive';
+  const first = cb.items[0];
+  if (first.kind === 'archive' && !(await ensureArchiveAccess(first.archive))) return;
   try {
     await api.jobEnqueue({
       op: extracting ? 'extract' : cb.op === 'cut' ? 'move' : 'copy',
@@ -468,7 +472,7 @@ export async function pack() {
   if (tab.location.kind !== 'local' && !isResults(tab.location)) return toast(t('misc.notLocal'));
   const destDir = app.other.location.kind === 'local' ? app.other.location.path : tab.location.kind === 'local' ? tab.location.path : app.info.home;
   const base = items.length === 1 ? stemOf(items[0].name) || items[0].name : tab.title || 'archive';
-  const r = await openDialog<{ path: string; level: number; queue: number | null }>(PackDialog, {
+  const r = await openDialog<PackResult>(PackDialog, {
     names: items.map((e) => e.name),
     path: joinLocal(destDir, `${base}.zip`),
   });
@@ -478,7 +482,7 @@ export async function pack() {
       op: 'pack',
       sources: items.map((e) => entryLoc(tab, e)),
       dest: { kind: 'local', path: r.path },
-      options: { level: r.level },
+      options: { level: r.level, format: r.format, password: r.password, encryptNames: r.encryptNames },
       queue: r.queue,
     });
     tab.unmarkAll();
@@ -503,6 +507,7 @@ export async function unpack() {
   for (const a of archives) {
     const loc = entryLoc(tab, a);
     if (loc.kind !== 'local') continue;
+    if (!(await ensureArchiveAccess(loc.path))) continue;
     try {
       await api.jobEnqueue({
         op: 'extract',
@@ -518,6 +523,16 @@ export async function unpack() {
 }
 
 // ---------------------------------------------------------------- tools
+
+/** Mounts the disk image under the cursor (ISO, DMG, VHD …). */
+export async function mountImage() {
+  const tab = app.panel;
+  const e = tab.current;
+  if (!e || e.isDir) return nothing();
+  const loc = entryLoc(tab, e);
+  if (loc.kind !== 'local' || !isDiskImage(e.name)) return toast(t('arc.notImage'));
+  await mount(loc.path);
+}
 
 /** Disk usage map of the active panel's folder. */
 export async function diskUsage() {

@@ -28,6 +28,8 @@ pub enum ErrorCode {
     Unsupported,
     InvalidInput,
     Archive,
+    PasswordRequired,
+    WrongPassword,
     Io,
     Other,
 }

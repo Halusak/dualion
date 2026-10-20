@@ -526,6 +526,37 @@ pub fn dupes_start(state: State<'_, AppState>, params: crate::dupes::DupeParams,
     Ok(id)
 }
 
+/// Checks an archive password and remembers it for this session.
+#[tauri::command]
+pub async fn archive_password(archive: String, password: String) -> AppResult<()> {
+    blocking(move || crate::arch::set_password(&archive, &password)).await
+}
+
+/// Ok when the archive can be read (no password needed or the stored one works).
+#[tauri::command]
+pub async fn archive_check(archive: String) -> AppResult<()> {
+    blocking(move || crate::arch::check(&archive)).await
+}
+
+/// Archive kind of a file name ("zip", "7z", "rar", "iso", "tar", "single") or null.
+#[tauri::command]
+pub fn archive_kind(path: String) -> Option<&'static str> {
+    use crate::arch::Kind;
+    crate::arch::kind_of(&path).map(|k| match k {
+        Kind::Zip => "zip",
+        Kind::SevenZ => "7z",
+        Kind::Rar => "rar",
+        Kind::Iso => "iso",
+        Kind::Tar(_) => "tar",
+        Kind::Single(_) => "single",
+    })
+}
+
+#[tauri::command]
+pub async fn mount_image(path: String) -> AppResult<String> {
+    blocking(move || platform::mount_image(&path)).await
+}
+
 #[tauri::command]
 pub async fn viewer_probe(path: String) -> AppResult<Probe> {
     blocking(move || viewer::probe(std::path::Path::new(&path))).await

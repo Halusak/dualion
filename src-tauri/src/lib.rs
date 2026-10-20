@@ -29,6 +29,7 @@ mod viewer;
 mod watcher;
 
 pub(crate) use jobs::archive as archive_index;
+mod arch;
 
 use commands::AppState;
 use std::collections::HashMap;
@@ -223,6 +224,10 @@ pub fn run() {
             commands::preview_slides,
             commands::file_meta,
             commands::job_plan,
+            commands::archive_password,
+            commands::archive_check,
+            commands::archive_kind,
+            commands::mount_image,
             commands::du_scan,
             commands::du_tree,
             commands::dupes_start,

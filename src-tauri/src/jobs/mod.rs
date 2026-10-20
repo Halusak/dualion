@@ -63,6 +63,13 @@ pub struct JobOptions {
     pub speed_limit: Option<u64>,
     /// Compression level for packing (0–9).
     pub level: Option<u8>,
+    /// Archive format for packing ("zip", "7z", "tar.gz" …); default from the name.
+    pub format: Option<String>,
+    /// Archive password (ZIP / 7z packing). Never sent back to the UI.
+    #[serde(skip_serializing)]
+    pub password: Option<String>,
+    /// 7z: also encrypt file names.
+    pub encrypt_names: bool,
 }
 
 impl Default for JobOptions {
@@ -76,6 +83,9 @@ impl Default for JobOptions {
             to_trash: true,
             speed_limit: None,
             level: None,
+            format: None,
+            password: None,
+            encrypt_names: false,
         }
     }
 }

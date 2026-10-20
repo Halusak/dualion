@@ -327,6 +327,13 @@ export class Tab {
       return true;
     } catch (e) {
       if (token !== this.navToken) return false;
+      // Protected archive: ask for the password (or offer to mount an image) and retry.
+      if (loc.kind === 'archive') {
+        this.loading = false;
+        const { recoverArchive } = await import('../archives');
+        if (await recoverArchive(loc.archive, e)) return this.navigate(loc, opts);
+        if ((e as AppError).code === 'PasswordRequired' || (e as AppError).code === 'Unsupported') return false;
+      }
       if (!this.listing) this.error = e as AppError;
       else showError(e);
       return false;

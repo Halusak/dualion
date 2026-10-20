@@ -203,3 +203,43 @@ pub fn temp_dir() -> std::path::PathBuf {
     let _ = std::fs::create_dir_all(&d);
     d
 }
+
+/// Mounts a disk image (ISO, DMG, VHD…) with the system; returns the mount path.
+pub fn mount_image(path: &str) -> AppResult<String> {
+    #[cfg(target_os = "macos")]
+    {
+        let out = Command::new("hdiutil").args(["attach", "-readonly", path]).output().map_err(|e| AppError::other(e.to_string()))?;
+        if !out.status.success() {
+            return Err(AppError::other(String::from_utf8_lossy(&out.stderr).trim().to_string()).with_path(path));
+        }
+        let text = String::from_utf8_lossy(&out.stdout);
+        text.lines()
+            .filter_map(|l| l.find("/Volumes/").map(|i| l[i..].trim().to_string()))
+            .next_back()
+            .ok_or_else(|| AppError::other("The image has no mountable volume").with_path(path))
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let script = format!(
+            "$ErrorActionPreference='Stop'; $i = Mount-DiskImage -ImagePath '{}' -PassThru; ($i | Get-Volume).DriveLetter",
+            path.replace('\'', "''")
+        );
+        let out = Command::new("powershell.exe")
+            .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .map_err(|e| AppError::other(e.to_string()))?;
+        let letter = String::from_utf8_lossy(&out.stdout).trim().chars().find(|c| c.is_ascii_alphabetic());
+        match letter {
+            Some(l) if out.status.success() => Ok(format!("{l}:\\")),
+            _ => Err(AppError::other(String::from_utf8_lossy(&out.stderr).trim().to_string()).with_path(path)),
+        }
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        let _ = path;
+        Err(AppError::unsupported("Mounting images is not supported on this system"))
+    }
+}

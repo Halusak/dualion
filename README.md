@@ -44,7 +44,7 @@ Každou z nových funkcí lze v Nastavení vypnout.
 **Nástroje**
 - **Vyhledávání** (engine z ripgrepu): maska nebo regulární výraz názvu, hledání textu v souborech (regex, celá slova, „neobsahuje“), velikost, datum, hloubka, vynechání složek, `.gitignore`. Texty ve Windows‑1250 a dalších kódováních najde i automaticky. Výsledky lze zobrazit v panelu.
 - **FTP / FTPS** (explicitní i implicitní TLS, pasivní/aktivní režim, kódování názvů vč. Windows‑1250). Přístupy jsou uložené v trezoru šifrovaném XChaCha20‑Poly1305; klíč je v Klíčence macOS / Správci pověření Windows, nebo odvozený z hlavního hesla (Argon2id). Hesla nikdy neopustí backend.
-- ZIP archivy: procházení jako složka, rozbalení, zabalení.
+- **Archivy**: ZIP, 7z, RAR, ISO (ISO 9660/Joliet), TAR, `.tar.gz` / `.tar.bz2` / `.tar.xz` / `.tar.zst` a samostatné `.gz` / `.bz2` / `.xz` / `.zst` – procházení jako složka, náhled souborů, rozbalení (i archivů chráněných heslem: ZIP, 7z, RAR). Balení do ZIP a 7z (volitelně s heslem AES‑256, u 7z i šifrované názvy) a do TAR / `.tar.gz` / `.tar.bz2` / `.tar.xz` / `.tar.zst`. Obrazy disků (ISO, DMG, VHD…) jde i nativně připojit systémem.
 - Hromadné přejmenování s náhledem (`[N] [N2-5] [E] [C] [Y][M][D] [h][m][s] [P]`, hledat/nahradit vč. regexu, velikost písmen, vrácení akce).
 - Prohlížeč F3 a panel rychlého náhledu: text s detekcí kódování, hex, obrázky, video, audio, PDF, tabulky (`.xls`, `.xlsx`, `.xlsb`, `.ods`, `.csv`/`.tsv` vč. listů), dokumenty (`.doc`, `.docx`, `.odt`, `.rtf`), prezentace (`.pptx`, `.odp`), vzorník písem (`.ttf`, `.otf`, `.woff`) a vykreslení PSD/Affinity/RAW; editor F4, terminál F9, kontrolní součty (MD5/SHA‑1/SHA‑256/SHA‑512/CRC32/XXH3), porovnání složek, výpočet velikosti složek, symbolické odkazy.
 

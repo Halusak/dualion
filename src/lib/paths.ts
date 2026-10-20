@@ -122,10 +122,19 @@ export function locPath(loc: Location): string {
   }
 }
 
-export const ARCHIVE_EXTS = new Set(['zip', 'jar', 'apk', 'epub', 'nupkg', 'vsix', 'whl', 'xpi']);
+export const ARCHIVE_EXTS = new Set([
+  'zip', 'jar', 'apk', 'epub', 'nupkg', 'vsix', 'whl', 'xpi', 'ipa', 'aar', 'war', 'cbz',
+  '7z', 'cb7', 'rar', 'cbr', 'iso', 'tar', 'cbt', 'tgz', 'taz', 'tbz', 'tbz2', 'tb2', 'txz', 'tzst', 'gz', 'bz2', 'xz', 'zst',
+]);
 
+/** Archives Dualion opens like folders (ZIP, 7z, RAR, ISO, TAR*, single .gz …). */
 export function isArchiveName(name: string): boolean {
   return ARCHIVE_EXTS.has(extOf(name).toLowerCase());
+}
+
+/** Disk images the system can mount. */
+export function isDiskImage(name: string): boolean {
+  return ['iso', 'dmg', 'img', 'vhd', 'vhdx', 'sparseimage', 'sparsebundle'].includes(extOf(name).toLowerCase());
 }
 
 /** Wildcard mask matcher compatible with the backend (TC syntax). */

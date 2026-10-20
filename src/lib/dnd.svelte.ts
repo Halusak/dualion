@@ -82,6 +82,10 @@ export async function endDrag() {
   if (!over.entryKey && from === over.side) return;
   if (items.some((i) => sameLoc(i, dest))) return;
   const extracting = items[0].kind === 'archive';
+  if (items[0].kind === 'archive') {
+    const { ensureArchiveAccess } = await import('./archives');
+    if (!(await ensureArchiveAccess(items[0].archive))) return;
+  }
   try {
     await api.jobEnqueue({
       op: extracting ? 'extract' : move ? 'move' : 'copy',

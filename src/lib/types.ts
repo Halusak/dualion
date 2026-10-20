@@ -85,6 +85,8 @@ export type ErrorCode =
   | 'Unsupported'
   | 'InvalidInput'
   | 'Archive'
+  | 'PasswordRequired'
+  | 'WrongPassword'
   | 'Io'
   | 'Other';
 
@@ -143,6 +145,12 @@ export interface JobOptions {
   toTrash?: boolean;
   speedLimit?: number | null;
   level?: number | null;
+  /** Archive format for packing ("zip", "7z", "tar.gz" …). */
+  format?: string | null;
+  /** Archive password (ZIP / 7z). */
+  password?: string | null;
+  /** 7z: encrypt file names too. */
+  encryptNames?: boolean;
 }
 
 export interface JobRequest {
