@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="cs-cz" Codepage="1250" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <String Id="LaunchApp">Spustit Dualion</String>
+  <String Id="DowngradeErrorMessage">Již je nainstalována novější verze aplikace Dualion.</String>
+  <String Id="PathEnvVarFeature">Přidá složku s aplikací Dualion do systémové proměnné PATH, takže ji lze spustit odkudkoli.</String>
+  <String Id="InstallAppFeature">Nainstaluje aplikaci Dualion.</String>
+</WixLocalization>

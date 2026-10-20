@@ -85,13 +85,18 @@
           "Czech",
           "English"
         ],
-        "displayLanguageSelector": true
+        "displayLanguageSelector": true,
+        "customLanguageFiles": {
+          "Czech": "installer/Czech.nsh"
+        }
       },
       "wix": {
-        "language": [
-          "cs-CZ",
-          "en-US"
-        ]
+        "language": {
+          "cs-CZ": {
+            "localePath": "installer/cs-CZ.wxl"
+          },
+          "en-US": {}
+        }
       }
     }
   }
