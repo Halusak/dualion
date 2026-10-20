@@ -33,9 +33,9 @@ export function itemPointerDown(e: PointerEvent, side: SideName, tab: Tab, entry
     return;
   }
 
-  const wasMarked = tab.isMarked(entry.key);
+  // Like Total Commander: a plain click only moves the cursor, marks stay
+  // (they are cleared explicitly: Deselect all, Num -, Esc …).
   tab.setCursor(index);
-  if (!wasMarked) tab.unmarkAll();
 
   const sx = e.clientX;
   const sy = e.clientY;
@@ -52,7 +52,6 @@ export function itemPointerDown(e: PointerEvent, side: SideName, tab: Tab, entry
     window.removeEventListener('pointermove', move);
     window.removeEventListener('pointerup', up);
     if (dragging && drag.active) void endDrag();
-    else if (wasMarked) tab.unmarkAll();
   };
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up);
@@ -68,6 +67,5 @@ export function backgroundPointerDown(e: PointerEvent, side: SideName, tab: Tab)
   app.activeSide = side;
   if (e.button === 0 && e.target === e.currentTarget) {
     tab.renaming = null;
-    tab.unmarkAll();
   }
 }
