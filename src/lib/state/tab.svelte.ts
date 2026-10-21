@@ -354,7 +354,9 @@ export class Tab {
 
   /** Re-reads the current folder keeping cursor, marks and calculated sizes. */
   async reload(): Promise<void> {
-    if (this.location.kind === 'search') return;
+    // A navigation in progress loads fresh data anyway; reloading the old
+    // folder now would cancel it (Enter / double click "did nothing").
+    if (this.loading || this.location.kind === 'search') return;
     if (this.location.kind === 'query') {
       const cur = this.cursorKey;
       await this.navigate(this.location, { push: false });

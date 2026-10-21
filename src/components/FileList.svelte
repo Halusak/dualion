@@ -11,7 +11,7 @@
   import { localeTag, t } from '../lib/i18n/index.svelte';
   import { setMetrics } from '../lib/panelKeys.svelte';
   import { isWindows } from '../lib/platform';
-  import { backgroundPointerDown, itemDoubleClick, itemPointerDown } from '../lib/pointer';
+  import { backgroundPointerDown, itemPointerDown } from '../lib/pointer';
   import type { SideName } from '../lib/state/app.svelte';
   import { settings } from '../lib/state/settings.svelte';
   import type { Tab } from '../lib/state/tab.svelte';
@@ -218,7 +218,6 @@
           data-key={e.key}
           style="top: {index * rowH}px"
           onpointerdown={(ev) => itemPointerDown(ev, side, tab, e, index)}
-          ondblclick={(ev) => itemDoubleClick(tab, e, ev)}
           oncontextmenu={(ev) => {
             ev.stopPropagation();
             onContext(ev, e);

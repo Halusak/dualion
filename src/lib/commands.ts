@@ -270,19 +270,24 @@ export function isTextTarget(el: EventTarget | null): boolean {
   return false;
 }
 
-let lastRun = { id: '', at: 0 };
+type RunSource = 'key' | 'menu' | 'ui';
+let lastRun: { id: string; at: number; source: RunSource } = { id: '', at: 0, source: 'ui' };
 
-/** Runs a command unless the same one ran a moment ago (keyboard + native accelerator). */
 /** Native menu item: panel commands wait while a dialog is open (F3 in the viewer must not reopen it). */
 export function runFromMenu(id: string, dialogOpen: boolean) {
   if (dialogOpen && !byId.get(id)?.global) return;
-  run(id);
+  run(id, 'menu');
 }
 
-export function run(id: string) {
+/**
+ * Runs a command. One key press can arrive both as a keydown and as the
+ * native menu's accelerator: the second of such a pair is dropped, while
+ * repeated presses of the same key (Backspace, Backspace…) all run.
+ */
+export function run(id: string, source: RunSource = 'ui') {
   const now = performance.now();
-  if (lastRun.id === id && now - lastRun.at < 250) return;
-  lastRun = { id, at: now };
+  if (lastRun.id === id && lastRun.source !== source && source !== 'ui' && lastRun.source !== 'ui' && now - lastRun.at < 250) return;
+  lastRun = { id, at: now, source };
   const c = byId.get(id);
   if (!c) return;
   try {
@@ -304,7 +309,7 @@ export function handleKey(e: KeyboardEvent): boolean {
     if (!(c.global || fkey) || textEditing.has(combo)) return false;
   }
   e.preventDefault();
-  run(c.id);
+  run(c.id, 'key');
   return true;
 }
 

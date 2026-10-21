@@ -8,6 +8,12 @@ import { app, type SideName } from './state/app.svelte';
 import type { Tab } from './state/tab.svelte';
 import { F, type Entry } from './types';
 
+/** Double clicks are recognized here: the browser's dblclick needs a click
+ *  count of exactly 2, so clicking into the next folder at the same spot
+ *  (counted as a 3rd click) did nothing until the mouse moved. */
+const DOUBLE_MS = 500;
+let lastDown: { tab: Tab; key: string; at: number; x: number; y: number } | null = null;
+
 export function itemPointerDown(e: PointerEvent, side: SideName, tab: Tab, entry: Entry, index: number) {
   app.activeSide = side;
   if (tab.renaming && tab.renaming !== entry.key) tab.renaming = null;
@@ -37,6 +43,14 @@ export function itemPointerDown(e: PointerEvent, side: SideName, tab: Tab, entry
   // (they are cleared explicitly: Deselect all, Num -, Esc …).
   tab.setCursor(index);
 
+  const now = performance.now();
+  const double = !!lastDown && lastDown.tab === tab && lastDown.key === entry.key && now - lastDown.at < DOUBLE_MS && Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) < 6;
+  lastDown = double ? null : { tab, key: entry.key, at: now, x: e.clientX, y: e.clientY };
+  if (double) {
+    if (!tab.renaming) void A.openEntry(tab, entry, { external: e.altKey });
+    return;
+  }
+
   const sx = e.clientX;
   const sy = e.clientY;
   let dragging = false;
@@ -61,11 +75,6 @@ export function itemPointerDown(e: PointerEvent, side: SideName, tab: Tab, entry
   };
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up);
-}
-
-export function itemDoubleClick(tab: Tab, entry: Entry, e: MouseEvent) {
-  if (tab.renaming) return;
-  void A.openEntry(tab, entry, { external: e.altKey });
 }
 
 /** Click on empty space below the items. */
