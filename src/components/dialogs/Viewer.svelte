@@ -170,8 +170,11 @@
 
   function onKey(e: KeyboardEvent) {
     if (e.key === 'F3') {
+      // Like the TC lister: F3 / Shift+F3 = next / previous match (Esc closes).
       e.preventDefault();
-      close(null);
+      e.stopPropagation();
+      if (find) findNext(e.shiftKey);
+      else findInput?.focus();
     } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
       e.preventDefault();
       findInput?.focus();
@@ -186,85 +189,82 @@
   });
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div onkeydown={onKey}>
-  <Modal fill onclose={() => close(null)}>
-    <div class="viewer">
-      <header>
-        <strong class="ellipsis" title={path}>{name}</strong>
-        {#if probe}<span class="muted">{formatSize(probe.size, localeTag(), settings.sizeFormat)}</span>{/if}
-        <div class="seg">
-          {#if probe && hasPreview(probe.kind)}
-            <button class:on={mode === 'preview'} onclick={() => (mode = 'preview')}>{t('pv.preview')}</button>
-          {/if}
-          {#if probe && (!hasPreview(probe.kind) || probe.textual)}
-            <button class:on={mode === 'text'} onclick={() => { mode = 'text'; if (!text) void loadText(true); }}>{t('viewer.text')}</button>
-          {/if}
-          <button class:on={mode === 'hex'} onclick={() => (mode = 'hex')}>{t('viewer.hex')}</button>
-        </div>
-        {#if mode === 'text'}
-          <select class="input enc" bind:value={encoding} onchange={changeEncoding} title={t('viewer.encoding')}>
-            {#each ['utf-8', 'utf-16le', 'utf-16be', 'windows-1250', 'iso-8859-2', 'windows-1252', 'ibm852', 'koi8-r', 'shift_jis', 'gbk'] as enc (enc)}
-              <option value={enc}>{enc}</option>
-            {/each}
-          </select>
-          <label class="check"><input type="checkbox" bind:checked={wrap} /> {t('viewer.wrap')}</label>
-          {#if lang}
-            <label class="check" title={lang}><input type="checkbox" bind:checked={colored} /> {t('viewer.syntax')}</label>
-          {/if}
-          <input
-            class="input find"
-            class:nf={notFound}
-            bind:this={findInput}
-            bind:value={find}
-            placeholder={t('viewer.find')}
-            onkeydown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                e.stopPropagation();
-                findNext(e.shiftKey);
-              }
-            }}
-          />
+<Modal onkey={onKey} fill onclose={() => close(null)}>
+  <div class="viewer">
+    <header>
+      <strong class="ellipsis" title={path}>{name}</strong>
+      {#if probe}<span class="muted">{formatSize(probe.size, localeTag(), settings.sizeFormat)}</span>{/if}
+      <div class="seg">
+        {#if probe && hasPreview(probe.kind)}
+          <button class:on={mode === 'preview'} onclick={() => (mode = 'preview')}>{t('pv.preview')}</button>
         {/if}
-        <span class="grow"></span>
-        <button class="icon-btn" title={t('viewer.openExternal')} onclick={() => api.openPath(path)}><ExternalLink size={16} /></button>
-        <button class="icon-btn" title={t('close')} onclick={() => close(null)}><X size={16} /></button>
-      </header>
-
-      <div class="body">
-        {#if mode === 'text'}
-          {#if html}
-            <div class="code" class:nowrap={!wrap}>
-              {#if !wrap}<pre class="gutter" aria-hidden="true">{Array.from({ length: lineCount }, (_, i) => i + 1).join('\n')}</pre>{/if}
-              <!-- eslint-disable-next-line svelte/no-at-html-tags -- highlight.js escapes the source -->
-              <pre class="hl"><code bind:this={codeEl} class="hljs">{@html html}</code></pre>
-            </div>
-          {:else}
-            <textarea bind:this={textarea} class="text" class:nowrap={!wrap} readonly spellcheck="false" value={text}></textarea>
-          {/if}
-          {#if !eof}
-            <div class="more"><button class="btn" onclick={() => loadText(false)}>{t('viewer.more')}</button></div>
-          {/if}
-        {:else if mode === 'hex'}
-          <div class="hex" bind:this={hexEl} bind:clientHeight={hexH} onscroll={() => (hexTop = hexEl!.scrollTop)}>
-            <div style="height: {hexRows * hexRowH}px; position: relative">
-              {#each { length: hexEnd - hexStart } as _, k (hexStart + k)}
-                {@const r = hexRow(hexStart + k)}
-                <div class="hr" style="top: {(hexStart + k) * hexRowH}px"><span class="addr">{r.addr}</span><span>{r.hex}</span><span class="ascii">{r.ascii}</span></div>
-              {/each}
-            </div>
-          </div>
-        {:else if probe}
-          <Preview {path} {name} {probe} />
+        {#if probe && (!hasPreview(probe.kind) || probe.textual)}
+          <button class:on={mode === 'text'} onclick={() => { mode = 'text'; if (!text) void loadText(true); }}>{t('viewer.text')}</button>
         {/if}
+        <button class:on={mode === 'hex'} onclick={() => (mode = 'hex')}>{t('viewer.hex')}</button>
       </div>
       {#if mode === 'text'}
-        <footer class="muted">{encoding} · {t('viewer.lines', { count: lines })}{notFound ? ` · ${t('viewer.notFound')}` : ''}</footer>
+        <select class="input enc" bind:value={encoding} onchange={changeEncoding} title={t('viewer.encoding')}>
+          {#each ['utf-8', 'utf-16le', 'utf-16be', 'windows-1250', 'iso-8859-2', 'windows-1252', 'ibm852', 'koi8-r', 'shift_jis', 'gbk'] as enc (enc)}
+            <option value={enc}>{enc}</option>
+          {/each}
+        </select>
+        <label class="check"><input type="checkbox" bind:checked={wrap} /> {t('viewer.wrap')}</label>
+        {#if lang}
+          <label class="check" title={lang}><input type="checkbox" bind:checked={colored} /> {t('viewer.syntax')}</label>
+        {/if}
+        <input
+          class="input find"
+          class:nf={notFound}
+          bind:this={findInput}
+          bind:value={find}
+          placeholder={t('viewer.find')}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.stopPropagation();
+              findNext(e.shiftKey);
+            }
+          }}
+        />
+      {/if}
+      <span class="grow"></span>
+      <button class="icon-btn" title={t('viewer.openExternal')} onclick={() => api.openPath(path)}><ExternalLink size={16} /></button>
+      <button class="icon-btn" title={t('close')} onclick={() => close(null)}><X size={16} /></button>
+    </header>
+
+    <div class="body">
+      {#if mode === 'text'}
+        {#if html}
+          <div class="code" class:nowrap={!wrap}>
+            {#if !wrap}<pre class="gutter" aria-hidden="true">{Array.from({ length: lineCount }, (_, i) => i + 1).join('\n')}</pre>{/if}
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -- highlight.js escapes the source -->
+            <pre class="hl"><code bind:this={codeEl} class="hljs">{@html html}</code></pre>
+          </div>
+        {:else}
+          <textarea bind:this={textarea} class="text" class:nowrap={!wrap} readonly spellcheck="false" value={text}></textarea>
+        {/if}
+        {#if !eof}
+          <div class="more"><button class="btn" onclick={() => loadText(false)}>{t('viewer.more')}</button></div>
+        {/if}
+      {:else if mode === 'hex'}
+        <div class="hex" bind:this={hexEl} bind:clientHeight={hexH} onscroll={() => (hexTop = hexEl!.scrollTop)}>
+          <div style="height: {hexRows * hexRowH}px; position: relative">
+            {#each { length: hexEnd - hexStart } as _, k (hexStart + k)}
+              {@const r = hexRow(hexStart + k)}
+              <div class="hr" style="top: {(hexStart + k) * hexRowH}px"><span class="addr">{r.addr}</span><span>{r.hex}</span><span class="ascii">{r.ascii}</span></div>
+            {/each}
+          </div>
+        </div>
+      {:else if probe}
+        <Preview {path} {name} {probe} />
       {/if}
     </div>
-  </Modal>
-</div>
+    {#if mode === 'text'}
+      <footer class="muted">{encoding} · {t('viewer.lines', { count: lines })}{notFound ? ` · ${t('viewer.notFound')}` : ''}</footer>
+    {/if}
+  </div>
+</Modal>
 
 <style>
   .viewer {

@@ -36,9 +36,19 @@
   const locale = $derived(localeTag());
   const isSearch = $derived(isResults(tab.location));
   const isDrives = $derived(tab.location.kind === 'drives');
-  const w = $derived(settings.colWidths);
+  // The right panel keeps its own widths unless the panels are synced.
+  const own = $derived(side === 'right' && !settings.syncColumns);
+  const w = $derived(own ? settings.rightColWidths : settings.colWidths);
+  const mw = $derived(own ? settings.rightMetaWidths : settings.metaWidths);
   const metaCols = $derived(tab.columns.map((id) => columnById.get(id)!).filter(Boolean));
-  const metaW = (c: MetaColumn) => settings.metaWidths[c.id] ?? c.width;
+  const metaW = (c: MetaColumn) => mw[c.id] ?? c.width;
+  function setWidths(meta: boolean, next: Record<string, number>) {
+    if (meta) {
+      if (own) settings.rightMetaWidths = next;
+      else settings.metaWidths = next;
+    } else if (own) settings.rightColWidths = next as typeof w;
+    else settings.colWidths = next as typeof w;
+  }
   // Name fills the free space until the user gives it a width; then a filler
   // track at the end takes the rest (like Finder / Explorer).
   const cols = $derived(
@@ -100,8 +110,7 @@
     }
     const move = (ev: PointerEvent) => {
       const width = Math.round(Math.max(col === 'name' ? 120 : 40, Math.min(1200, startW + (ev.clientX - startX))));
-      if (meta) settings.metaWidths = { ...settings.metaWidths, [col]: width };
-      else settings.colWidths = { ...settings.colWidths, [col]: width };
+      setWidths(!!meta, { ...(meta ? mw : w), [col]: width });
     };
     const up = () => {
       target.removeEventListener('pointermove', move);
@@ -115,13 +124,13 @@
   function resetWidth(col: string) {
     const meta = columnById.get(col);
     if (meta) {
-      const next = { ...settings.metaWidths };
+      const next = { ...mw };
       delete next[col];
-      settings.metaWidths = next;
+      setWidths(true, next);
       return;
     }
     const defaults: Record<string, number> = { name: 0, folder: 220, ext: 64, size: 92, date: 136, attrs: 84 };
-    settings.colWidths = { ...settings.colWidths, [col]: defaults[col] ?? 100 };
+    setWidths(false, { ...w, [col]: defaults[col] ?? 100 });
   }
 
   function onContext(e: MouseEvent, entry: Entry | null) {

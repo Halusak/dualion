@@ -64,6 +64,7 @@ export const api = {
   activeJobs: () => invoke<number>('active_jobs'),
 
   openPath: (path: string) => invoke<void>('open_path', { path }),
+  dragOut: (paths: string[]) => invoke<void>('drag_out', { paths }),
   revealPath: (path: string) => invoke<void>('reveal_path', { path }),
   openUrl: (url: string) => invoke<void>('open_url', { url }),
   qrSvg: (text: string) => invoke<string>('qr_svg', { text }),

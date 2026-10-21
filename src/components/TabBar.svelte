@@ -2,7 +2,7 @@
   import Lock from '@lucide/svelte/icons/lock';
   import Plus from '@lucide/svelte/icons/plus';
   import X from '@lucide/svelte/icons/x';
-  import { closeTab, newTab } from '../lib/actions';
+  import { closeTab, newTab, renameTab } from '../lib/actions';
   import { tabMenu } from '../lib/contextMenu';
   import { t } from '../lib/i18n/index.svelte';
   import { isWindows } from '../lib/platform';
@@ -13,6 +13,7 @@
   const s = $derived(app.side(side));
 
   function label(tab: Tab): string {
+    if (tab.customTitle) return tab.customTitle;
     if (tab.location.kind === 'drives') return t(isWindows ? 'place.drivesWin' : 'place.drivesMac');
     return tab.title || '…';
   }
@@ -34,6 +35,7 @@
       draggable="true"
       ondragstart={() => (dragFrom = i)}
       ondragover={(e) => e.preventDefault()}
+      ondblclick={() => void renameTab(s, i)}
       ondrop={() => {
         if (dragFrom >= 0 && dragFrom !== i) s.moveTab(dragFrom, i);
         dragFrom = -1;

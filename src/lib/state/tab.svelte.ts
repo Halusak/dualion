@@ -62,6 +62,8 @@ export interface TabSnapshot {
   sortKey: SortKey;
   sortDesc: boolean;
   locked?: boolean;
+  /** Name given by the user (empty = folder name). */
+  name?: string;
 }
 
 export class Tab {
@@ -87,8 +89,10 @@ export class Tab {
   revealTick = $state(0);
   /** Key of the entry being renamed inline. */
   renaming = $state<string | null>(null);
-  /** Locked tabs keep their folder: going elsewhere opens a new tab. */
+  /** Locked tabs stay in front and cannot be closed. */
   locked = $state(false);
+  /** Name given by the user; empty shows the folder name. */
+  customTitle = $state('');
   /** Owning panel side (set by Side). */
   side: Side | null = null;
   /** Group leaders whose members are listed. */
@@ -123,6 +127,7 @@ export class Tab {
     this.sortKey = init?.sortKey ?? settings.defaultSort;
     this.sortDesc = init?.sortDesc ?? false;
     this.locked = init?.locked ?? false;
+    this.customTitle = init?.name ?? '';
     if (init?.location) this.location = init.location;
   }
 
@@ -130,7 +135,7 @@ export class Tab {
     let loc: Location = this.location;
     for (let i = this.history.length - 1; loc.kind === 'search' && i >= 0; i--) loc = this.history[i];
     if (loc.kind === 'search' || loc.kind === 'ftp') loc = { kind: 'drives' };
-    return { location: loc, view: this.view, sortKey: this.sortKey, sortDesc: this.sortDesc, locked: this.locked };
+    return { location: loc, view: this.view, sortKey: this.sortKey, sortDesc: this.sortDesc, locked: this.locked, name: this.customTitle || undefined };
   }
 
   /** Folder key for per-folder column choices. */
@@ -280,12 +285,6 @@ export class Tab {
 
   /** Loads `loc`. Keeps the old listing on failure (and reports the error). */
   async navigate(loc: Location, opts: { focus?: string | null; push?: boolean } = {}): Promise<boolean> {
-    if (this.locked && this.side && this.listing && !sameLoc(loc, this.location)) {
-      // Like Total Commander: a locked tab stays put, the new folder opens in a new tab.
-      const tab = new Tab({ location: loc, view: this.view, sortKey: this.sortKey, sortDesc: this.sortDesc });
-      this.side.addTab(tab);
-      return tab.navigate(loc, { focus: opts.focus });
-    }
     const push = opts.push ?? true;
     const token = ++this.navToken;
     if (loc.kind === 'search') {
@@ -389,13 +388,6 @@ export class Tab {
   }
 
   showSearch(id: string, label: string, hits: SearchHit[] | null, push = true, roots: string[] = [], at?: Location) {
-    if (this.locked && this.side && hits) {
-      // A locked tab keeps its folder: results go to a new tab.
-      const tab = new Tab({ view: this.view, sortKey: this.sortKey, sortDesc: this.sortDesc });
-      this.side.addTab(tab);
-      tab.showSearch(id, label, hits, push, roots, at);
-      return;
-    }
     // Folder column: path relative to the searched folder ("Photos/2024").
     const rel = (dir: string) => {
       for (const r of roots) {

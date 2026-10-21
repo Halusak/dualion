@@ -128,6 +128,34 @@ fn moves_and_merges_folders() {
     fs::remove_dir_all(&root).unwrap();
 }
 
+/// Moves to another volume fall back to copy + delete, also for items that
+/// are merged into existing folders there.
+/// DUALION_OTHER_VOLUME=/Volumes/Test cargo test move_across_volumes -- --ignored
+#[test]
+#[ignore]
+fn move_across_volumes() {
+    let other = PathBuf::from(std::env::var("DUALION_OTHER_VOLUME").expect("DUALION_OTHER_VOLUME"));
+    let mgr = manager();
+    let root = tmp();
+    let dst = other.join(format!("dualion-move-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(root.join("photos/sub")).unwrap();
+    fs::write(root.join("photos/1.jpg"), "one").unwrap();
+    fs::write(root.join("photos/sub/2.jpg"), "two").unwrap();
+    fs::write(root.join("123.pqm700"), "file").unwrap();
+    fs::create_dir_all(dst.join("photos")).unwrap();
+    fs::write(dst.join("photos/old.jpg"), "old").unwrap();
+
+    let sources = vec![loc(&root.join("123.pqm700")), loc(&root.join("photos"))];
+    let s = run(&mgr, req(JobOp::Move, sources, Some(loc(&dst)), ConflictPolicy::Ask));
+    assert_eq!(s.status, JobStatus::Done, "{:?}", s.error);
+    assert_eq!(fs::read_to_string(dst.join("123.pqm700")).unwrap(), "file");
+    assert_eq!(fs::read_to_string(dst.join("photos/sub/2.jpg")).unwrap(), "two");
+    assert!(dst.join("photos/old.jpg").exists());
+    assert!(!root.join("123.pqm700").exists() && !root.join("photos").exists(), "sources are removed");
+    fs::remove_dir_all(&root).unwrap();
+    fs::remove_dir_all(&dst).unwrap();
+}
+
 #[test]
 fn move_with_new_name_is_rename() {
     let mgr = manager();

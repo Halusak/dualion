@@ -5,7 +5,7 @@
   import { ask } from '@tauri-apps/plugin-dialog';
   import { onMount } from 'svelte';
   import { api } from './lib/api';
-  import { buildMenu, handleKey, isTextTarget, run } from './lib/commands';
+  import { buildMenu, handleKey, isTextTarget, run, runFromMenu } from './lib/commands';
   import { dropPaths } from './lib/dnd.svelte';
   import { i18n, langFromLocale, t } from './lib/i18n/index.svelte';
   import { panelKey, quick } from './lib/panelKeys.svelte';
@@ -185,7 +185,7 @@
 
   onMount(() => {
     const unlisteners: Promise<() => void>[] = [];
-    unlisteners.push(listen<string>('menu', (e) => run(e.payload)));
+    unlisteners.push(listen<string>('menu', (e) => runFromMenu(e.payload, dialogOpen())));
     unlisteners.push(listen<JobSnapshot[]>('jobs', (e) => (app.jobs = e.payload)));
     unlisteners.push(
       listen<JobDone>('job-done', (e) => {

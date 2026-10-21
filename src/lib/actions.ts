@@ -717,6 +717,16 @@ export function toggleLockTab(side: Side = app.activeSideObj, index = side.activ
   if (tab) side.setLocked(index, !tab.locked);
 }
 
+/** Gives a tab its own name; an empty name returns to the folder name. */
+export async function renameTab(side: Side = app.activeSideObj, index = side.active) {
+  const tab = side.tabs[index];
+  if (!tab) return;
+  const r = await openDialog<PromptResult>(PromptDialog, { title: t('tabs.rename'), label: t('tabs.renameLabel'), value: tab.customTitle || tab.title });
+  if (!r) return;
+  const name = r.value.trim();
+  tab.customTitle = name === tab.title ? '' : name;
+}
+
 export async function duplicateTab(side: Side = app.activeSideObj, index = side.active) {
   const cur = side.tabs[index];
   if (!cur) return;

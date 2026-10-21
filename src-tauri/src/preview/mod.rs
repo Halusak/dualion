@@ -1,6 +1,7 @@
 //! Native previews of non-image formats: thumbnails for the thumbnail view
 //! and rendered / structured previews for the viewer (F3) and Quick View.
 
+pub mod cdr;
 pub mod compound;
 pub mod embedded;
 pub mod msdoc;
@@ -61,6 +62,7 @@ pub fn is_renderable(ext: &str) -> bool {
     ext == "psd"
         || ext == "psb"
         || ext == "clip"
+        || ext == "cdr"
         || AFFINITY.contains(&ext)
         || RAW.contains(&ext)
         || OS_RENDERED.contains(&ext)
@@ -81,6 +83,8 @@ pub fn extract_image(path: &Path, max_px: u32) -> Option<DynamicImage> {
         embedded::largest_image(path, embedded::Scan::Head(48 << 20))
     } else if AUDIO_ART.contains(&ext) {
         embedded::largest_image(path, embedded::Scan::Head(16 << 20))
+    } else if ext == "cdr" {
+        cdr::thumbnail(path)
     } else if ext == "clip" {
         embedded::largest_image(path, embedded::Scan::Head(256 << 20))
     } else if office::has_zip_thumbnail(ext) {
@@ -93,7 +97,7 @@ pub fn extract_image(path: &Path, max_px: u32) -> Option<DynamicImage> {
 
 /// Formats where our extraction is at least as good as the OS (tried first).
 pub fn prefer_own(ext: &str) -> bool {
-    AFFINITY.contains(&ext) || ext == "clip" || matches!(ext, "kra" | "krz" | "ora" | "sketch" | "procreate" | "3mf" | "xmind")
+    AFFINITY.contains(&ext) || ext == "clip" || ext == "cdr" || matches!(ext, "kra" | "krz" | "ora" | "sketch" | "procreate" | "3mf" | "xmind")
 }
 
 /// Whether a thumbnail could exist at all (avoids pointless work).

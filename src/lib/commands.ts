@@ -272,6 +272,12 @@ export function isTextTarget(el: EventTarget | null): boolean {
 let lastRun = { id: '', at: 0 };
 
 /** Runs a command unless the same one ran a moment ago (keyboard + native accelerator). */
+/** Native menu item: panel commands wait while a dialog is open (F3 in the viewer must not reopen it). */
+export function runFromMenu(id: string, dialogOpen: boolean) {
+  if (dialogOpen && !byId.get(id)?.global) return;
+  run(id);
+}
+
 export function run(id: string) {
   const now = performance.now();
   if (lastRun.id === id && now - lastRun.at < 250) return;

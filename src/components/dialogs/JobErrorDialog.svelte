@@ -8,7 +8,7 @@
   let { prompt, close }: { job: JobSnapshot; prompt: Extract<Prompt, { kind: 'error' }>; close: (a: Answer | null) => void } = $props();
 </script>
 
-<Modal title={t('jobError.title')} width={500} onclose={() => close({ action: 'cancel' })} onsubmit={() => close({ action: prompt.canRetry ? 'retry' : 'skip', all: false } as Answer)}>
+<Modal title={t('jobError.title')} width={680} onclose={() => close({ action: 'cancel' })} onsubmit={() => close({ action: prompt.canRetry ? 'retry' : 'skip', all: false } as Answer)}>
   <div class="body">
     <span class="icon"><TriangleAlert size={32} strokeWidth={1.5} /></span>
     <p>{errorText(prompt.error)}</p>

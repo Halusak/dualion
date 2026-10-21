@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { api } from '../../lib/api';
+  import { DATE_PATTERNS, formatPattern } from '../../lib/format';
   import { localeTag, t } from '../../lib/i18n/index.svelte';
   import { index } from '../../lib/state/index.svelte';
   import { showError } from '../../lib/state/ui.svelte';
@@ -20,6 +21,14 @@
   const sections: Section[] = ['general', 'appearance', 'panels', 'operations', 'search', 'rules', 'shortcuts', 'tools', 'aboutSection'];
   const ix = $derived(index.status);
   const locale = $derived(localeTag());
+  const sampleDate = new Date(2026, 9, 21, 18, 48, 5).getTime();
+  let customDate = $state(untrack(() => settings.dateFormat !== 'auto' && !DATE_PATTERNS.includes(settings.dateFormat)));
+  function pickDate(v: string) {
+    customDate = v === 'custom';
+    if (customDate) {
+      if (settings.dateFormat === 'auto') settings.dateFormat = DATE_PATTERNS[0];
+    } else settings.dateFormat = v;
+  }
   let rootsText = $state(untrack(() => settings.index.roots.join('\n')));
   let excludesText = $state(untrack(() => settings.index.excludes ?? index.defaultExcludes).replaceAll(';', '\n'));
   function saveRoots() {
@@ -110,6 +119,21 @@
             <option value="bytes">{t('size.bytes')}</option>
           </select>
         </label>
+        <label class="row">
+          <span>{t('settings.dateFormat')}</span>
+          <select class="input" value={customDate ? 'custom' : settings.dateFormat} onchange={(e) => pickDate(e.currentTarget.value)}>
+            <option value="auto">{t('date.auto')} ({new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' }).format(sampleDate)})</option>
+            {#each DATE_PATTERNS as p (p)}<option value={p}>{formatPattern(sampleDate, p)}</option>{/each}
+            <option value="custom">{t('date.custom')}</option>
+          </select>
+        </label>
+        {#if customDate}
+          <label class="row">
+            <span></span>
+            <input class="input" bind:value={settings.dateFormat} spellcheck="false" title={t('date.tokens')} />
+          </label>
+          <small class="muted">{t('date.tokens')} · {formatPattern(sampleDate, settings.dateFormat, true)}</small>
+        {/if}
         <label class="check"><input type="checkbox" bind:checked={settings.toolbar} /> {t('settings.toolbar')}</label>
         <label class="check"><input type="checkbox" bind:checked={settings.functionBar} /> {t('settings.functionBar')}</label>
       {:else if section === 'panels'}
@@ -128,6 +152,7 @@
           </select>
         </label>
         <label class="check"><input type="checkbox" bind:checked={settings.showAttrs} /> {t('col.attrs')}</label>
+        <label class="check"><input type="checkbox" bind:checked={settings.syncColumns} /> {t('settings.syncColumns')}</label>
         <label class="row">
           <span>{t('settings.thumbSize')}</span>
           <select class="input" bind:value={settings.thumbSize}>

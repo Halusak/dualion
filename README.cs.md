@@ -30,7 +30,8 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 ### Panely a navigace
 
 - **Dva panely s kartami.** Nová karta, duplikace, zavření ostatních, přetažením lze karty přeřadit, prostředním tlačítkem zavřít. Lišta karet sedí těsně u okrajů panelu, aktivní karta aktivního panelu má modrou linku.
-- **Zamčené karty** zůstávají vždy vlevo; jiná složka se z nich otevře v nové kartě (jako v TC).
+- **Zamčené karty** zůstávají vždy vlevo a nejdou zavřít; procházet se v nich dá normálně.
+- **Přejmenování karet** dvojklikem na kartu nebo pravým klikem → Přejmenovat kartu.
 - **Lišta disků** nad každým panelem (lze vypnout): disky s nativními ikonami, aktuální disk zvýrazněný, pamatuje si poslední složku na každém disku; prostřední tlačítko otevře disk v nové kartě. Tlačítko **Síť** nabídne uložené FTP servery a síťové svazky.
 - **Drobečková navigace**: klik na úroveň vrátí do složky, šipka mezi úrovněmi nabídne podsložky, klik za poslední položku přepne do psaní cesty s našeptávačem (`~`, `$HOME`, `%USERPROFILE%`, relativní cesty; cesta k souboru otevře jeho složku a vybere ho).
 - Místa (Domov, Plocha, Dokumenty, Stažené…), **oblíbené složky** (hotlist), historie zpět/vpřed, položka „..“, skryté soubory, „Tento počítač“ / „Disky“ s volným místem.
@@ -38,7 +39,7 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 - **Panel rychlého náhledu** (Quick View) v protějším panelu.
 - Živé obnovování složek při změnách na disku, obnovení relace (karty, složky, zobrazení) po spuštění.
 - Označování jako v TC: Insert / mezerník, Num + / − / * (maska, obrácení), stejná přípona, označení se klikem neruší; Ctrl/⌘+klik a Shift+klik jako ve Finderu / Průzkumníku.
-- Drag & drop mezi panely i z/do Finderu a Průzkumníka.
+- Drag & drop mezi panely, z Finderu a Průzkumníka do Dualionu i z Dualionu ven do Finderu, Průzkumníka nebo jiné aplikace.
 
 ![Světlý motiv – sloupce s metadaty fotek a procházení archivu .tar.gz](docs/screenshots/light.png)
 
@@ -46,7 +47,7 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 
 - Režimy: **podrobnosti**, **seznam** (sloupcový tok jako „Stručný“ v TC), **velké ikony**, **náhledy** (velikost miniatur nastavitelná).
 - Nativní ikony souborů (stejné jako Finder / Průzkumník) a miniatury obrázků, videí, PDF, dokumentů, PSD, Affinity, RAW, obalů alb…
-- **Sloupce** lze roztahovat úchytem na pravé hraně (i Název), dvojklik vrátí výchozí šířku; šířky si aplikace pamatuje.
+- **Sloupce** lze roztahovat úchytem na pravé hraně (i Název), dvojklik vrátí výchozí šířku; šířky si aplikace pamatuje zvlášť pro levý a pravý panel, nebo společně (volba v Nastavení).
 - **Sloupce s metadaty**: rozměry, datum pořízení, fotoaparát, objektiv, ISO, clona, expozice, ohnisko, GPS, délka, kodek, FPS, datový tok, interpret, album, skladba, rok, žánr, vzorkování, počet stran, autor, název dokumentu, počet řádků. Volí se **automaticky podle obsahu složky** (fotky / video / hudba / dokumenty / kód), pravým klikem na záhlaví si je upravíte pro konkrétní složku; lze podle nich řadit.
 - **Skupiny souborů**: `ikona.png` + `ikona.psd` + `ikona.ico`, `IMG_1.CR2` + `IMG_1.JPG` + `IMG_1.CR2.xmp`, `film.mkv` + `film.cs.srt`, `foto.jpg.json` se zobrazí jako jedna položka (+N, lze rozbalit) a kopírují, přesouvají, přejmenovávají a mažou se společně.
 - **Zalamování názvů** souborů na 1–3 řádky (výchozí 1 řádek).
@@ -57,7 +58,7 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 
 - Kopírování, přesun, mazání (do koše nebo trvale), přejmenování přímo v řádku, nová složka (i vnořená `a/b/c`), nový soubor, duplikace (Shift+F5), symbolický odkaz.
 - **Schránka**: vyjmout / kopírovat / vložit soubory, kopírování cesty k souboru, cesty ke složce a názvu.
-- **Fronty operací**: úlohu lze spustit hned, nebo zařadit do jedné ze tří front (běží postupně); pauza, pokračování, zrušení, spuštění mimo frontu, přeřazení ve frontě, průběh s rychlostí a odhadem času.
+- **Fronty operací**: úlohu lze spustit hned, nebo zařadit do jedné ze tří front (běží postupně; v dialogu kopírování / přesunu klávesou F2 jako v TC); pauza, pokračování, zrušení, spuštění mimo frontu, přeřazení ve frontě, průběh s rychlostí a odhadem času.
 - Řešení konfliktů (nahradit / přeskočit / ponechat oba / nahradit starší, „pro všechny“), opakování po chybě, přeskočení chybných souborů.
 - Rychlé kopírování: APFS klonování na macOS (okamžité), `CopyFileExW` na Windows; volitelné ověření kontrolním součtem, zachování časů, omezení rychlosti, filtr masky (`*.jpg;*.png | thumb*`).
 - **Hromadné přejmenování** s náhledem (`[N] [N2-5] [E] [C] [Y][M][D] [h][m][s] [P]`, hledat/nahradit vč. regexu, velikost písmen).
@@ -86,14 +87,14 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 ### Náhledy a prohlížeč F3
 
 - **Prohlížeč F3** a **rychlý náhled**:
-  - text s detekcí kódování (UTF‑8/16, Windows‑1250, ISO‑8859‑2, CP852, KOI8‑R, Shift_JIS, GBK…), zalamování, hledání, načítání velkých souborů po částech, hex režim,
+  - text s detekcí kódování (UTF‑8/16, Windows‑1250, ISO‑8859‑2, CP852, KOI8‑R, Shift_JIS, GBK…), zalamování, hledání (F3 / Shift+F3 další / předchozí výskyt), načítání velkých souborů po částech, hex režim,
   - **barevné zvýraznění syntaxe** (40 jazyků: Dart, JSON, HTML/XML, PHP, CSS/SCSS/Less, Rust, JavaScript/TypeScript, Python, Java, Kotlin, Swift, Go, C/C++, C#, SQL, Shell, PowerShell, YAML, TOML/INI, Markdown, Dockerfile, Makefile, Gradle, Ruby, Lua, Perl, R, Scala, Haskell, Elixir, GraphQL…) s čísly řádků,
   - obrázky (přiblížení), video, audio s obalem alba, PDF,
   - **tabulky** (`.xls`, `.xlsx`, `.xlsm`, `.xlsb`, `.ods`, `.csv`, `.tsv`) s listy a záhlavím,
   - **dokumenty** (`.doc`, `.docx`, `.odt`, `.rtf`) s nadpisy, odrážkami a tabulkami,
   - **prezentace** (`.pptx`, `.odp`) se snímky,
   - **vzorník písem** (`.ttf`, `.otf`, `.woff`, `.woff2`),
-  - vykreslení **PSD/PSB** (bez Photoshopu), **Affinity** (`.af`, `.afphoto`, `.afdesign`, `.afpub`), **RAW** fotek, Clip Studio, Krita, OpenRaster, Sketch, Procreate, XMind, 3MF, iWork, EPUB.
+  - vykreslení **PSD/PSB** (bez Photoshopu), **Affinity** (`.af`, `.afphoto`, `.afdesign`, `.afpub`), **RAW** fotek, **CorelDRAW** (`.cdr`, staré i nové verze), Clip Studio, Krita, OpenRaster, Sketch, Procreate, XMind, 3MF, iWork, EPUB.
 - Miniatury: macOS ImageIO + QuickLook, Windows shell a vlastní dekodéry; mezipaměť v paměti i na disku.
 
 ![Prohlížeč F3 se zvýrazněním syntaxe](docs/screenshots/viewer-code.png)
@@ -135,7 +136,7 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 
 - **macOS**: sjednocený titulek s vibrancy, vycentrované akce, nativní menu a kontextová menu, systémová barva zvýraznění.
 - **Windows 11**: Mica, Fluent styl, lišta menu v okně (otevírání přejetím, Alt, Alt+písmeno, šipky), pořadí tlačítek dialogů dle Windows, bez okna konzole.
-- Světlý / tmavý / systémový motiv, hustota řádků, velikost písma, formát velikostí (automaticky / binární / desítkový / bajty).
+- Světlý / tmavý / systémový motiv, hustota řádků, velikost písma, formát velikostí (automaticky / binární / desítkový / bajty), formát data a času (podle jazyka, předvolby jako `21.10.2026 18:48` nebo `2026-10-21 18:48`, nebo vlastní vzor).
 - **Čeština a angličtina** (výchozí podle systému), české texty i v instalátorech pro Windows.
 - **Vlastní klávesové zkratky** (Nastavení → Klávesové zkratky) – změny se propíší do menu i nápovědy F1.
 - Nápověda F1 se seznamem zkratek, O aplikaci (Discord, podpora vývoje).

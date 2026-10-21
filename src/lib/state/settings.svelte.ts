@@ -45,18 +45,27 @@ export interface Settings {
   editor: string;
   terminal: string;
   sizeFormat: SizeFormat;
+  /** 'auto' (by language) or a pattern such as `DD.MM.YYYY HH:mm`. */
+  dateFormat: string;
   typeAhead: 'jump' | 'filter';
   thumbSize: number;
   defaultView: ViewMode;
   defaultSort: SortKey;
   /** Column widths in px; `name` 0 = fill the remaining space. */
-  colWidths: { name: number; folder: number; ext: number; size: number; date: number; attrs: number };
+  colWidths: ColWidths;
+  /** Same columns, right panel (used when `syncColumns` is off). */
+  rightColWidths: ColWidths;
+  rightMetaWidths: Record<string, number>;
+  /** Both panels share column widths. */
+  syncColumns: boolean;
   showAttrs: boolean;
   hotlist: HotlistItem[];
   split: number;
   /** User overrides of keyboard shortcuts: command id -> combos. */
   keymap: Record<string, string[]>;
 }
+
+export type ColWidths = { name: number; folder: number; ext: number; size: number; date: number; attrs: number };
 
 export const defaultSettings = (): Settings => ({
   lang: 'auto',
@@ -86,11 +95,15 @@ export const defaultSettings = (): Settings => ({
   editor: '',
   terminal: '',
   sizeFormat: 'auto',
+  dateFormat: 'auto',
   typeAhead: 'jump',
   thumbSize: 128,
   defaultView: 'details',
   defaultSort: 'name',
   colWidths: { name: 0, folder: 220, ext: 64, size: 92, date: 136, attrs: 84 },
+  rightColWidths: { name: 0, folder: 220, ext: 64, size: 92, date: 136, attrs: 84 },
+  rightMetaWidths: {},
+  syncColumns: false,
   showAttrs: false,
   hotlist: [],
   split: 0.5,
@@ -108,6 +121,9 @@ export function applySettings(saved: Partial<Settings> | null) {
     }
   }
   settings.colWidths = { ...d.colWidths, ...(saved.colWidths ?? {}) };
+  // The right panel starts from the shared widths of older versions.
+  settings.rightColWidths = { ...settings.colWidths, ...(saved.rightColWidths ?? {}) };
+  if (!saved.rightMetaWidths) settings.rightMetaWidths = { ...settings.metaWidths };
   settings.rules = { ...d.rules, ...(saved.rules && typeof saved.rules === 'object' ? saved.rules : {}) };
   if (!Array.isArray(settings.rules.list)) settings.rules.list = [];
   settings.semantic = { ...d.semantic, ...(saved.semantic && typeof saved.semantic === 'object' ? saved.semantic : {}) };

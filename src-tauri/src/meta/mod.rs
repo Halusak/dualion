@@ -97,7 +97,7 @@ pub const SLIDES: &[&str] = &["ppt", "pptx", "pptm", "odp", "key"];
 pub const ARCHIVE: &[&str] = &["zip", "7z", "rar", "tar", "gz", "tgz", "bz2", "xz", "zst", "lz4", "iso", "dmg", "cab"];
 pub const DESIGN: &[&str] = &[
     "psd", "psb", "ai", "eps", "indd", "af", "afphoto", "afdesign", "afpub", "sketch", "fig", "xd", "kra", "ora", "procreate",
-    "clip", "svg", "blend", "c4d", "fbx", "obj", "stl", "3mf",
+    "clip", "cdr", "svg", "blend", "c4d", "fbx", "obj", "stl", "3mf",
 ];
 pub const FONT: &[&str] = &["ttf", "otf", "woff", "woff2", "ttc", "fon"];
 pub const CODE: &[&str] = &[

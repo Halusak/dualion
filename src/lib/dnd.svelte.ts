@@ -67,6 +67,20 @@ export function moveDrag(e: PointerEvent) {
   drag.over = targetAt(e.clientX, e.clientY);
 }
 
+/**
+ * The pointer left the window during a drag: hand local files over to a native
+ * drag so they can be dropped into Finder / Explorer / other apps.
+ */
+export function dragOutside(): boolean {
+  const paths = drag.items.flatMap((i) => (i.kind === 'local' ? [i.path] : []));
+  if (!paths.length || paths.length !== drag.items.length) return false;
+  drag.active = false;
+  drag.over = null;
+  drag.items = [];
+  void api.dragOut(paths).catch(showError);
+  return true;
+}
+
 export async function endDrag() {
   const over = drag.over;
   const items = drag.items;

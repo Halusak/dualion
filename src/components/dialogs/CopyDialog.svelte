@@ -176,100 +176,97 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div onkeydown={onKey}>
-  <Modal {title} width={560} onclose={() => close(null)} onsubmit={() => submit(false)}>
-    <label class="field">
-      <span>{label}</span>
-      <input class="input" bind:this={input} bind:value={text} spellcheck="false" autocomplete="off" />
-    </label>
+<Modal onkey={onKey} {title} width={560} onclose={() => close(null)} onsubmit={() => submit(false)}>
+  <label class="field">
+    <span>{label}</span>
+    <input class="input" bind:this={input} bind:value={text} spellcheck="false" autocomplete="off" />
+  </label>
 
-    {#if sources.length && !unpack && !extracting}
-      <div class="plan" class:warn={lowSpace}>
-        {#if plan}
-          <div>
-            {t('plan.files', { count: plan.files })}{plan.dirs ? `, ${t('plan.dirs', { count: plan.dirs })}` : ''} · {formatSize(plan.bytes, locale, settings.sizeFormat)}{plan.truncated ? '+' : ''}
-            {#if plan.renameOnly}<span class="ok"> · {t('plan.renameOnly')}</span>{/if}
-          </div>
-          {#if plan.conflictsTotal}
-            <button class="link" onclick={() => (showConflicts = !showConflicts)}>
-              {t('plan.conflicts', { count: plan.conflictsTotal })}{plan.targetNewer ? ` · ${t('plan.newer', { count: plan.targetNewer })}` : ''}{plan.identical ? ` · ${t('plan.identical', { count: plan.identical })}` : ''}
-            </button>
-          {/if}
-          {#if plan.free !== null && !plan.renameOnly}
-            <div class:bad={lowSpace}>
-              {lowSpace
-                ? t('plan.noSpace', { need: formatSize(plan.needed, locale, settings.sizeFormat), free: formatSize(plan.free, locale, settings.sizeFormat) })
-                : t('plan.space', { free: formatSize(plan.free, locale, settings.sizeFormat) })}
-            </div>
-          {/if}
-          {#if showConflicts}
-            <div class="conflicts">
-              {#each plan.conflicts as c (c.path)}
-                <div class="c">
-                  <span class="ellipsis" title={c.path}>{c.path}</span>
-                  <span class:newer={c.dstMtime > c.srcMtime + 2000}>{formatSize(c.srcSize, locale, settings.sizeFormat)} → {formatSize(c.dstSize, locale, settings.sizeFormat)}, {formatDate(c.dstMtime, locale)}</span>
-                </div>
-              {/each}
-            </div>
-          {/if}
-        {:else if planError}
-          <div class="muted">{planError}</div>
-        {:else}
-          <div class="muted">{t('plan.computing')}</div>
+  {#if sources.length && !unpack && !extracting}
+    <div class="plan" class:warn={lowSpace}>
+      {#if plan}
+        <div>
+          {t('plan.files', { count: plan.files })}{plan.dirs ? `, ${t('plan.dirs', { count: plan.dirs })}` : ''} · {formatSize(plan.bytes, locale, settings.sizeFormat)}{plan.truncated ? '+' : ''}
+          {#if plan.renameOnly}<span class="ok"> · {t('plan.renameOnly')}</span>{/if}
+        </div>
+        {#if plan.conflictsTotal}
+          <button class="link" onclick={() => (showConflicts = !showConflicts)}>
+            {t('plan.conflicts', { count: plan.conflictsTotal })}{plan.targetNewer ? ` · ${t('plan.newer', { count: plan.targetNewer })}` : ''}{plan.identical ? ` · ${t('plan.identical', { count: plan.identical })}` : ''}
+          </button>
         {/if}
-        {#if planning && plan}<span class="spin muted">…</span>{/if}
-      </div>
-    {/if}
-
-    <button class="disclosure" onclick={() => (showOptions = !showOptions)}>
-      {#if showOptions}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
-      {t('copy.options')}
-    </button>
-
-    {#if showOptions}
-      <div class="options">
-        <label class="row">
-          <span>{t('copy.whenExists')}</span>
-          <select class="input" bind:value={conflict}>
-            <option value="ask">{t('conflict.ask')}</option>
-            <option value="overwrite">{t('conflict.overwrite')}</option>
-            <option value="skip">{t('conflict.skip')}</option>
-            <option value="overwriteOlder">{t('conflict.overwriteOlder')}</option>
-            <option value="rename">{t('conflict.rename')}</option>
-          </select>
-        </label>
-        {#if !extracting && !unpack}
-          <label class="row">
-            <span>{t('copy.filter')}</span>
-            <input class="input" bind:value={filter} placeholder="*.jpg;*.png" spellcheck="false" data-no-submit />
-          </label>
-          <label class="row">
-            <span>{t('copy.speedLimit')}</span>
-            <input class="input" bind:value={limit} inputmode="decimal" placeholder="∞" />
-          </label>
-          <div class="checks">
-            <label class="check"><input type="checkbox" bind:checked={verify} /> {t('copy.verify')}</label>
-            <label class="check"><input type="checkbox" bind:checked={preserveTimes} /> {t('copy.preserveTimes')}</label>
-            <label class="check"><input type="checkbox" bind:checked={followLinks} /> {t('copy.followLinks')}</label>
+        {#if plan.free !== null && !plan.renameOnly}
+          <div class:bad={lowSpace}>
+            {lowSpace
+              ? t('plan.noSpace', { need: formatSize(plan.needed, locale, settings.sizeFormat), free: formatSize(plan.free, locale, settings.sizeFormat) })
+              : t('plan.space', { free: formatSize(plan.free, locale, settings.sizeFormat) })}
           </div>
         {/if}
-        <label class="row">
-          <span>{t('copy.queueLabel')}</span>
-          <select class="input" bind:value={queue}>
-            {#each [1, 2, 3] as n (n)}<option value={n}>{t('copy.queueN', { n })}</option>{/each}
-          </select>
-        </label>
-      </div>
-    {/if}
+        {#if showConflicts}
+          <div class="conflicts">
+            {#each plan.conflicts as c (c.path)}
+              <div class="c">
+                <span class="ellipsis" title={c.path}>{c.path}</span>
+                <span class:newer={c.dstMtime > c.srcMtime + 2000}>{formatSize(c.srcSize, locale, settings.sizeFormat)} → {formatSize(c.dstSize, locale, settings.sizeFormat)}, {formatDate(c.dstMtime, locale)}</span>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      {:else if planError}
+        <div class="muted">{planError}</div>
+      {:else}
+        <div class="muted">{t('plan.computing')}</div>
+      {/if}
+      {#if planning && plan}<span class="spin muted">…</span>{/if}
+    </div>
+  {/if}
 
-    {#snippet footer()}
-      <button class="btn b-extra" title="F2" onclick={() => submit(true)}>{t('copy.queue')}</button>
-      <button class="btn b-cancel" onclick={() => close(null)}>{t('cancel')}</button>
-      <button class="btn primary b-primary" disabled={busy} onclick={() => submit(false)}>{title}</button>
-    {/snippet}
-  </Modal>
-</div>
+  <button class="disclosure" onclick={() => (showOptions = !showOptions)}>
+    {#if showOptions}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
+    {t('copy.options')}
+  </button>
+
+  {#if showOptions}
+    <div class="options">
+      <label class="row">
+        <span>{t('copy.whenExists')}</span>
+        <select class="input" bind:value={conflict}>
+          <option value="ask">{t('conflict.ask')}</option>
+          <option value="overwrite">{t('conflict.overwrite')}</option>
+          <option value="skip">{t('conflict.skip')}</option>
+          <option value="overwriteOlder">{t('conflict.overwriteOlder')}</option>
+          <option value="rename">{t('conflict.rename')}</option>
+        </select>
+      </label>
+      {#if !extracting && !unpack}
+        <label class="row">
+          <span>{t('copy.filter')}</span>
+          <input class="input" bind:value={filter} placeholder="*.jpg;*.png" spellcheck="false" data-no-submit />
+        </label>
+        <label class="row">
+          <span>{t('copy.speedLimit')}</span>
+          <input class="input" bind:value={limit} inputmode="decimal" placeholder="∞" />
+        </label>
+        <div class="checks">
+          <label class="check"><input type="checkbox" bind:checked={verify} /> {t('copy.verify')}</label>
+          <label class="check"><input type="checkbox" bind:checked={preserveTimes} /> {t('copy.preserveTimes')}</label>
+          <label class="check"><input type="checkbox" bind:checked={followLinks} /> {t('copy.followLinks')}</label>
+        </div>
+      {/if}
+      <label class="row">
+        <span>{t('copy.queueLabel')}</span>
+        <select class="input" bind:value={queue}>
+          {#each [1, 2, 3] as n (n)}<option value={n}>{t('copy.queueN', { n })}</option>{/each}
+        </select>
+      </label>
+    </div>
+  {/if}
+
+  {#snippet footer()}
+    <button class="btn b-extra" title="F2" onclick={() => submit(true)}>{t('copy.queue')}</button>
+    <button class="btn b-cancel" onclick={() => close(null)}>{t('cancel')}</button>
+    <button class="btn primary b-primary" disabled={busy} onclick={() => submit(false)}>{title}</button>
+  {/snippet}
+</Modal>
 
 <style>
   .field {

@@ -30,7 +30,8 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
 ### Panes and navigation
 
 - **Two panes with tabs.** You can open a new tab, duplicate a tab or close the others. Drag tabs to reorder them and middle-click to close one. The tab strip sits flush with the pane edges, and the active tab of the active pane has a blue accent line.
-- **Locked tabs** always stay on the left. Opening another folder from a locked tab opens it in a new tab, as in TC.
+- **Locked tabs** always stay on the left and cannot be closed; you can still browse in them.
+- **Renamable tabs:** double-click a tab or right-click it → Rename Tab.
 - **Drive bar** above each pane, which you can turn off:
   - drives with native icons, with the current drive highlighted;
   - each drive remembers the last folder you used on it;
@@ -56,7 +57,7 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
   - you can select every file with the same extension;
   - clicking does not clear marks;
   - Ctrl/⌘+click and Shift+click work as in Finder and Explorer.
-- Drag & drop between panes and to/from Finder and Explorer.
+- Drag & drop between panes, from Finder and Explorer into Dualion, and out of Dualion into Finder, Explorer or any other app.
 
 ![Light theme: photo metadata columns on the left, a browsed .tar.gz archive on the right](docs/screenshots/light.png)
 
@@ -68,7 +69,7 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
   - **large icons**;
   - **thumbnails**, with an adjustable size.
 - **Native file icons** (the same as Finder and Explorer), plus thumbnails for images, videos, PDFs, documents, PSD, Affinity and RAW files, album art and more.
-- **Resizable columns:** drag the handle on a column's right edge (this works on Name too). Double-click the handle to reset the width. Widths are remembered.
+- **Resizable columns:** drag the handle on a column's right edge (this works on Name too). Double-click the handle to reset the width. Widths are remembered, separately for the left and right pane, or shared if you turn that on in Settings.
 - **Metadata columns:**
   - available columns include dimensions, date taken, camera, lens, ISO, aperture, exposure, focal length, GPS, duration, codec, FPS, bitrate, artist, album, track, year, genre, sample rate, page count, author, document title and line count;
   - columns are **picked automatically from the folder's content** (photos, video, music, documents or code);
@@ -95,7 +96,7 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
   - symbolic link.
 - **Clipboard:** cut, copy and paste files, and copy a file's path, the folder's path or the name.
 - **Operation queues:**
-  - start a job immediately or add it to one of three queues, which run jobs one after another;
+  - start a job immediately or add it to one of three queues, which run jobs one after another (F2 in the copy/move dialog, as in TC);
   - pause, resume or cancel a job, run it outside the queue, or reorder the queue;
   - progress shows speed and time remaining.
 - **Conflict handling:**
@@ -172,7 +173,7 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
 - **F3 viewer** and **Quick View** show:
   - **text:**
     - encoding detection (UTF-8/16, Windows-1250, ISO-8859-2, CP852, KOI8-R, Shift_JIS, GBK…);
-    - word wrap and search;
+    - word wrap and search (F3 / Shift+F3 jumps to the next / previous match);
     - big files load in chunks;
     - hex mode;
   - **syntax highlighting** with line numbers in 40 languages, including Dart, JSON, HTML/XML, PHP, CSS/SCSS/Less, Rust, JavaScript/TypeScript, Python, Java, Kotlin, Swift, Go, C/C++, C#, SQL, Shell, PowerShell, YAML, TOML/INI, Markdown, Dockerfile, Makefile, Gradle, Ruby, Lua, Perl, R, Scala, Haskell, Elixir and GraphQL;
@@ -185,6 +186,7 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
     - **PSD/PSB** rendering without Photoshop;
     - **Affinity** files (`.af`, `.afphoto`, `.afdesign`, `.afpub`);
     - **RAW** photos;
+    - **CorelDRAW** (`.cdr`, old RIFF and new ZIP-based versions);
     - Clip Studio, Krita, OpenRaster, Sketch, Procreate, XMind, 3MF, iWork and EPUB.
 - **Thumbnails:**
   - sources: ImageIO and QuickLook on macOS, the Windows shell, and custom decoders;
@@ -285,6 +287,7 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
   - light, dark or system theme;
   - row density;
   - font size;
+  - date and time format: by language, ready-made patterns such as `21.10.2026 18:48` or `2026-10-21 18:48`, or your own pattern;
   - size format: auto, binary, decimal or bytes.
 - **Language:**
   - **English and Czech**, defaulting to the system language;

@@ -58,6 +58,8 @@ pub fn run(ctx: &JobCtx) -> AppResult<()> {
 
     // Moves inside one file system: rename whole items when nothing is in the way.
     let mut pending = Vec::new();
+    // Set once a rename reports another volume: from then on items are copied and deleted.
+    let mut cross_device = false;
     if is_move && same_fs && filter.is_none() {
         ctx.set_status(JobStatus::Running);
         ctx.set_totals(0, work.len() as u64);
@@ -76,7 +78,10 @@ pub fn run(ctx: &JobCtx) -> AppResult<()> {
             }
             match src_fs.rename(&src, &target) {
                 Ok(()) => ctx.file_done(),
-                Err(e) if e.code == ErrorCode::CrossesDevices => pending.push((src, name)),
+                Err(e) if e.code == ErrorCode::CrossesDevices => {
+                    cross_device = true;
+                    pending.push((src, name));
+                }
                 Err(e) => match ctx.handle_error(e)? {
                     ErrorChoice::Retry => pending.push((src, name)),
                     ErrorChoice::Skip => ctx.skip(0),
@@ -211,14 +216,21 @@ pub fn run(ctx: &JobCtx) -> AppResult<()> {
         let mut done = false;
         loop {
             let before = ctx_done_bytes(ctx);
-            let res = if is_move && same_fs {
+            let res = if is_move && same_fs && !cross_device {
                 if overwrite && !dst_fs.is_local() {
                     let _ = dst_fs.remove_file(&target);
                 }
-                src_fs.rename(&item.src, &target).map(|_| {
-                    ctx.add_bytes(item.meta.size);
-                    true
-                })
+                match src_fs.rename(&item.src, &target) {
+                    Ok(()) => {
+                        ctx.add_bytes(item.meta.size);
+                        Ok(true)
+                    }
+                    Err(e) if e.code == ErrorCode::CrossesDevices => {
+                        cross_device = true;
+                        continue;
+                    }
+                    Err(e) => Err(e),
+                }
             } else {
                 transfer(ctx, &*src_fs, &*dst_fs, item, &target, overwrite, &mut buf).map(|_| false)
             };

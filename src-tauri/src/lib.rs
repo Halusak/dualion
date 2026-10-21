@@ -180,6 +180,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
             commands::set_menu,
+            commands::drag_out,
             commands::store_load,
             commands::store_save,
             commands::watch_dirs,

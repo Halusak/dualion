@@ -2,7 +2,7 @@
 // Shift+click selection, drag & drop start and double-click to open.
 
 import * as A from './actions';
-import { drag, endDrag, moveDrag, startDrag } from './dnd.svelte';
+import { drag, dragOutside, endDrag, moveDrag, startDrag } from './dnd.svelte';
 import { isMac } from './platform';
 import { app, type SideName } from './state/app.svelte';
 import type { Tab } from './state/tab.svelte';
@@ -46,7 +46,13 @@ export function itemPointerDown(e: PointerEvent, side: SideName, tab: Tab, entry
       const items = tab.isMarked(entry.key) ? tab.targets() : [entry];
       startDrag(side, items, ev.clientX, ev.clientY);
     }
-    if (dragging) moveDrag(ev);
+    if (!dragging) return;
+    const outside = ev.clientX < 0 || ev.clientY < 0 || ev.clientX >= window.innerWidth || ev.clientY >= window.innerHeight;
+    if (outside && drag.active && dragOutside()) {
+      up();
+      return;
+    }
+    moveDrag(ev);
   };
   const up = () => {
     window.removeEventListener('pointermove', move);

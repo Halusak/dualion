@@ -9,6 +9,7 @@
     children,
     footer,
     fill = false,
+    onkey,
   }: {
     title?: string;
     width?: number;
@@ -18,6 +19,8 @@
     footer?: Snippet;
     /** Use most of the window (viewer, search results). */
     fill?: boolean;
+    /** Dialog's own keys (F2 in Copy, F3 in the viewer); preventDefault() to consume. */
+    onkey?: (e: KeyboardEvent) => void;
   } = $props();
 
   let dialog: HTMLDivElement;
@@ -59,6 +62,8 @@
 
   function onKey(e: KeyboardEvent) {
     e.stopPropagation();
+    onkey?.(e);
+    if (e.defaultPrevented) return;
     if (e.key === 'Escape') {
       e.preventDefault();
       onclose();
@@ -160,8 +165,12 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 8px;
     padding: 4px 20px 18px;
+  }
+  .footer :global(.btn) {
+    flex-shrink: 0;
   }
   .footer :global(.b-extra) {
     order: 0;

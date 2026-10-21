@@ -101,6 +101,8 @@ export function panelKey(e: KeyboardEvent, tab: Tab): boolean {
       bumpQuickTimer();
       return true;
     }
+    // While searching, Space is part of the name ("my file"), not a mark.
+    if (e.key === ' ' && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) return typeAhead(tab, ' ');
     if (e.key === 'Enter') endQuickSearch();
     else if (e.key.length !== 1) endQuickSearch();
   }

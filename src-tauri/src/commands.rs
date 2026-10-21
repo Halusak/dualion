@@ -156,6 +156,24 @@ pub fn qr_svg(text: String) -> AppResult<String> {
         .build())
 }
 
+/// Native drag of local files out of the window (to Finder / Explorer / other apps).
+#[tauri::command]
+pub fn drag_out(window: tauri::WebviewWindow, paths: Vec<String>) -> AppResult<()> {
+    let paths: Vec<std::path::PathBuf> = paths.into_iter().map(std::path::PathBuf::from).filter(|p| p.is_absolute()).collect();
+    let Some(first) = paths.first() else { return Ok(()) };
+    let icon = crate::icons::icon_png(crate::icons::IconKey::Path(first.to_string_lossy().into_owned()), 48)
+        .map(|p| p.to_vec())
+        .unwrap_or_else(|| include_bytes!("../icons/32x32.png").to_vec());
+    let w = window.clone();
+    window
+        .run_on_main_thread(move || {
+            if let Err(e) = drag::start_drag(&w, drag::DragItem::Files(paths), drag::Image::Raw(icon), |_, _| {}, drag::Options::default()) {
+                eprintln!("drag out: {e}");
+            }
+        })
+        .map_err(|e| AppError::other(e.to_string()))
+}
+
 #[tauri::command]
 pub fn reveal_path(path: String) -> AppResult<()> {
     tauri_plugin_opener::reveal_item_in_dir(&path).map_err(|e| AppError::other(e.to_string()))
