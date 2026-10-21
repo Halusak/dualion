@@ -84,7 +84,7 @@ pub fn extract_image(path: &Path, max_px: u32) -> Option<DynamicImage> {
     } else if AUDIO_ART.contains(&ext) {
         embedded::largest_image(path, embedded::Scan::Head(16 << 20))
     } else if ext == "cdr" {
-        cdr::thumbnail(path)
+        cdr::image(path, max_px)
     } else if ext == "clip" {
         embedded::largest_image(path, embedded::Scan::Head(256 << 20))
     } else if office::has_zip_thumbnail(ext) {

@@ -1,6 +1,9 @@
 //! CorelDRAW previews. X4 and newer files are ZIPs with a bitmap thumbnail
-//! (`metadata/thumbnails/*.bmp`, newer `previews/*.png`); older RIFF files
-//! (CDR 5 – X3) keep a DIB without file header in their `DISP` chunk.
+//! (`metadata/thumbnails/*.bmp`, newer `previews/*.png`) of the first page
+//! and smaller previews of every page (`page1`, `page2`…); older RIFF files
+//! (CDR 5 – X3) keep a small DIB without file header in their `DISP` chunk.
+//! The drawings themselves are vector data that only CorelDRAW renders
+//! fully, so these stored previews are what can be shown.
 
 use image::DynamicImage;
 use std::fs::File;
@@ -14,6 +17,60 @@ const ZIP_NAMES: &[&str] = &[
     "previews/page1.png",
 ];
 
+/// Preview for `max_px`: large requests (viewer) get every page stacked,
+/// small ones (thumbnails) the first page.
+pub fn image(path: &Path, max_px: u32) -> Option<DynamicImage> {
+    if max_px > 600 {
+        if let Some(img) = pages(path) {
+            return Some(img);
+        }
+    }
+    thumbnail(path)
+}
+
+/// All page previews of a multi-page document, one below the other.
+fn pages(path: &Path) -> Option<DynamicImage> {
+    let mut head = [0u8; 4];
+    File::open(path).ok()?.read_exact(&mut head).ok()?;
+    if &head != b"PK\x03\x04" {
+        return None;
+    }
+    let mut zip = super::office::open(path).ok()?;
+    let mut found: Vec<(u32, String)> = zip
+        .file_names()
+        .filter_map(Result::ok)
+        .filter_map(|n| {
+            let lower = n.to_ascii_lowercase();
+            let stem = lower.strip_prefix("previews/page").or_else(|| lower.strip_prefix("metadata/thumbnails/page"))?;
+            let num = stem.split('.').next()?.parse().ok()?;
+            Some((num, n.to_string()))
+        })
+        .collect();
+    found.sort();
+    found.dedup_by_key(|(n, _)| *n);
+    if found.len() < 2 {
+        return None;
+    }
+    let imgs: Vec<image::RgbaImage> =
+        found.iter().filter_map(|(_, n)| image::load_from_memory(&super::office::read_entry(&mut zip, n, 64 << 20)?).ok()).map(|i| i.to_rgba8()).collect();
+    stack(&imgs)
+}
+
+/// Pages centred one below the other on a light gray sheet.
+fn stack(imgs: &[image::RgbaImage]) -> Option<DynamicImage> {
+    const GAP: u32 = 16;
+    let w = imgs.iter().map(|i| i.width()).max()? + 2 * GAP;
+    let h = imgs.iter().map(|i| i.height() + GAP).sum::<u32>() + GAP;
+    let mut out = image::RgbaImage::from_pixel(w, h, image::Rgba([228, 228, 232, 255]));
+    let mut y = GAP;
+    for i in imgs {
+        image::imageops::overlay(&mut out, i, ((w - i.width()) / 2) as i64, y as i64);
+        y += i.height() + GAP;
+    }
+    Some(DynamicImage::ImageRgba8(out))
+}
+
+/// Preview of the first page.
 pub fn thumbnail(path: &Path) -> Option<DynamicImage> {
     let mut head = [0u8; 4];
     File::open(path).ok()?.read_exact(&mut head).ok()?;
@@ -132,6 +189,52 @@ mod tests {
         let p = PathBuf::from(std::env::var("DUALION_CDR").expect("DUALION_CDR"));
         let img = thumbnail(&p).expect("preview");
         println!("{}×{}", img.width(), img.height());
+    }
+
+    /// Writes the preview of every .cdr in a folder next to it as .png:
+    /// `DUALION_CDR_DIR=… cargo test cdr_dump -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn cdr_dump() {
+        let dir = PathBuf::from(std::env::var("DUALION_CDR_DIR").expect("DUALION_CDR_DIR"));
+        for e in std::fs::read_dir(&dir).unwrap().flatten() {
+            let p = e.path();
+            if p.extension().and_then(|x| x.to_str()) != Some("cdr") {
+                continue;
+            }
+            match thumbnail(&p) {
+                Some(img) => {
+                    println!("{}: {}×{}", p.display(), img.width(), img.height());
+                    img.save(p.with_extension("png")).unwrap();
+                }
+                None => println!("{}: none", p.display()),
+            }
+        }
+    }
+
+    #[test]
+    fn stacks_all_pages_for_the_viewer() {
+        let png = |w: u32, h: u32, c: u8| {
+            let mut v = Vec::new();
+            image::RgbaImage::from_pixel(w, h, image::Rgba([c, c, c, 255])).write_to(&mut std::io::Cursor::new(&mut v), image::ImageFormat::Png).unwrap();
+            v
+        };
+        let p = tmp("pages.cdr");
+        let mut z = zip::ZipWriter::new(File::create(&p).unwrap());
+        let o = zip::write::SimpleFileOptions::default();
+        for (name, data) in [("previews/thumbnail.png", png(300, 200, 10)), ("previews/page2.png", png(100, 50, 20)), ("previews/page1.png", png(120, 60, 30)), ("previews/page10.png", png(80, 40, 40))] {
+            z.start_file(name, o).unwrap();
+            z.write_all(&data).unwrap();
+        }
+        z.finish().unwrap();
+        // Thumbnails: the first page only.
+        assert_eq!(image(&p, 256).unwrap().width(), 300);
+        // Viewer: pages 1, 2, 10 stacked in order (16 px gaps).
+        let all = image(&p, 2000).unwrap().to_rgba8();
+        assert_eq!((all.width(), all.height()), (120 + 32, 60 + 50 + 40 + 4 * 16));
+        assert_eq!(all.get_pixel(76, 16 + 30).0[0], 30);
+        assert_eq!(all.get_pixel(76, 16 + 60 + 16 + 25).0[0], 20);
+        assert_eq!(all.get_pixel(76, all.height() - 16 - 20).0[0], 40);
     }
 
     #[test]
