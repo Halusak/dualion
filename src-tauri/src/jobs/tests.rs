@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 fn manager() -> Arc<JobManager> {
-    JobManager::new(Arc::new(|_, _| {}), Arc::new(FtpRegistry::default()))
+    JobManager::new(Arc::new(|_, _| {}), Arc::new(RemoteRegistry::default()))
 }
 
 fn tmp() -> PathBuf {

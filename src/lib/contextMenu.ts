@@ -90,7 +90,7 @@ async function explorerMenu(tab: Tab, specs: Spec[]): Promise<boolean> {
 export async function entryMenu(tab: Tab) {
   const items = tab.targets();
   const e = tab.current;
-  const writable = tab.location.kind === 'local' || tab.location.kind === 'ftp' || isResults(tab.location);
+  const writable = tab.location.kind === 'local' || tab.location.kind === 'remote' || isResults(tab.location);
   const local = tab.location.kind === 'local' || isResults(tab.location);
   const single = items.length === 1;
   const isFile = single && !items[0].isDir;
@@ -204,7 +204,7 @@ async function finderSpecs(
 
 /** Right click on empty space in a panel. */
 export async function backgroundMenu(tab: Tab) {
-  const writable = tab.location.kind === 'local' || tab.location.kind === 'ftp';
+  const writable = tab.location.kind === 'local' || tab.location.kind === 'remote';
   await popup([
     { cmd: 'mkdir', enabled: writable },
     { cmd: 'newFile', enabled: writable },

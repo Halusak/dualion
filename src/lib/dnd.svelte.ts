@@ -46,7 +46,7 @@ function destOf(t: DropTarget): Location | null {
     if (e) return childLoc(tab.location, e);
   }
   const loc = tab.location;
-  return loc.kind === 'local' || loc.kind === 'ftp' ? loc : null;
+  return loc.kind === 'local' || loc.kind === 'remote' ? loc : null;
 }
 
 export function startDrag(from: SideName, entries: Entry[], x: number, y: number) {

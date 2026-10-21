@@ -5,7 +5,7 @@ use super::vfs::{self, Vfs};
 use super::{JobOp, JobRequest};
 use crate::error::{AppError, AppResult};
 use crate::filter::NameFilter;
-use crate::ftp::FtpRegistry;
+use crate::remote::Registry as RemoteRegistry;
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -42,7 +42,7 @@ pub struct Plan {
 
 const MAX_ITEMS: u64 = 2_000_000;
 
-pub fn plan(req: &JobRequest, reg: &FtpRegistry, cancel: &AtomicBool) -> AppResult<Plan> {
+pub fn plan(req: &JobRequest, reg: &RemoteRegistry, cancel: &AtomicBool) -> AppResult<Plan> {
     let (src_fs, sources) = vfs::open_sources(&req.sources, reg)?;
     let mut p = Plan::default();
     if req.op == JobOp::Delete {
@@ -176,7 +176,7 @@ mod tests {
             options: JobOptions::default(),
             queue: None,
         };
-        let p = plan(&req, &FtpRegistry::default(), &AtomicBool::new(false)).unwrap();
+        let p = plan(&req, &RemoteRegistry::default(), &AtomicBool::new(false)).unwrap();
         std::fs::remove_dir_all(&root).unwrap();
         assert_eq!((p.files, p.dirs, p.bytes), (2, 2, 6));
         assert_eq!(p.conflicts_total, 1);

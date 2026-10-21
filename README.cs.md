@@ -2,7 +2,7 @@
 
 **Česky** · [English](README.md)
 
-Rychlý dvoupanelový správce souborů pro **Windows** a **macOS** ve stylu Total Commanderu – s nativním vzhledem každého systému, frontou operací, okamžitým hledáním nad indexem souborů, náhledy desítek formátů, archivy včetně hesel, FTP/FTPS se šifrovaným trezorem a českým i anglickým rozhraním.
+Rychlý dvoupanelový správce souborů pro **Windows** a **macOS** ve stylu Total Commanderu – s nativním vzhledem každého systému, frontou operací, okamžitým hledáním nad indexem souborů, náhledy desítek formátů, archivy včetně hesel, vzdálenými úložišti (FTP, SFTP, WebDAV, S3, Android, Docker, rclone, MTP) se šifrovaným trezorem a českým i anglickým rozhraním.
 
 Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN)
 
@@ -17,7 +17,7 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 - [Hledání](#hledání)
 - [Náhledy a prohlížeč F3](#náhledy-a-prohlížeč-f3)
 - [Archivy a obrazy disků](#archivy-a-obrazy-disků)
-- [FTP / FTPS a trezor hesel](#ftp--ftps-a-trezor-hesel)
+- [Vzdálená úložiště a trezor hesel](#vzdálená-úložiště-a-trezor-hesel)
 - [Nástroje](#nástroje)
 - [Cloudové složky](#cloudové-složky-onedrive-icloud-dropbox)
 - [Vzhled, jazyk a nastavení](#vzhled-jazyk-a-nastavení)
@@ -33,7 +33,7 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 - **Zamčené karty** zůstávají vždy vlevo a nejdou zavřít; procházet se v nich dá normálně.
 - **Karty zamčené se složkou:** uvnitř se dá procházet kamkoli, a když přepnete na jinou kartu a vrátíte se, karta znovu ukáže svou složku.
 - **Přejmenování karet** dvojklikem na kartu nebo pravým klikem → Přejmenovat kartu.
-- **Lišta disků** nad každým panelem (lze vypnout): disky s nativními ikonami, aktuální disk zvýrazněný, pamatuje si poslední složku na každém disku; prostřední tlačítko otevře disk v nové kartě. Tlačítko **Síť** nabídne uložené FTP servery a síťové svazky.
+- **Lišta disků** nad každým panelem (lze vypnout): disky s nativními ikonami, aktuální disk zvýrazněný, pamatuje si poslední složku na každém disku; prostřední tlačítko otevře disk v nové kartě. Tlačítko **Síť** nabídne počítače v síti, uložené servery, zařízení Android, telefony (MTP), kontejnery Docker, úložiště rclone a síťové svazky.
 - **Místa v síti** (jako Síť v TC): počítače v místní síti → jejich sdílené složky → připojení a procházení. Windows ukáže počítače jako Průzkumník a o přihlášení se zeptá systémovým oknem; macOS najde SMB servery přes Bonjour a připojí je stejnými dialogy jako Finder.
 - **Drobečková navigace**: klik na úroveň vrátí do složky, šipka mezi úrovněmi nabídne podsložky, klik za poslední položku přepne do psaní cesty s našeptávačem (`~`, `$HOME`, `%USERPROFILE%`, relativní cesty; cesta k souboru otevře jeho složku a vybere ho).
 - Místa (Domov, Plocha, Dokumenty, Stažené…), **oblíbené složky** (hotlist), historie zpět/vpřed, položka „..“, skryté soubory, „Tento počítač“ / „Disky“ s volným místem.
@@ -111,9 +111,15 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 - **Balení** do ZIP a 7z (volitelně s heslem AES‑256, u 7z i šifrované názvy) a do TAR / `.tar.gz` / `.tar.bz2` / `.tar.xz` / `.tar.zst`, s volbou komprese.
 - **Připojení obrazů disků** (ISO, DMG, VHD…) systémem – `hdiutil` na macOS, `Mount-DiskImage` na Windows.
 
-### FTP / FTPS a trezor hesel
+### Vzdálená úložiště a trezor hesel
 
-- FTP i FTPS (explicitní i implicitní TLS), pasivní / aktivní režim, kódování názvů vč. Windows‑1250, procházení jako složka, kopírování obousměrně ve frontě.
+Každé vzdálené úložiště se v panelu otevře jako složka. Kopírování (i přímo mezi dvěma vzdálenými úložišti), přesun, přejmenování, mazání, fronty, ověřování, náhledy i otevírání souborů fungují všude stejně.
+
+- **FTP / FTPS:** explicitní i implicitní TLS, pasivní / aktivní režim, kódování názvů vč. Windows‑1250.
+- **SFTP (SSH):** přihlášení souborem s klíčem (i s heslem ke klíči), přes SSH agenta (Pageant / agent OpenSSH ve Windows), klíči v `~/.ssh` nebo heslem; klíče serverů se ověřují proti `~/.ssh/known_hosts` – neznámý klíč ukáže otisk k potvrzení, změněný klíč je odmítnut.
+- **WebDAV / WebDAVS:** Nextcloud, ownCloud, Synology, SharePoint, Apache, nginx… Server jde zadat i celou adresou URL.
+- **S3 a kompatibilní úložiště:** AWS, Cloudflare R2, Backblaze B2, Wasabi, MinIO… V kořeni buckety, složky jako prefixy, velké soubory se nahrávají po částech.
+- **Automaticky nalezené** (tlačítko Síť): **zařízení Android** přes ADB (USB i Wi‑Fi ladění) s přesnými velikostmi, časy a právy; **telefony a fotoaparáty přes MTP** na Windows bez vývojářského režimu; **kontejnery Docker / Podman**; **úložiště rclone** – každá služba nastavená v rclone (Google Drive, OneDrive, Dropbox, Mega, pCloud, Box… přes 70).
 - Uložené přístupy jsou v **trezoru šifrovaném XChaCha20‑Poly1305**; klíč je v Klíčence macOS / Správci pověření Windows, nebo odvozený z hlavního hesla (Argon2id). Hesla nikdy neopustí backend.
 
 ### Nástroje
@@ -208,6 +214,8 @@ Volitelné testy proti externím zdrojům (`cargo test … -- --ignored`):
 
 ```bash
 DUALION_FTP=127.0.0.1:2121 DUALION_FTPS=127.0.0.1:2122 cargo test ftp_e2e -- --ignored   # FTP (uživatel jan, heslo tajne)
+DUALION_SFTP=127.0.0.1:2222 DUALION_SFTP_KEY=… cargo test sftp_e2e -- --ignored        # SFTP (a WebDAV, S3, ADB, Docker, rclone:
+                                                                                        #  viz src-tauri/src/jobs/remote_tests.rs)
 DUALION_RAR_DATA=<unrar-crate>/data cargo test rar -- --ignored                          # RAR včetně hesla
 cargo test ollama -- --ignored                                                           # embeddingy přes Ollamu
 ```
@@ -216,7 +224,7 @@ cargo test ollama -- --ignored                                                  
 
 - `src-tauri/` – Rust backend (Tauri 2):
   - výpisy a svazky (`local.rs`), fronta úloh a kopírovací engine (`jobs/`), vracení akcí a simulace (`jobs/undo.rs`, `jobs/plan.rs`),
-  - archivy (`arch/` – ZIP, 7z, RAR, ISO, TAR*, balení), FTP (`ftp.rs`), šifrovaný trezor (`vault.rs`),
+  - archivy (`arch/` – ZIP, 7z, RAR, ISO, TAR*, balení), vzdálená úložiště (`remote/` – FTP, SFTP, WebDAV, S3, ADB, Docker, rclone, MTP), šifrovaný trezor (`vault.rs`),
   - vyhledávání (`search.rs`), index souborů (`index/`), dotazovací jazyk (`query.rs`), věty → dotazy (`ask.rs`), sémantické hledání (`semantic.rs`),
   - nativní ikony a miniatury (`icons/`, `thumbs.rs`), vlastní dekodéry náhledů (`preview/`), metadata (`meta/`), prohlížeč (`viewer.rs`),
   - mapa disku (`diskusage.rs`), duplicity (`dupes.rs`), pravidla (`rules.rs`), štítky (`tags.rs`), nativní menu (`menu.rs`), sledování změn složek (`watcher.rs`), platformní funkce (`platform.rs`).

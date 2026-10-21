@@ -22,6 +22,11 @@ pub enum ErrorCode {
     Ftp,
     FtpConnect,
     FtpAuth,
+    /// SSH server key not known yet (message = fingerprint to confirm).
+    HostKeyUnknown,
+    HostKeyChanged,
+    /// adb / docker / rclone not installed.
+    ToolMissing,
     VaultLocked,
     VaultWrongPassword,
     Keychain,

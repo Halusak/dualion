@@ -1,7 +1,7 @@
 //! Tauri commands – thin wrappers that move blocking work off the IPC thread.
 
 use crate::error::{AppError, AppResult, ErrorCode};
-use crate::ftp::{Connected, FtpRegistry};
+use crate::remote::{self, Connected, Registry as RemoteRegistry};
 use crate::jobs::{Answer, JobManager, JobRequest, JobSnapshot};
 use crate::local::{self, DirSize, Resolved, Space, Volume};
 use crate::location::{Listing, Location};
@@ -12,10 +12,9 @@ use crate::search::{SearchEvent, SearchParams};
 use crate::vault::{SiteInput, SiteSummary, Vault, VaultStatus};
 use crate::viewer::{Probe, TextChunk};
 use crate::watcher::DirWatcher;
-use crate::{archive_index, checksum, ftp, rename, search, util, viewer};
+use crate::{archive_index, checksum, rename, search, util, viewer};
 use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -23,7 +22,7 @@ use tauri::ipc::{Channel, Response};
 use tauri::{AppHandle, State};
 
 pub struct AppState {
-    pub ftp: Arc<FtpRegistry>,
+    pub remote: Arc<RemoteRegistry>,
     pub jobs: Arc<JobManager>,
     pub vault: Arc<Vault>,
     pub watcher: Arc<DirWatcher>,
@@ -309,8 +308,8 @@ pub async fn list_dir(state: State<'_, AppState>, location: Location) -> AppResu
         Location::Local { path } => blocking(move || local::list_local(&path)).await,
         Location::Drives => blocking(|| Ok(local::list_drives())).await,
         Location::Network { host } => blocking(move || crate::network::list(host.as_deref())).await,
-        Location::Ftp { session, path } => {
-            let s = state.ftp.get(&session)?;
+        Location::Remote { session, path } => {
+            let s = state.remote.get(&session)?;
             blocking(move || s.list(&path)).await
         }
         Location::Archive { archive, inner } => blocking(move || archive_index::list_archive(&archive, &inner)).await,
@@ -349,18 +348,18 @@ pub async fn complete_path(input: String, base: Option<String>, show_hidden: boo
 pub async fn make_dir(state: State<'_, AppState>, dir: Location, name: String) -> AppResult<String> {
     match dir {
         Location::Local { path } => blocking(move || local::make_dir(&path, &name)).await,
-        Location::Ftp { session, path } => {
-            let s = state.ftp.get(&session)?;
+        Location::Remote { session, path } => {
+            let s = state.remote.get(&session)?;
             blocking(move || {
+                let fs = s.fs();
                 let parts: Vec<&str> = name.split('/').filter(|p| !p.is_empty()).collect();
                 let first = parts.first().map(|s| s.to_string()).ok_or_else(|| AppError::new(ErrorCode::InvalidName, "Empty name"))?;
                 let mut cur = path.clone();
                 for (i, part) in parts.iter().enumerate() {
                     local::check_name(part)?;
-                    cur = ftp::join(&cur, part);
-                    let target = cur.clone();
+                    cur = remote::join(&cur, part);
                     // Intermediate folders may already exist; only the last one must be new.
-                    if let Err(e) = s.run(|c, _| c.mkdir(&target).map_err(AppError::from)) {
+                    if let Err(e) = fs.mkdir(&cur) {
                         if i + 1 == parts.len() {
                             return Err(e);
                         }
@@ -378,12 +377,16 @@ pub async fn make_dir(state: State<'_, AppState>, dir: Location, name: String) -
 pub async fn create_file(state: State<'_, AppState>, dir: Location, name: String) -> AppResult<String> {
     match dir {
         Location::Local { path } => blocking(move || local::create_file(&path, &name)).await,
-        Location::Ftp { session, path } => {
-            let s = state.ftp.get(&session)?;
+        Location::Remote { session, path } => {
+            let s = state.remote.get(&session)?;
             blocking(move || {
                 local::check_name(&name)?;
-                let target = ftp::join(&path, &name);
-                s.run(|c, _| c.put_file(&target, &mut std::io::empty()).map(|_| ()).map_err(AppError::from))?;
+                let target = remote::join(&path, &name);
+                let fs = s.fs();
+                if fs.stat(&target)?.is_some() {
+                    return Err(AppError::new(ErrorCode::AlreadyExists, "Already exists").with_path(&target));
+                }
+                fs.writer(&target)?.finish()?;
                 Ok(target)
             })
             .await
@@ -396,12 +399,12 @@ pub async fn create_file(state: State<'_, AppState>, dir: Location, name: String
 pub async fn rename_item(state: State<'_, AppState>, dir: Location, from: String, to: String) -> AppResult<()> {
     match dir {
         Location::Local { path } => blocking(move || local::rename(&path, &from, &to)).await,
-        Location::Ftp { session, path } => {
-            let s = state.ftp.get(&session)?;
+        Location::Remote { session, path } => {
+            let s = state.remote.get(&session)?;
             blocking(move || {
                 local::check_name(&to)?;
-                let (a, b) = (ftp::join(&path, &from), ftp::join(&path, &to));
-                s.run(|c, _| c.rename(&a, &b).map_err(AppError::from))
+                let (a, b) = (remote::join(&path, &from), remote::join(&path, &to));
+                s.fs().rename(&a, &b).map_err(|e| if e.code == ErrorCode::CrossesDevices { AppError::unsupported("This server cannot rename folders – move them instead") } else { e })
             })
             .await
         }
@@ -440,26 +443,18 @@ pub async fn materialize(state: State<'_, AppState>, location: Location) -> AppR
             Ok(util::path_str(&target))
         })
         .await,
-        Location::Ftp { session, path } => {
-            let s = state.ftp.get(&session)?;
+        Location::Remote { session, path } => {
+            let s = state.remote.get(&session)?;
             blocking(move || {
-                let name = ftp::file_name(&path).to_string();
-                let dir = platform::temp_dir().join(format!("ftp-{:x}", xxhash_rust::xxh3::xxh3_64(format!("{session}|{path}").as_bytes())));
+                let name = remote::file_name(&path).to_string();
+                let dir = platform::temp_dir().join(format!("remote-{:x}", xxhash_rust::xxh3::xxh3_64(format!("{session}|{path}").as_bytes())));
                 std::fs::create_dir_all(&dir).map_err(|e| AppError::io(e, &dir))?;
                 let target = dir.join(&name);
                 let mut out = std::fs::File::create(&target).map_err(|e| AppError::io(e, &target))?;
-                s.run(|c, _| {
-                    let mut stream = c.retr_as_stream(&path)?;
-                    let mut buf = vec![0u8; 256 * 1024];
-                    loop {
-                        let n = stream.read(&mut buf).map_err(|e| AppError::io(e, &path))?;
-                        if n == 0 {
-                            break;
-                        }
-                        out.write_all(&buf[..n]).map_err(|e| AppError::io(e, &target))?;
-                    }
-                    stream.finish().map_err(AppError::from)
-                })?;
+                let fs = s.fs();
+                let mut stream = fs.reader(&path)?;
+                std::io::copy(&mut stream, &mut out).map_err(|e| AppError::io(e, &target))?;
+                stream.finish()?;
                 Ok(util::path_str(&target))
             })
             .await
@@ -817,8 +812,8 @@ pub async fn job_plan(state: State<'_, AppState>, req: crate::jobs::JobRequest) 
     if let Some(old) = CANCEL.lock().replace(flag.clone()) {
         old.store(true, Ordering::Relaxed);
     }
-    let ftp = state.ftp.clone();
-    blocking(move || crate::jobs::plan::plan(&req, &ftp, &flag)).await
+    let reg = state.remote.clone();
+    blocking(move || crate::jobs::plan::plan(&req, &reg, &flag)).await
 }
 
 /// Reverses journaled actions; moves across volumes are queued as jobs.
@@ -1037,11 +1032,13 @@ pub async fn site_delete(state: State<'_, AppState>, id: String) -> AppResult<()
     blocking(move || v.delete(&id)).await
 }
 
+/// Connects to a saved or edited site. `trust_key`: SSH host key
+/// fingerprint the user accepted after a `HostKeyUnknown` error.
 #[tauri::command]
-pub async fn ftp_connect(state: State<'_, AppState>, site_id: Option<String>, site: Option<SiteInput>) -> AppResult<Connected> {
-    let (v, reg) = (state.vault.clone(), state.ftp.clone());
+pub async fn remote_connect(state: State<'_, AppState>, site_id: Option<String>, site: Option<SiteInput>, trust_key: Option<String>) -> AppResult<Connected> {
+    let (v, reg) = (state.vault.clone(), state.remote.clone());
     blocking(move || {
-        let cfg = match (&site_id, &site) {
+        let mut cfg = match (&site_id, &site) {
             (Some(id), _) => {
                 let s = v.site(id)?;
                 v.touch(id);
@@ -1050,26 +1047,37 @@ pub async fn ftp_connect(state: State<'_, AppState>, site_id: Option<String>, si
             (None, Some(input)) => crate::vault::config_from_input(&v, input)?,
             _ => return Err(AppError::invalid("Nothing to connect to")),
         };
+        cfg.trust_key = trust_key.unwrap_or_default();
         reg.open(cfg)
     })
     .await
 }
 
 #[tauri::command]
-pub async fn ftp_test(state: State<'_, AppState>, site: SiteInput) -> AppResult<String> {
+pub async fn remote_test(state: State<'_, AppState>, site: SiteInput, trust_key: Option<String>) -> AppResult<String> {
     let v = state.vault.clone();
     blocking(move || {
-        let cfg = crate::vault::config_from_input(&v, &site)?;
-        let mut c = ftp::connect(&cfg)?;
-        let welcome = c.get_welcome_msg().unwrap_or("").to_string();
-        let pwd = c.pwd().unwrap_or_default();
-        let _ = c.quit();
-        Ok(format!("{welcome}\n{pwd}").trim().to_string())
+        let mut cfg = crate::vault::config_from_input(&v, &site)?;
+        cfg.trust_key = trust_key.unwrap_or_default();
+        remote::test(&cfg)
     })
     .await
 }
 
 #[tauri::command]
-pub fn ftp_disconnect(state: State<'_, AppState>, session: String) {
-    state.ftp.close(&session)
+pub fn remote_disconnect(state: State<'_, AppState>, session: String) {
+    state.remote.close(&session)
+}
+
+/// Android devices, running containers and rclone remotes.
+#[tauri::command]
+pub async fn remote_sources() -> AppResult<Vec<remote::Source>> {
+    blocking(|| Ok(remote::sources())).await
+}
+
+/// Opens a discovered source (see `remote_sources`).
+#[tauri::command]
+pub async fn remote_open_source(state: State<'_, AppState>, protocol: remote::Protocol, id: String, name: String) -> AppResult<Connected> {
+    let reg = state.remote.clone();
+    blocking(move || reg.open(remote::source_config(protocol, &id, &name))).await
 }

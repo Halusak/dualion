@@ -1,6 +1,6 @@
 export type Location =
   | { kind: 'local'; path: string }
-  | { kind: 'ftp'; session: string; path: string }
+  | { kind: 'remote'; session: string; path: string }
   | { kind: 'archive'; archive: string; inner: string }
   | { kind: 'drives' }
   /** Computers on the local network, or the shared folders of `host`. */
@@ -81,6 +81,9 @@ export type ErrorCode =
   | 'Ftp'
   | 'FtpConnect'
   | 'FtpAuth'
+  | 'HostKeyUnknown'
+  | 'HostKeyChanged'
+  | 'ToolMissing'
   | 'VaultLocked'
   | 'VaultWrongPassword'
   | 'Keychain'
@@ -259,13 +262,24 @@ export type SearchEvent =
   | { type: 'progress'; scanned: number; current: string }
   | { type: 'done'; found: number; scanned: number; cancelled: boolean; truncated: boolean; elapsedMs: number };
 
-export type FtpProtocol = 'ftp' | 'ftpsExplicit' | 'ftpsImplicit';
+export type Protocol = 'ftp' | 'ftpsExplicit' | 'ftpsImplicit' | 'sftp' | 'webdav' | 'webdavs' | 's3' | 'adb' | 'docker' | 'rclone' | 'mtp';
+
+/** Protocols of saved sites (the others are found automatically). */
+export const SITE_PROTOCOLS: Protocol[] = ['ftp', 'ftpsExplicit', 'ftpsImplicit', 'sftp', 'webdavs', 'webdav', 's3'];
+
+/** An Android device, container or rclone remote found on this computer. */
+export interface RemoteSource {
+  protocol: Protocol;
+  id: string;
+  name: string;
+  detail: string;
+}
 
 export interface SiteSummary {
   id: string;
   name: string;
   group: string;
-  protocol: FtpProtocol;
+  protocol: Protocol;
   host: string;
   port: number;
   username: string;
@@ -277,13 +291,15 @@ export interface SiteSummary {
   localPath: string;
   notes: string;
   lastUsed: number;
+  keyPath: string;
+  region: string;
 }
 
 export interface SiteInput {
   id?: string | null;
   name: string;
   group: string;
-  protocol: FtpProtocol;
+  protocol: Protocol;
   host: string;
   port: number;
   username: string;
@@ -295,6 +311,8 @@ export interface SiteInput {
   remotePath: string;
   localPath: string;
   notes: string;
+  keyPath: string;
+  region: string;
 }
 
 export interface VaultStatus {

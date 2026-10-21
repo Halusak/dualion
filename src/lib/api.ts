@@ -31,6 +31,7 @@ import type {
   RenamePair,
   SearchEvent,
   SearchParams,
+  RemoteSource,
   SiteInput,
   SiteSummary,
   Space,
@@ -169,8 +170,10 @@ export const api = {
   sitesList: () => invoke<SiteSummary[]>('sites_list'),
   siteSave: (site: SiteInput) => invoke<SiteSummary>('site_save', { site }),
   siteDelete: (id: string) => invoke<void>('site_delete', { id }),
-  ftpConnect: (siteId: string | null, site: SiteInput | null) =>
-    invoke<Connected>('ftp_connect', { siteId, site }),
-  ftpTest: (site: SiteInput) => invoke<string>('ftp_test', { site }),
-  ftpDisconnect: (session: string) => invoke<void>('ftp_disconnect', { session }),
+  remoteConnect: (siteId: string | null, site: SiteInput | null, trustKey: string | null = null) =>
+    invoke<Connected>('remote_connect', { siteId, site, trustKey }),
+  remoteTest: (site: SiteInput, trustKey: string | null = null) => invoke<string>('remote_test', { site, trustKey }),
+  remoteDisconnect: (session: string) => invoke<void>('remote_disconnect', { session }),
+  remoteSources: () => invoke<RemoteSource[]>('remote_sources'),
+  remoteOpenSource: (s: RemoteSource) => invoke<Connected>('remote_open_source', { protocol: s.protocol, id: s.id, name: s.name }),
 };

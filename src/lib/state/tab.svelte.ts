@@ -44,7 +44,7 @@ export function toEntry(r: RawEntry): Entry {
 function lastName(loc: Location): string | null {
   switch (loc.kind) {
     case 'local':
-    case 'ftp':
+    case 'remote':
       return baseName(loc.path) || null;
     case 'archive':
       return loc.inner ? baseName(loc.inner) : baseName(loc.archive);
@@ -140,7 +140,7 @@ export class Tab {
   snapshot(): TabSnapshot {
     let loc: Location = this.location;
     for (let i = this.history.length - 1; loc.kind === 'search' && i >= 0; i--) loc = this.history[i];
-    if (loc.kind === 'search' || loc.kind === 'ftp') loc = { kind: 'drives' };
+    if (loc.kind === 'search' || loc.kind === 'remote') loc = { kind: 'drives' };
     return { location: loc, view: this.view, sortKey: this.sortKey, sortDesc: this.sortDesc, locked: this.locked, name: this.customTitle || undefined, home: this.home ?? undefined };
   }
 
@@ -201,7 +201,7 @@ export class Tab {
   /** Whether related files are grouped in this tab. */
   get grouping(): boolean {
     const k = this.location.kind;
-    return settings.groupFiles && (k === 'local' || k === 'ftp' || k === 'archive');
+    return settings.groupFiles && (k === 'local' || k === 'remote' || k === 'archive');
   }
 
   /** All files of a group led by `key` (undefined if not a group). */
@@ -257,7 +257,7 @@ export class Tab {
     if (crumbs && crumbs.length > 0) return crumbs[crumbs.length - 1].label;
     // Not loaded yet (lazily restored tabs): derive a name from the location.
     const loc = this.location;
-    if (loc.kind === 'local' || loc.kind === 'ftp') return baseName(loc.path) || loc.path;
+    if (loc.kind === 'local' || loc.kind === 'remote') return baseName(loc.path) || loc.path;
     if (loc.kind === 'archive') return baseName(loc.inner) || baseName(loc.archive);
     return '';
   }

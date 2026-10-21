@@ -73,7 +73,7 @@
 
   async function startEdit() {
     app.activeSide = side;
-    text = tab.location.kind === 'ftp' ? tab.location.path : locPath(tab.location);
+    text = tab.location.kind === 'remote' ? tab.location.path : locPath(tab.location);
     editing = true;
     suggestions = [];
     selected = -1;
@@ -94,7 +94,7 @@
 
   function scheduleComplete() {
     clearTimeout(completeTimer);
-    if (tab.location.kind === 'ftp') return;
+    if (tab.location.kind === 'remote') return;
     completeTimer = setTimeout(async () => {
       const base = tab.location.kind === 'local' ? tab.location.path : null;
       suggestions = await api.completePath(text, base, settings.showHidden).catch(() => []);
@@ -156,7 +156,7 @@
 
 <div class="pathbar" class:active class:editing>
   <button class="places" bind:this={placesBtn} title={t('cmd.places')} onclick={openPlaces}>
-    {#if tab.location.kind === 'ftp'}
+    {#if tab.location.kind === 'remote'}
       <Server size={15} strokeWidth={1.75} />
     {:else if tab.location.kind === 'drives'}
       <Monitor size={15} strokeWidth={1.75} />

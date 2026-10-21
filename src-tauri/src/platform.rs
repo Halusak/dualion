@@ -255,6 +255,18 @@ pub fn show_properties(path: &str) -> AppResult<()> {
     }
 }
 
+static DATA_DIR: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+
+/// Called once at startup with the app's data folder.
+pub fn set_data_dir(dir: std::path::PathBuf) {
+    let _ = DATA_DIR.set(dir);
+}
+
+/// The app's data folder (settings, vault, known SSH hosts…).
+pub fn data_dir() -> std::path::PathBuf {
+    DATA_DIR.get().cloned().unwrap_or_else(temp_dir)
+}
+
 pub fn temp_dir() -> std::path::PathBuf {
     let d = std::env::temp_dir().join("dualion");
     let _ = std::fs::create_dir_all(&d);

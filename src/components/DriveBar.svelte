@@ -5,7 +5,9 @@
   import { LogicalPosition } from '@tauri-apps/api/dpi';
   import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
   import { onMount } from 'svelte';
+  import { openSite, openSource } from '../lib/actions';
   import { api } from '../lib/api';
+  import { remoteSources, warmSources } from '../lib/remote';
   import { run } from '../lib/commands';
   import { formatSize } from '../lib/format';
   import { localeTag, t } from '../lib/i18n/index.svelte';
@@ -20,7 +22,10 @@
   let { side }: { side: SideName } = $props();
   const tab = $derived(app.side(side).tab);
 
-  onMount(() => watchVolumes());
+  onMount(() => {
+    warmSources();
+    return watchVolumes();
+  });
 
   // Last folder visited on each drive, per panel (like TC).
   const lastOnDrive = new Map<string, string>();
@@ -62,21 +67,26 @@
       await MenuItem.new({ text: t('net.neighborhood'), action: () => tab.navigate({ kind: 'network' }) }),
       await PredefinedMenuItem.new({ item: 'Separator' }),
     ];
-    const sites = await api.sitesList().catch(() => []);
+    const [sites, sources] = await Promise.all([api.sitesList().catch(() => []), remoteSources()]);
     for (const s of sites) {
-      items.push(
-        await MenuItem.new({
-          text: s.name || s.host,
-          action: async () => {
-            try {
-              const c = await api.ftpConnect(s.id, null);
-              await tab.navigate({ kind: 'ftp', session: c.session, path: c.path || '/' });
-            } catch (err) {
-              showError(err);
-            }
-          },
-        }),
-      );
+      items.push(await MenuItem.new({ text: s.name || s.host, action: () => openSite(tab, s.id) }));
+    }
+    // Android devices, containers and rclone remotes found on this computer.
+    const kinds = [
+      ['mtp', 'net.mtp'],
+      ['adb', 'net.android'],
+      ['docker', 'net.docker'],
+      ['rclone', 'net.rclone'],
+    ] as const;
+    for (const [kind, label] of kinds) {
+      const list = sources.filter((x) => x.protocol === kind);
+      if (!list.length) continue;
+      if (items.length) items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
+      items.push(await MenuItem.new({ text: t(label), enabled: false }));
+      for (const src of list) {
+        const text = src.detail && src.detail !== src.name ? `${src.name}  (${src.detail})` : src.name;
+        items.push(await MenuItem.new({ text, action: () => openSource(tab, src) }));
+      }
     }
     const net = volumes.list.filter((v) => v.kind === 'network');
     if (items.length && net.length) items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
@@ -102,7 +112,7 @@
   {/each}
   <span class="sep"></span>
   <button title={t('drives.network')} tabindex="-1" onclick={network}>
-    {#if tab.location.kind === 'ftp'}<Plug size={15} />{:else}<Globe size={15} />{/if}
+    {#if tab.location.kind === 'remote'}<Plug size={15} />{:else}<Globe size={15} />{/if}
     <span>{t('drives.network')}</span>
   </button>
 </div>

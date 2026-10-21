@@ -4,6 +4,7 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask, open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { api, type BackendLocation } from './api';
+import { withHostKey } from './remote';
 import { copyText } from './clipboard';
 import { formatSize } from './format';
 import { localeTag, t, what } from './i18n/index.svelte';
@@ -21,7 +22,7 @@ import DuplicatesDialog from '../components/dialogs/DuplicatesDialog.svelte';
 import { ensureArchiveAccess, mount } from './archives';
 import { renameGroup } from './groups';
 import { pushHistory } from './state/history.svelte';
-import { F, type AppError, type Entry, type JobRequest, type Location, type SortKey, type ViewMode } from './types';
+import { F, type AppError, type Entry, type RemoteSource, type JobRequest, type Location, type SortKey, type ViewMode } from './types';
 
 import AboutDialog from '../components/dialogs/AboutDialog.svelte';
 import ChecksumDialog from '../components/dialogs/ChecksumDialog.svelte';
@@ -44,7 +45,7 @@ function backend(loc: Location): BackendLocation | null {
 }
 
 function writable(loc: Location): boolean {
-  return loc.kind === 'local' || loc.kind === 'ftp';
+  return loc.kind === 'local' || loc.kind === 'remote';
 }
 
 /** Full location of an entry in a tab (handles search results). */
@@ -111,9 +112,9 @@ async function openNetwork(tab: Tab, host: string | undefined, name: string) {
 export async function goTo(tab: Tab, input: string): Promise<boolean> {
   const text = input.trim();
   if (!text) return false;
-  if (tab.location.kind === 'ftp' && !/^[A-Za-z]:|^~|^\\\\/.test(text) && (text.startsWith('/') || !text.includes(':'))) {
+  if (tab.location.kind === 'remote' && !/^[A-Za-z]:|^~|^\\\\/.test(text) && (text.startsWith('/') || !text.includes(':'))) {
     const path = text.startsWith('/') ? text : `${tab.location.path.replace(/\/$/, '')}/${text}`;
-    return tab.navigate({ kind: 'ftp', session: tab.location.session, path });
+    return tab.navigate({ kind: 'remote', session: tab.location.session, path });
   }
   try {
     const base = tab.location.kind === 'local' ? tab.location.path : null;
@@ -136,7 +137,7 @@ export function goRoot(tab = app.panel) {
     const root = m ? m[1] : loc.path.startsWith('/Volumes/') ? loc.path.split('/').slice(0, 3).join('/') : '/';
     return tab.navigate({ kind: 'local', path: root });
   }
-  if (loc.kind === 'ftp') return tab.navigate({ ...loc, path: '/' });
+  if (loc.kind === 'remote') return tab.navigate({ ...loc, path: '/' });
   if (loc.kind === 'archive') return tab.navigate({ ...loc, inner: '' });
 }
 
@@ -169,8 +170,8 @@ export async function copyMove(op: 'copy' | 'move', sameDir = false) {
       dest,
       sameDir,
       extracting,
-      upload: src.location.kind === 'local' && dest.kind === 'ftp',
-      download: src.location.kind === 'ftp' && dest.kind === 'local',
+      upload: src.location.kind === 'local' && dest.kind === 'remote',
+      download: src.location.kind === 'remote' && dest.kind === 'local',
     });
     if (!result) return;
   }
@@ -227,7 +228,7 @@ export async function deleteItems(permanent: boolean) {
   const items = tab.targets();
   if (!items.length) return nothing();
   if (!writable(tab.location) && !isResults(tab.location)) return toast(t('err.Unsupported'), 'error');
-  const remote = tab.location.kind === 'ftp';
+  const remote = tab.location.kind === 'remote';
   const toTrash = !permanent && !remote && settings.useTrash;
   const w = what(items.map((e) => e.name));
   if (settings.confirmDelete || permanent || remote) {
@@ -638,18 +639,39 @@ export async function ftpConnect() {
   const other = app.other;
   const c = await openDialog<Connected & { localPath?: string }>(FtpDialog, {});
   if (!c) return;
-  await tab.navigate({ kind: 'ftp', session: c.session, path: c.path || '/' });
+  await tab.navigate({ kind: 'remote', session: c.session, path: c.path || '/' });
   if (c.localPath) await other.navigate({ kind: 'local', path: c.localPath });
   toast(t('ftp.connected', { label: c.label }));
+}
+
+/** Opens a saved site in `tab` (Network menu). */
+export async function openSite(tab: Tab, siteId: string) {
+  try {
+    const c = await withHostKey((trust) => api.remoteConnect(siteId, null, trust));
+    if (c) await tab.navigate({ kind: 'remote', session: c.session, path: c.path || '/' });
+  } catch (err) {
+    showError(err);
+  }
+}
+
+/** Opens an Android device, container or rclone remote in `tab`. */
+export async function openSource(tab: Tab, source: RemoteSource) {
+  try {
+    toast(t('net.connecting', { name: source.name }));
+    const c = await api.remoteOpenSource(source);
+    await tab.navigate({ kind: 'remote', session: c.session, path: c.path || '/' });
+  } catch (err) {
+    showError(err);
+  }
 }
 
 export async function ftpDisconnect() {
   const tab = app.panel;
   const loc = tab.location;
-  if (loc.kind !== 'ftp') return;
-  await api.ftpDisconnect(loc.session);
+  if (loc.kind !== 'remote') return;
+  await api.remoteDisconnect(loc.session);
   for (const tb of app.allTabs()) {
-    if (tb.location.kind === 'ftp' && tb.location.session === loc.session) await goHome(tb);
+    if (tb.location.kind === 'remote' && tb.location.session === loc.session) await goHome(tb);
   }
 }
 
@@ -750,7 +772,7 @@ export function toggleLockTabFolder(side: Side = app.activeSideObj, index = side
   if (!tab) return;
   if (tab.home) return side.setLocked(index, false);
   const loc = tab.location;
-  if (loc.kind !== 'local' && loc.kind !== 'ftp' && loc.kind !== 'archive' && loc.kind !== 'drives') return;
+  if (loc.kind !== 'local' && loc.kind !== 'remote' && loc.kind !== 'archive' && loc.kind !== 'drives') return;
   if (!tab.locked) side.setLocked(index, true);
   tab.home = loc;
 }

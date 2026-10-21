@@ -2,7 +2,7 @@
 
 [Česky](README.cs.md) · **English**
 
-A fast dual-pane file manager for **Windows** and **macOS** in the spirit of Total Commander. It looks native on each system and adds an operation queue, instant search over a file index, previews for dozens of formats, archives with password support, FTP/FTPS with an encrypted vault, and an English and Czech UI.
+A fast dual-pane file manager for **Windows** and **macOS** in the spirit of Total Commander. It looks native on each system and adds an operation queue, instant search over a file index, previews for dozens of formats, archives with password support, remote file systems (FTP, SFTP, WebDAV, S3, Android, Docker, rclone, MTP) with an encrypted vault, and an English and Czech UI.
 
 Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYYgN)
 
@@ -17,7 +17,7 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
 - [Search](#search)
 - [Previews and the F3 viewer](#previews-and-the-f3-viewer)
 - [Archives and disk images](#archives-and-disk-images)
-- [FTP / FTPS and password vault](#ftp--ftps-and-password-vault)
+- [Remote file systems and password vault](#remote-file-systems-and-password-vault)
 - [Tools](#tools)
 - [Cloud folders](#cloud-folders-onedrive-icloud-dropbox)
 - [Appearance, language and settings](#appearance-language-and-settings)
@@ -37,7 +37,7 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
   - drives with native icons, with the current drive highlighted;
   - each drive remembers the last folder you used on it;
   - middle-click opens a drive in a new tab;
-  - the **Network** button lists saved FTP servers and network volumes.
+  - the **Network** button lists computers on the network, saved servers, Android devices, phones (MTP), Docker containers, rclone remotes and network volumes.
 - **Network place** (like TC's Network Neighborhood): computers on the local network → their shared folders → connect and browse. Windows lists the computers Explorer shows and asks for credentials with the system dialog; macOS finds SMB servers via Bonjour and connects with Finder's dialogs.
 - **Breadcrumbs:**
   - click a segment to go to that folder;
@@ -218,13 +218,21 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
   - you choose the compression level.
 - **Mounting disk images** (ISO, DMG, VHD…) through the system: `hdiutil` on macOS, `Mount-DiskImage` on Windows.
 
-### FTP / FTPS and password vault
+### Remote file systems and password vault
 
-- **FTP and FTPS:**
-  - explicit and implicit TLS;
-  - passive and active mode;
-  - name encodings, including Windows-1250;
-  - you browse a server like a folder and copy in both directions through the queue.
+Every remote place opens in a panel like a folder. Copying (also directly between two remote places), moving, renaming, deleting, queues, verification, previews and opening files work the same everywhere.
+
+- **FTP / FTPS:** explicit and implicit TLS, passive and active mode, name encodings including Windows-1250.
+- **SFTP (SSH):**
+  - sign-in with a key file (with passphrase), the SSH agent (Pageant / Windows OpenSSH agent), the keys in `~/.ssh` or a password;
+  - server keys are checked against `~/.ssh/known_hosts`: an unknown key shows its fingerprint to confirm, a changed key is refused.
+- **WebDAV / WebDAVS:** Nextcloud, ownCloud, Synology, SharePoint, Apache, nginx… The server can be given as a full URL.
+- **S3 and compatible storage:** AWS, Cloudflare R2, Backblaze B2, Wasabi, MinIO… Buckets at the root, folders as prefixes, multipart upload for big files.
+- **Found automatically** (Network button):
+  - **Android devices** over ADB (USB or Wi-Fi debugging) with exact sizes, times and permissions;
+  - **phones and cameras over MTP** on Windows, no developer mode needed;
+  - **Docker / Podman containers** (files inside running containers);
+  - **rclone remotes**: every service configured in rclone (Google Drive, OneDrive, Dropbox, Mega, pCloud, Box… 70+).
 - **Encrypted vault for saved logins:**
   - encrypted with **XChaCha20-Poly1305**;
   - the key is stored in the macOS Keychain or Windows Credential Manager, or derived from a master password with Argon2id;
@@ -365,6 +373,8 @@ Optional tests against external resources (`cargo test … -- --ignored`):
 
 ```bash
 DUALION_FTP=127.0.0.1:2121 DUALION_FTPS=127.0.0.1:2122 cargo test ftp_e2e -- --ignored   # FTP (user jan, password tajne)
+DUALION_SFTP=127.0.0.1:2222 DUALION_SFTP_KEY=… cargo test sftp_e2e -- --ignored        # SFTP (also WebDAV, S3, ADB, Docker, rclone:
+                                                                                        #  see src-tauri/src/jobs/remote_tests.rs)
 DUALION_RAR_DATA=<unrar-crate>/data cargo test rar -- --ignored                          # RAR including passwords
 cargo test ollama -- --ignored                                                           # embeddings via Ollama
 ```
@@ -378,7 +388,7 @@ cargo test ollama -- --ignored                                                  
     - undo and dry run (`jobs/undo.rs`, `jobs/plan.rs`).
   - **Archives, network and vault:**
     - archives (`arch/`: ZIP, 7z, RAR, ISO, TAR* and packing);
-    - FTP (`ftp.rs`);
+    - remote file systems (`remote/`: FTP, SFTP, WebDAV, S3, ADB, Docker, rclone, MTP);
     - the encrypted vault (`vault.rs`).
   - **Search:**
     - find in files (`search.rs`);

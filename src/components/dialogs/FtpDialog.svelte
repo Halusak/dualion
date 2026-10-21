@@ -11,7 +11,9 @@
   import { localeTag, t } from '../../lib/i18n/index.svelte';
   import { isMac } from '../../lib/platform';
   import { errorText, isAppError, openDialog, toast } from '../../lib/state/ui.svelte';
-  import type { Connected, FtpProtocol, SiteInput, SiteSummary, VaultStatus } from '../../lib/types';
+  import { withHostKey } from '../../lib/remote';
+  import { app } from '../../lib/state/app.svelte';
+  import { SITE_PROTOCOLS, type Connected, type Protocol, type SiteInput, type SiteSummary, type VaultStatus } from '../../lib/types';
   import Modal from './Modal.svelte';
   import VaultDialog from './VaultDialog.svelte';
 
@@ -39,6 +41,8 @@
     remotePath: '',
     localPath: '',
     notes: '',
+    keyPath: '',
+    region: '',
     anonymous: false,
   });
   let form = $state(blank());
@@ -83,7 +87,9 @@
       remotePath: s.remotePath,
       localPath: s.localPath,
       notes: s.notes,
-      anonymous: !s.username,
+      keyPath: s.keyPath ?? '',
+      region: s.region ?? '',
+      anonymous: isFtp(s.protocol) && !s.username,
     };
     hasStoredPassword = s.hasPassword;
     message = null;
@@ -97,7 +103,8 @@
   }
 
   function input(): SiteInput {
-    const { anonymous, ...rest } = form;
+    const { anonymous: anon, ...rest } = form;
+    const anonymous = anon && isFtp(rest.protocol);
     return {
       ...rest,
       username: anonymous ? '' : rest.username.trim(),
@@ -108,7 +115,7 @@
   }
 
   async function save(): Promise<SiteSummary | null> {
-    if (!form.host.trim()) return null;
+    if (!hostOk) return null;
     try {
       const saved = await api.siteSave(input());
       await refresh();
@@ -125,8 +132,9 @@
     busy = true;
     message = { text: t('ftp.connecting'), error: false };
     try {
-      const welcome = await api.ftpTest(input());
-      message = { text: `${t('ftp.testOk')} ${welcome}`.trim(), error: false };
+      const site = input();
+      const welcome = await withHostKey((trust) => api.remoteTest(site, trust));
+      message = welcome === null ? null : { text: `${t('ftp.testOk')} ${welcome}`.trim(), error: false };
     } catch (e) {
       message = { text: errorText(e), error: true };
     } finally {
@@ -135,17 +143,22 @@
   }
 
   async function connect(saveFirst: boolean) {
-    if (!form.host.trim() || busy) return;
+    if (!hostOk || busy) return;
     busy = true;
     message = { text: t('ftp.connecting'), error: false };
     try {
-      let c: Connected;
+      let c: Connected | null;
       if (saveFirst && !locked) {
         const saved = await save();
         if (!saved) return;
-        c = await api.ftpConnect(saved.id, null);
+        c = await withHostKey((trust) => api.remoteConnect(saved.id, null, trust));
       } else {
-        c = await api.ftpConnect(null, input());
+        const site = input();
+        c = await withHostKey((trust) => api.remoteConnect(null, site, trust));
+      }
+      if (!c) {
+        message = null;
+        return;
       }
       close({ ...c, localPath: form.localPath.trim() || undefined });
     } catch (e) {
@@ -181,12 +194,30 @@
     }
   }
 
+  async function browseKey() {
+    const f = await openNative({ directory: false, defaultPath: form.keyPath || `${app.info.home}/.ssh` });
+    if (typeof f === 'string') form.keyPath = f;
+  }
+
   async function browseLocal() {
     const dir = await openNative({ directory: true, defaultPath: form.localPath || undefined });
     if (typeof dir === 'string') form.localPath = dir;
   }
 
-  const defaultPort = $derived(form.protocol === 'ftpsImplicit' ? 990 : 21);
+  function isFtp(p: Protocol) {
+    return p === 'ftp' || p === 'ftpsExplicit' || p === 'ftpsImplicit';
+  }
+  const PORTS: Partial<Record<Protocol, number>> = { ftp: 21, ftpsExplicit: 21, ftpsImplicit: 990, sftp: 22, webdav: 80, webdavs: 443, s3: 443 };
+  const HOSTS: Partial<Record<Protocol, string>> = {
+    sftp: 'server.example.com',
+    webdav: 'nas.local:5005',
+    webdavs: 'https://cloud.example.com/remote.php/dav/files/jan',
+    s3: 'https://<account>.r2.cloudflarestorage.com',
+  };
+  const ftpLike = $derived(isFtp(form.protocol));
+  const defaultPort = $derived(PORTS[form.protocol] ?? 21);
+  // S3 without an endpoint is AWS.
+  const hostOk = $derived(!!form.host.trim() || form.protocol === 's3');
   const locale = localeTag();
   const groups = $derived.by(() => {
     const m = new Map<string, SiteSummary[]>();
@@ -219,7 +250,7 @@
               <Server size={15} strokeWidth={1.6} />
               <span class="st">
                 <span class="ellipsis">{s.name}</span>
-                <span class="muted ellipsis small">{s.username ? `${s.username}@` : ''}{s.host}</span>
+                <span class="muted ellipsis small">{t(`ftp.proto.${s.protocol}`)} · {s.protocol === 's3' ? s.host || 'AWS' : `${s.username ? `${s.username}@` : ''}${s.host}`}</span>
               </span>
             </button>
           {/each}
@@ -235,7 +266,7 @@
       <div class="grid">
         <label>{t('ftp.name')}<input class="input" bind:value={form.name} placeholder={form.host} /></label>
         <label>{t('ftp.group')}<input class="input" bind:value={form.group} /></label>
-        <label>{t('ftp.host')}<input class="input" bind:value={form.host} placeholder="ftp.example.com" spellcheck="false" data-autofocus /></label>
+        <label>{t(form.protocol === 's3' ? 'remote.endpoint' : form.protocol.startsWith('webdav') ? 'remote.url' : 'ftp.host')}<input class="input" bind:value={form.host} placeholder={HOSTS[form.protocol] ?? 'ftp.example.com'} spellcheck="false" data-autofocus /></label>
         <label>{t('ftp.port')}
           <input
             class="input"
@@ -247,32 +278,48 @@
         </label>
         <label>{t('ftp.protocol')}
           <select class="input" bind:value={form.protocol}>
-            {#each ['ftp', 'ftpsExplicit', 'ftpsImplicit'] as const as p (p)}
-              <option value={p as FtpProtocol}>{t(`ftp.proto.${p}`)}</option>
+            {#each SITE_PROTOCOLS as p (p)}
+              <option value={p}>{t(`ftp.proto.${p}`)}</option>
             {/each}
           </select>
         </label>
-        <label>{t('ftp.encoding')}
-          <select class="input" bind:value={form.encoding}>
-            <option value="">UTF-8</option>
-            <option value="windows-1250">Windows-1250 (CZ)</option>
-            <option value="iso-8859-2">ISO-8859-2</option>
-            <option value="windows-1252">Windows-1252</option>
-            <option value="ibm852">CP852</option>
-          </select>
-        </label>
-        <label>{t('ftp.user')}<input class="input" bind:value={form.username} disabled={form.anonymous} spellcheck="false" autocomplete="off" /></label>
-        <label>{t('ftp.password')}
-          <input class="input" type="password" bind:value={form.password} disabled={form.anonymous} placeholder={hasStoredPassword ? t('ftp.passwordStored') : ''} autocomplete="off" />
+        {#if ftpLike}
+          <label>{t('ftp.encoding')}
+            <select class="input" bind:value={form.encoding}>
+              <option value="">UTF-8</option>
+              <option value="windows-1250">Windows-1250 (CZ)</option>
+              <option value="iso-8859-2">ISO-8859-2</option>
+              <option value="windows-1252">Windows-1252</option>
+              <option value="ibm852">CP852</option>
+            </select>
+          </label>
+        {:else if form.protocol === 's3'}
+          <label>{t('remote.region')}<input class="input" bind:value={form.region} placeholder="us-east-1 / auto" spellcheck="false" /></label>
+        {:else if form.protocol === 'sftp'}
+          <label>{t('remote.keyPath')}
+            <span class="with-btn">
+              <input class="input" bind:value={form.keyPath} placeholder={t('remote.keyAuto')} spellcheck="false" />
+              <button class="icon-btn" title={t('browse')} onclick={browseKey}><FolderOpen size={15} /></button>
+            </span>
+          </label>
+        {:else}
+          <span></span>
+        {/if}
+        <label>{t(form.protocol === 's3' ? 'remote.accessKey' : 'ftp.user')}<input class="input" bind:value={form.username} disabled={ftpLike && form.anonymous} spellcheck="false" autocomplete="off" /></label>
+        <label>{t(form.protocol === 's3' ? 'remote.secretKey' : form.protocol === 'sftp' && form.keyPath ? 'remote.passphrase' : 'ftp.password')}
+          <input class="input" type="password" bind:value={form.password} disabled={ftpLike && form.anonymous} placeholder={hasStoredPassword ? t('ftp.passwordStored') : ''} autocomplete="off" />
         </label>
         <div class="checks">
-          <label class="check"><input type="checkbox" bind:checked={form.anonymous} /> {t('ftp.anonymous')}</label>
-          <label class="check"><input type="checkbox" bind:checked={form.passive} /> {t('ftp.passive')}</label>
-          {#if form.protocol !== 'ftp'}
+          {#if ftpLike}
+            <label class="check"><input type="checkbox" bind:checked={form.anonymous} /> {t('ftp.anonymous')}</label>
+            <label class="check"><input type="checkbox" bind:checked={form.passive} /> {t('ftp.passive')}</label>
+          {/if}
+          {#if form.protocol === 'ftpsExplicit' || form.protocol === 'ftpsImplicit' || form.protocol === 'webdavs' || form.protocol === 's3'}
             <label class="check"><input type="checkbox" bind:checked={form.acceptInvalidCerts} /> {t('ftp.invalidCerts')}</label>
           {/if}
+          {#if form.protocol === 'sftp'}<span class="muted small">{t('remote.sftpHint')}</span>{/if}
         </div>
-        <label>{t('ftp.remotePath')}<input class="input" bind:value={form.remotePath} placeholder="/" spellcheck="false" /></label>
+        <label>{t('ftp.remotePath')}<input class="input" bind:value={form.remotePath} placeholder={form.protocol === 's3' ? 'bucket/folder' : '/'} spellcheck="false" /></label>
         <label>{t('ftp.localPath')}
           <span class="with-btn">
             <input class="input" bind:value={form.localPath} spellcheck="false" />
@@ -307,10 +354,10 @@
     {#if selectedId}
       <button class="btn danger b-extra" onclick={remove}>{t('delete')}</button>
     {/if}
-    <button class="btn b-extra" disabled={busy || !form.host} onclick={test}>{t('ftp.test')}</button>
+    <button class="btn b-extra" disabled={busy || !hostOk} onclick={test}>{t('ftp.test')}</button>
     <button class="btn b-cancel" onclick={() => close(null)}>{t('cancel')}</button>
-    <button class="btn b-cancel" disabled={busy || !form.host || locked} onclick={save}>{t('save')}</button>
-    <button class="btn primary b-primary" disabled={busy || !form.host} onclick={() => connect(!!selectedId)}>{t('connect')}</button>
+    <button class="btn b-cancel" disabled={busy || !hostOk || locked} onclick={save}>{t('save')}</button>
+    <button class="btn primary b-primary" disabled={busy || !hostOk} onclick={() => connect(!!selectedId)}>{t('connect')}</button>
   {/snippet}
 </Modal>
 

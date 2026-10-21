@@ -8,7 +8,7 @@ export function joinLocal(dir: string, name: string): string {
   return dir + SEP + name;
 }
 
-export function joinFtp(dir: string, name: string): string {
+export function joinRemote(dir: string, name: string): string {
   return dir.endsWith('/') ? dir + name : `${dir}/${name}`;
 }
 
@@ -47,8 +47,8 @@ export function locKey(loc: Location): string {
       if (caseInsensitive) p = p.toLowerCase();
       return `local:${p}`;
     }
-    case 'ftp':
-      return `ftp:${loc.session}:${loc.path.replace(/\/+$/, '') || '/'}`;
+    case 'remote':
+      return `remote:${loc.session}:${loc.path.replace(/\/+$/, '') || '/'}`;
     case 'archive':
       return `arc:${loc.archive}!${loc.inner.replace(/^\/+|\/+$/g, '')}`;
     case 'drives':
@@ -72,8 +72,8 @@ export function childLoc(dir: Location, e: Entry): Location {
   switch (dir.kind) {
     case 'local':
       return { kind: 'local', path: joinLocal(dir.path, e.name) };
-    case 'ftp':
-      return { kind: 'ftp', session: dir.session, path: joinFtp(dir.path, e.name) };
+    case 'remote':
+      return { kind: 'remote', session: dir.session, path: joinRemote(dir.path, e.name) };
     case 'archive':
       return { kind: 'archive', archive: dir.archive, inner: dir.inner ? `${dir.inner}/${e.name}` : e.name };
     case 'drives':
@@ -95,11 +95,11 @@ export function parentLoc(loc: Location): Location | null {
       const d = dirName(loc.path);
       return d && d !== loc.path ? { kind: 'local', path: d } : null;
     }
-    case 'ftp': {
+    case 'remote': {
       const p = loc.path.replace(/\/+$/, '');
       if (!p) return null;
       const i = p.lastIndexOf('/');
-      return { kind: 'ftp', session: loc.session, path: i <= 0 ? '/' : p.slice(0, i) };
+      return { kind: 'remote', session: loc.session, path: i <= 0 ? '/' : p.slice(0, i) };
     }
     case 'archive': {
       if (!loc.inner) return { kind: 'local', path: dirName(loc.archive) };
@@ -118,7 +118,7 @@ export function locPath(loc: Location): string {
   switch (loc.kind) {
     case 'local':
       return loc.path;
-    case 'ftp':
+    case 'remote':
       return loc.path;
     case 'archive':
       return loc.inner ? `${loc.archive}${SEP}${loc.inner.replaceAll('/', SEP)}` : loc.archive;

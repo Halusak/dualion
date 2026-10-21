@@ -1,4 +1,4 @@
-//! Encrypted storage of FTP sites and their passwords.
+//! Encrypted storage of server sites (FTP, SFTP, WebDAV, S3) and their passwords.
 //!
 //! The vault file holds the site list encrypted with XChaCha20-Poly1305.
 //! The 256-bit key either lives in the OS credential store (macOS Keychain,
@@ -6,7 +6,7 @@
 //! Argon2id. Passwords never leave the backend: the UI only sees summaries.
 
 use crate::error::{AppError, AppResult, ErrorCode};
-use crate::ftp::{FtpConfig, FtpProtocol};
+use crate::remote::{Protocol, RemoteConfig};
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
 use chacha20poly1305::aead::{Aead, KeyInit, Payload};
@@ -43,7 +43,7 @@ pub struct Site {
     pub id: String,
     pub name: String,
     pub group: String,
-    pub protocol: FtpProtocol,
+    pub protocol: Protocol,
     pub host: String,
     pub port: u16,
     pub username: String,
@@ -55,20 +55,27 @@ pub struct Site {
     pub local_path: String,
     pub notes: String,
     pub last_used: i64,
+    /// SFTP private key file.
+    pub key_path: String,
+    /// S3 region.
+    pub region: String,
 }
 
 impl Site {
-    pub fn to_config(&self) -> FtpConfig {
-        FtpConfig {
+    pub fn to_config(&self) -> RemoteConfig {
+        RemoteConfig {
             protocol: self.protocol,
             host: self.host.clone(),
             port: self.port,
             username: self.username.clone(),
-            password: self.password.clone(),
+            password: self.password.clone().into(),
             passive: self.passive,
             encoding: self.encoding.clone(),
             accept_invalid_certs: self.accept_invalid_certs,
             remote_path: self.remote_path.clone(),
+            key_path: self.key_path.clone(),
+            region: self.region.clone(),
+            ..Default::default()
         }
     }
 }
@@ -80,7 +87,7 @@ pub struct SiteSummary {
     pub id: String,
     pub name: String,
     pub group: String,
-    pub protocol: FtpProtocol,
+    pub protocol: Protocol,
     pub host: String,
     pub port: u16,
     pub username: String,
@@ -92,6 +99,8 @@ pub struct SiteSummary {
     pub local_path: String,
     pub notes: String,
     pub last_used: i64,
+    pub key_path: String,
+    pub region: String,
 }
 
 impl From<&Site> for SiteSummary {
@@ -112,6 +121,8 @@ impl From<&Site> for SiteSummary {
             local_path: s.local_path.clone(),
             notes: s.notes.clone(),
             last_used: s.last_used,
+            key_path: s.key_path.clone(),
+            region: s.region.clone(),
         }
     }
 }
@@ -125,7 +136,7 @@ pub struct SiteInput {
     #[serde(default)]
     pub group: String,
     #[serde(default)]
-    pub protocol: FtpProtocol,
+    pub protocol: Protocol,
     pub host: String,
     #[serde(default)]
     pub port: u16,
@@ -144,6 +155,10 @@ pub struct SiteInput {
     pub local_path: String,
     #[serde(default)]
     pub notes: String,
+    #[serde(default)]
+    pub key_path: String,
+    #[serde(default)]
+    pub region: String,
 }
 
 fn default_true() -> bool {
@@ -409,7 +424,8 @@ impl Vault {
     }
 
     pub fn save(&self, input: SiteInput) -> AppResult<SiteSummary> {
-        if input.host.trim().is_empty() {
+        // S3 without an endpoint means AWS.
+        if input.host.trim().is_empty() && input.protocol != Protocol::S3 {
             return Err(AppError::invalid("Missing host"));
         }
         let mut s = self.state.lock();
@@ -418,7 +434,11 @@ impl Vault {
         let existing_pw = data.sites.iter().find(|x| x.id == id).map(|x| x.password.clone()).unwrap_or_default();
         let site = Site {
             id: id.clone(),
-            name: if input.name.trim().is_empty() { input.host.trim().to_string() } else { input.name.trim().to_string() },
+            name: match (input.name.trim(), input.host.trim()) {
+                ("", "") => "Amazon S3".to_string(),
+                ("", host) => host.to_string(),
+                (name, _) => name.to_string(),
+            },
             group: input.group.trim().to_string(),
             protocol: input.protocol,
             host: input.host.trim().to_string(),
@@ -432,6 +452,8 @@ impl Vault {
             local_path: input.local_path,
             notes: input.notes,
             last_used: data.sites.iter().find(|x| x.id == id).map(|x| x.last_used).unwrap_or(0),
+            key_path: input.key_path.trim().to_string(),
+            region: input.region.trim().to_string(),
         };
         let summary = SiteSummary::from(&site);
         match data.sites.iter_mut().find(|x| x.id == id) {
@@ -455,21 +477,24 @@ impl Vault {
 
 /// Builds a connection config from an edited (possibly unsaved) site,
 /// falling back to the stored password when none was typed.
-pub fn config_from_input(vault: &Vault, input: &SiteInput) -> AppResult<FtpConfig> {
+pub fn config_from_input(vault: &Vault, input: &SiteInput) -> AppResult<RemoteConfig> {
     let stored = match (&input.password, &input.id) {
         (None, Some(id)) if !id.is_empty() => vault.site(id).map(|s| s.password.clone()).unwrap_or_default(),
         _ => String::new(),
     };
-    Ok(FtpConfig {
+    Ok(RemoteConfig {
         protocol: input.protocol,
         host: input.host.trim().to_string(),
         port: input.port,
         username: input.username.trim().to_string(),
-        password: input.password.clone().unwrap_or(stored),
+        password: input.password.clone().unwrap_or(stored).into(),
         passive: input.passive,
         encoding: input.encoding.clone(),
         accept_invalid_certs: input.accept_invalid_certs,
         remote_path: input.remote_path.clone(),
+        key_path: input.key_path.trim().to_string(),
+        region: input.region.trim().to_string(),
+        ..Default::default()
     })
 }
 
@@ -500,7 +525,7 @@ mod tests {
                 id: None,
                 name: "Test".into(),
                 group: String::new(),
-                protocol: FtpProtocol::Ftp,
+                protocol: Protocol::Ftp,
                 host: "ftp.example.com".into(),
                 port: 21,
                 username: "jan".into(),
@@ -511,6 +536,8 @@ mod tests {
                 remote_path: String::new(),
                 local_path: String::new(),
                 notes: String::new(),
+                key_path: String::new(),
+                region: String::new(),
             })
             .unwrap();
         assert!(saved.has_password);

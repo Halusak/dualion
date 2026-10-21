@@ -8,7 +8,7 @@ pub mod archive;
 pub mod copy;
 pub mod delete;
 #[cfg(test)]
-mod ftp_tests;
+mod remote_tests;
 #[cfg(test)]
 mod tests;
 pub mod plan;
@@ -16,7 +16,7 @@ pub mod undo;
 pub mod vfs;
 
 use crate::error::{AppError, AppResult, ErrorCode};
-use crate::ftp::FtpRegistry;
+use crate::remote::Registry as RemoteRegistry;
 use crate::location::Location;
 use crate::util::now_ms;
 use parking_lot::{Condvar, Mutex};
@@ -329,7 +329,7 @@ impl<'a> JobCtx<'a> {
         self.job.journal.lock().push(a);
     }
 
-    pub fn ftp(&self) -> &FtpRegistry {
+    pub fn ftp(&self) -> &RemoteRegistry {
         &self.mgr.ftp
     }
 
@@ -555,14 +555,14 @@ impl<'a> JobCtx<'a> {
 
 pub struct JobManager {
     emit: EventSink,
-    pub ftp: Arc<FtpRegistry>,
+    pub ftp: Arc<RemoteRegistry>,
     jobs: Mutex<Vec<Arc<Job>>>,
     next_id: Mutex<u64>,
     dirty: AtomicBool,
 }
 
 impl JobManager {
-    pub fn new(emit: EventSink, ftp: Arc<FtpRegistry>) -> Arc<Self> {
+    pub fn new(emit: EventSink, ftp: Arc<RemoteRegistry>) -> Arc<Self> {
         let mgr = Arc::new(Self {
             emit,
             ftp,

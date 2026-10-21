@@ -6,13 +6,13 @@ mod diskusage;
 mod dupes;
 mod error;
 mod filter;
-mod ftp;
 mod icons;
 mod index;
 mod jobs;
 mod local;
 mod location;
 mod network;
+mod remote;
 mod menu;
 mod platform;
 mod meta;
@@ -110,15 +110,16 @@ pub fn run() {
             let handle = app.handle().clone();
             let config_dir = app.path().app_config_dir()?;
             let data_dir = app.path().app_data_dir()?;
+            platform::set_data_dir(data_dir.clone());
             if let Ok(cache) = app.path().app_cache_dir() {
                 thumbs::set_cache_dir(cache.join("thumbs"));
             }
-            let ftp = Arc::new(ftp::FtpRegistry::default());
+            let remote = Arc::new(remote::Registry::default());
             let emitter = handle.clone();
             let sink: jobs::EventSink = Arc::new(move |name, payload| {
                 let _ = emitter.emit(name, payload);
             });
-            let jobs = jobs::JobManager::new(sink, ftp.clone());
+            let jobs = jobs::JobManager::new(sink, remote.clone());
             let vault = Arc::new(vault::Vault::new(data_dir.join("sites.vault")));
             let watcher = watcher::DirWatcher::new(handle.clone());
             let emitter = handle.clone();
@@ -142,9 +143,9 @@ pub fn run() {
                 }
             });
 
-            let keep = ftp.clone();
+            let keep = remote.clone();
             std::thread::Builder::new()
-                .name("ftp-keepalive".into())
+                .name("remote-keepalive".into())
                 .spawn(move || loop {
                     std::thread::sleep(std::time::Duration::from_secs(30));
                     keep.keepalive();
@@ -154,7 +155,7 @@ pub fn run() {
             devtools::start(handle.clone());
 
             app.manage(AppState {
-                ftp,
+                remote,
                 jobs,
                 vault,
                 watcher,
@@ -267,9 +268,11 @@ pub fn run() {
             commands::sites_list,
             commands::site_save,
             commands::site_delete,
-            commands::ftp_connect,
-            commands::ftp_test,
-            commands::ftp_disconnect,
+            commands::remote_connect,
+            commands::remote_sources,
+            commands::remote_open_source,
+            commands::remote_test,
+            commands::remote_disconnect,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Dualion");

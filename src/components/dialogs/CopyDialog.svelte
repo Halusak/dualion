@@ -15,7 +15,7 @@
   import { onMount } from 'svelte';
   import { api } from '../../lib/api';
   import { localeTag, t, what } from '../../lib/i18n/index.svelte';
-  import { baseName, dirName, extOf, joinFtp, joinLocal, locPath, stemOf } from '../../lib/paths';
+  import { baseName, dirName, extOf, joinRemote, joinLocal, locPath, stemOf } from '../../lib/paths';
   import { settings } from '../../lib/state/settings.svelte';
   import { formatDate, formatSize } from '../../lib/format';
   import { errorText, isAppError, showError } from '../../lib/state/ui.svelte';
@@ -54,12 +54,12 @@
   }
 
   // svelte-ignore state_referenced_locally
-  const destPath = dest.kind === 'ftp' ? dest.path : locPath(dest);
+  const destPath = dest.kind === 'remote' ? dest.path : locPath(dest);
   // svelte-ignore state_referenced_locally
   const single = names.length === 1;
   // svelte-ignore state_referenced_locally
   const initial =
-    sameDir && single ? (dest.kind === 'ftp' ? joinFtp(destPath, suggestion(names[0])) : joinLocal(destPath, suggestion(names[0]))) : destPath;
+    sameDir && single ? (dest.kind === 'remote' ? joinRemote(destPath, suggestion(names[0])) : joinLocal(destPath, suggestion(names[0]))) : destPath;
 
   let text = $state(initial);
   // svelte-ignore state_referenced_locally
@@ -96,7 +96,7 @@
     const typed = text.trim();
     if (!typed) return null;
     if (typed === initial && !(sameDir && single)) return { dest, newName: null };
-    if (dest.kind === 'ftp') {
+    if (dest.kind === 'remote') {
       if (sameDir && single) return { dest: { ...dest, path: dirName(typed) || '/' }, newName: baseName(typed) };
       return { dest: { ...dest, path: typed }, newName: null };
     }

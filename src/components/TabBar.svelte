@@ -26,7 +26,7 @@
   function homeName(tab: Tab): string {
     const h = tab.home;
     if (!h) return '';
-    const p = h.kind === 'local' || h.kind === 'ftp' ? h.path : h.kind === 'archive' ? h.archive : '';
+    const p = h.kind === 'local' || h.kind === 'remote' ? h.path : h.kind === 'archive' ? h.archive : '';
     return p.split(/[\\/]/).filter(Boolean).pop() ?? p;
   }
 

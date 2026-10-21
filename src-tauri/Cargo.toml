@@ -73,11 +73,15 @@ kamadak-exif = "0.6.1"
 lofty = "0.25"
 flate2 = "1.1.10"
 plist = "1"
-ureq = { version = "3", default-features = false, features = ["json"] }
+ureq = { version = "3", default-features = false, features = ["json", "native-tls"] }
 pdf-extract = "0.12.1"
 sevenz-rust2 = { version = "0.24", features = ["aes256", "compress"] }
 unrar = "0.5.8"
 tar = "0.4.46"
+russh = { version = "0.64", default-features = false, features = ["flate2", "ring", "rsa"] }
+russh-sftp = "3"
+tokio = { version = "1", features = ["rt-multi-thread", "io-util", "net", "time", "sync", "macros"] }
+hmac = "0.13"
 bzip2 = "0.6.1"
 lzma-rust2 = "0.23.0"
 zstd = "0.14.3"
@@ -110,6 +114,8 @@ windows = { version = "0.62", features = [
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_NetworkManagement_NetManagement",
     "Win32_NetworkManagement_WNet",
+    "Win32_Storage_EnhancedStorage",
+    "Win32_System_SystemServices",
     "Win32_System_Time",
 ] }
 

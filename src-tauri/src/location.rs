@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize, Serializer};
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Location {
     Local { path: String },
-    Ftp { session: String, path: String },
+    /// A connected remote file system (FTP, SFTP, WebDAV, S3, ADB, Docker, rclone).
+    Remote { session: String, path: String },
     Archive { archive: String, inner: String },
     /// "This PC" – list of drives (Windows) / volumes (macOS).
     Drives,

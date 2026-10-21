@@ -26,12 +26,12 @@ describe('paths', () => {
   });
 
   it('navigates locations', () => {
-    expect(parentLoc({ kind: 'ftp', session: 's', path: '/pub/x' })).toEqual({ kind: 'ftp', session: 's', path: '/pub' });
-    expect(parentLoc({ kind: 'ftp', session: 's', path: '/pub' })).toEqual({ kind: 'ftp', session: 's', path: '/' });
+    expect(parentLoc({ kind: 'remote', session: 's', path: '/pub/x' })).toEqual({ kind: 'remote', session: 's', path: '/pub' });
+    expect(parentLoc({ kind: 'remote', session: 's', path: '/pub' })).toEqual({ kind: 'remote', session: 's', path: '/' });
     expect(parentLoc({ kind: 'archive', archive: '/d/a.zip', inner: '' })).toEqual({ kind: 'local', path: '/d' });
     expect(parentLoc({ kind: 'archive', archive: '/d/a.zip', inner: 'x/y' })).toEqual({ kind: 'archive', archive: '/d/a.zip', inner: 'x' });
     expect(childLoc({ kind: 'archive', archive: '/a.zip', inner: '' }, entry('in'))).toEqual({ kind: 'archive', archive: '/a.zip', inner: 'in' });
-    expect(childLoc({ kind: 'ftp', session: 's', path: '/' }, entry('f'))).toEqual({ kind: 'ftp', session: 's', path: '/f' });
+    expect(childLoc({ kind: 'remote', session: 's', path: '/' }, entry('f'))).toEqual({ kind: 'remote', session: 's', path: '/f' });
   });
 
   it('compares local paths case-insensitively and ignores trailing slashes', () => {
