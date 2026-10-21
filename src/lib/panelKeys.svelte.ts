@@ -156,10 +156,13 @@ export function panelKey(e: KeyboardEvent, tab: Tab): boolean {
     }
     if (e.key === ' ' || e.code === 'Space') {
       if (e.shiftKey) return false;
+      // Mark and move on: holding Space marks file after file (key repeat).
       const c = tab.current;
-      if (!c || c.flags & F.UP) return true;
-      tab.toggleMark(c.key);
-      if (c.isDir && tab.isMarked(c.key) && !tab.dirSizes.has(c.key)) void A.calcDirSize(tab, c);
+      if (c && !(c.flags & F.UP)) {
+        tab.toggleMark(c.key);
+        if (c.isDir && tab.isMarked(c.key) && !tab.dirSizes.has(c.key)) void A.calcDirSize(tab, c);
+      }
+      if (tab.cursor < v.length - 1) tab.setCursor(tab.cursor + 1);
       return true;
     }
   }

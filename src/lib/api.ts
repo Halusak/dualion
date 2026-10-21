@@ -64,6 +64,9 @@ export const api = {
   activeJobs: () => invoke<number>('active_jobs'),
 
   openPath: (path: string) => invoke<void>('open_path', { path }),
+  shellMenu: (paths: string[], allDirs: boolean, title: string, items: { id: string; label?: string; enabled?: boolean }[]) =>
+    invoke<string | null>('shell_menu', { paths, allDirs, title, items }),
+  openWithApps: (path: string) => invoke<{ name: string; path: string; default: boolean; icon: number[] }[]>('open_with_apps', { path }),
   dragOut: (paths: string[]) => invoke<void>('drag_out', { paths }),
   revealPath: (path: string) => invoke<void>('reveal_path', { path }),
   openUrl: (url: string) => invoke<void>('open_url', { url }),

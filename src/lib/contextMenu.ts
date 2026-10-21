@@ -1,20 +1,22 @@
 // Native context menus (real NSMenu / Win32 popup menus via Tauri).
 
-import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu } from '@tauri-apps/api/menu';
+import { CheckMenuItem, IconMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu } from '@tauri-apps/api/menu';
 import { LogicalPosition } from '@tauri-apps/api/dpi';
 import { META_COLUMNS } from './columns';
-import { command, menuAccel, run } from './commands';
+import { api } from './api';
+import { command, menuAccel, run, shortcutOf } from './commands';
 import { t } from './i18n/index.svelte';
-import { isArchiveName, isDiskImage, isResults } from './paths';
-import { isMac } from './platform';
+import { childLoc, dirName, isArchiveName, isDiskImage, isResults } from './paths';
+import { isMac, isWindows, shortcutLabel } from './platform';
 import { app } from './state/app.svelte';
 import { settings } from './state/settings.svelte';
+import { showError } from './state/ui.svelte';
 import type { Tab } from './state/tab.svelte';
 import { F } from './types';
 
-type Spec = { cmd: string; label?: string; enabled?: boolean } | 'sep' | { submenu: string; items: Spec[] };
+type Item = MenuItem | CheckMenuItem | IconMenuItem | PredefinedMenuItem | Submenu;
 
-type Item = MenuItem | CheckMenuItem | PredefinedMenuItem | Submenu;
+type Spec = { cmd: string; label?: string; enabled?: boolean } | 'sep' | { submenu: string; items: Spec[] } | { item: Item };
 
 async function build(specs: Spec[]): Promise<Item[]> {
   const out: Item[] = [];
@@ -25,6 +27,10 @@ async function build(specs: Spec[]): Promise<Item[]> {
     }
     if ('submenu' in s) {
       out.push(await Submenu.new({ text: s.submenu, items: await build(s.items) }));
+      continue;
+    }
+    if ('item' in s) {
+      out.push(s.item);
       continue;
     }
     const c = command(s.cmd);
@@ -46,6 +52,40 @@ export async function popup(specs: Spec[], at?: { x: number; y: number }) {
   await menu.popup(at ? new LogicalPosition(at.x, at.y) : undefined);
 }
 
+/** Flattens specs into the items of the "Dualion" submenu of Explorer's menu. */
+function shellItems(specs: Spec[]): { id: string; label?: string; enabled?: boolean }[] {
+  const out: { id: string; label?: string; enabled?: boolean }[] = [];
+  for (const s of specs) {
+    if (s === 'sep') {
+      if (out.length && out[out.length - 1].id) out.push({ id: '' });
+    } else if ('cmd' in s) {
+      const k = shortcutOf(s.cmd);
+      const label = s.label ?? t(command(s.cmd)?.label ?? s.cmd);
+      out.push({ id: s.cmd, label: k ? `${label}\t${shortcutLabel(k)}` : label, enabled: s.enabled ?? true });
+    }
+  }
+  while (out.length && !out[out.length - 1].id) out.pop();
+  return out;
+}
+
+/**
+ * Windows: Explorer's own context menu (shell extensions, Send to, Open with…)
+ * with Dualion's commands in a submenu. False when it cannot be shown.
+ */
+async function explorerMenu(tab: Tab, specs: Spec[]): Promise<boolean> {
+  const entries = tab.targets().filter((x) => !(x.flags & F.UP));
+  const paths = entries.map((x) => childLoc(tab.location, x)).flatMap((l) => (l.kind === 'local' ? [l.path] : []));
+  if (!paths.length || paths.length !== entries.length || new Set(paths.map(dirName)).size !== 1) return false;
+  try {
+    const id = await api.shellMenu(paths, entries.every((x) => x.isDir), 'Dualion', shellItems(specs));
+    if (id) run(id);
+    return true;
+  } catch (err) {
+    console.warn('shell menu', err);
+    return false;
+  }
+}
+
 /** Right click on a file. */
 export async function entryMenu(tab: Tab) {
   const items = tab.targets();
@@ -55,6 +95,27 @@ export async function entryMenu(tab: Tab) {
   const single = items.length === 1;
   const isFile = single && !items[0].isDir;
   const archive = items.some((x) => !x.isDir && isArchiveName(x.name));
+  if (isWindows && local) {
+    const dualion: Spec[] = [
+      { cmd: 'view', enabled: isFile },
+      { cmd: 'edit', enabled: isFile },
+      'sep',
+      { cmd: 'copy' },
+      { cmd: 'move' },
+      { cmd: 'duplicate' },
+      'sep',
+      { cmd: 'pack' },
+      ...(archive ? [{ cmd: 'unpack' } as Spec] : []),
+      ...(single && isDiskImage(items[0].name) ? [{ cmd: 'mountImage' } as Spec] : []),
+      { cmd: 'checksum', enabled: items.some((x) => !x.isDir) },
+      'sep',
+      { cmd: 'copyPath' },
+      { cmd: 'copyName' },
+      ...(app.clipboard ? [{ cmd: 'clipPaste' } as Spec] : []),
+    ];
+    if (await explorerMenu(tab, dualion)) return;
+  }
+  if (isMac) return popup(await finderSpecs(tab, { writable, local, single, isFile, archive }));
   const specs: Spec[] = [
     { cmd: 'open' },
     { cmd: 'openWith', enabled: single && !!e && !(e.flags & F.UP) },
@@ -87,6 +148,60 @@ export async function entryMenu(tab: Tab) {
   await popup(specs);
 }
 
+/** "Open With" submenu: the applications registered for the file, default first. */
+async function openWithMenu(path: string): Promise<Submenu> {
+  const apps = await api.openWithApps(path).catch(() => []);
+  const items: Item[] = [];
+  for (const a of apps) {
+    const text = a.default ? `${a.name} (${t('ctx.default')})` : a.name;
+    const action = () => void api.openWith(path, a.path).catch(showError);
+    items.push(a.icon.length ? await IconMenuItem.new({ text, icon: new Uint8Array(a.icon), action }) : await MenuItem.new({ text, action }));
+    if (a.default && apps.length > 1) items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
+  }
+  if (items.length) items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
+  items.push(await MenuItem.new({ text: t('ctx.otherApp'), action: () => run('openWith') }));
+  return Submenu.new({ text: t('ctx.openWith'), items });
+}
+
+/** macOS: Finder's layout first, Dualion's own commands below. */
+async function finderSpecs(
+  tab: Tab,
+  f: { writable: boolean; local: boolean; single: boolean; isFile: boolean; archive: boolean },
+): Promise<Spec[]> {
+  const items = tab.targets();
+  const e = items[0];
+  const loc = f.single && e && !(e.flags & F.UP) ? childLoc(tab.location, e) : null;
+  return [
+    { cmd: 'open' },
+    ...(loc?.kind === 'local' ? [{ item: await openWithMenu(loc.path) } as Spec] : []),
+    ...(e && e.flags & F.PACKAGE ? [{ cmd: 'showPackage' } as Spec] : []),
+    'sep',
+    { cmd: 'delete', label: settings.useTrash ? t('ctx.trash') : undefined, enabled: f.writable },
+    'sep',
+    { cmd: 'properties', enabled: f.local },
+    { cmd: 'rename', enabled: f.single && f.writable },
+    { cmd: 'pack', enabled: f.local },
+    { cmd: 'duplicate', enabled: f.writable },
+    { cmd: 'quickLook', enabled: f.single },
+    'sep',
+    { cmd: 'clipCopy' },
+    { cmd: 'clipCut', enabled: f.writable },
+    ...(app.clipboard ? [{ cmd: 'clipPaste' } as Spec] : []),
+    { cmd: 'copyPath' },
+    { cmd: 'copyName' },
+    'sep',
+    { cmd: 'view', enabled: f.isFile },
+    { cmd: 'edit', enabled: f.isFile },
+    { cmd: 'copy' },
+    { cmd: 'move', enabled: f.writable },
+    ...(f.archive ? [{ cmd: 'unpack' } as Spec] : []),
+    ...(f.single && isDiskImage(e.name) ? [{ cmd: 'mountImage' } as Spec] : []),
+    { cmd: 'checksum', enabled: f.local && items.some((x) => !x.isDir) },
+    'sep',
+    { cmd: 'reveal', enabled: f.local },
+  ];
+}
+
 /** Right click on empty space in a panel. */
 export async function backgroundMenu(tab: Tab) {
   const writable = tab.location.kind === 'local' || tab.location.kind === 'ftp';
@@ -116,6 +231,7 @@ export async function tabMenu(side: import('./state/app.svelte').Side, index: nu
   if (!tab) return;
   const items = [
     await MenuItem.new({ text: t(tab.locked ? 'tabs.unlock' : 'tabs.lock'), action: () => A.toggleLockTab(side, index) }),
+    ...(tab.home ? [] : [await MenuItem.new({ text: t('tabs.lockFolder'), action: () => A.toggleLockTabFolder(side, index) })]),
     await MenuItem.new({ text: t('tabs.rename') + '…', action: () => void A.renameTab(side, index) }),
     await MenuItem.new({ text: t('cmd.duplicateTab'), action: () => void A.duplicateTab(side, index) }),
     await PredefinedMenuItem.new({ item: 'Separator' }),

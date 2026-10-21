@@ -28,6 +28,8 @@ mod util;
 mod vault;
 mod viewer;
 mod watcher;
+#[cfg(windows)]
+mod winshell;
 
 pub(crate) use jobs::archive as archive_index;
 mod arch;
@@ -181,6 +183,8 @@ pub fn run() {
             commands::app_info,
             commands::set_menu,
             commands::drag_out,
+            commands::shell_menu,
+            commands::open_with_apps,
             commands::store_load,
             commands::store_save,
             commands::watch_dirs,

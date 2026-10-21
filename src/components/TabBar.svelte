@@ -1,5 +1,6 @@
 <script lang="ts">
   import Lock from '@lucide/svelte/icons/lock';
+  import LockKeyhole from '@lucide/svelte/icons/lock-keyhole';
   import Plus from '@lucide/svelte/icons/plus';
   import X from '@lucide/svelte/icons/x';
   import { closeTab, newTab, renameTab } from '../lib/actions';
@@ -18,7 +19,43 @@
     return tab.title || '…';
   }
 
-  let dragFrom = -1;
+  /** Tab being dragged to a new position (pointer based: HTML5 drag & drop is taken by file drops). */
+  let dragging = $state<number | null>(null);
+
+  function homeName(tab: Tab): string {
+    const h = tab.home;
+    if (!h) return '';
+    const p = h.kind === 'local' || h.kind === 'ftp' ? h.path : h.kind === 'archive' ? h.archive : '';
+    return p.split(/[\\/]/).filter(Boolean).pop() ?? p;
+  }
+
+  function startDrag(e: PointerEvent) {
+    const bar = (e.currentTarget as HTMLElement).parentElement!;
+    const id = s.tabs[s.active]?.id;
+    const sx = e.clientX;
+    let moved = false;
+    const move = (ev: PointerEvent) => {
+      if (!moved && Math.abs(ev.clientX - sx) < 5) return;
+      moved = true;
+      dragging = id;
+      const from = s.tabs.findIndex((t) => t.id === id);
+      // New index = number of other tabs whose middle lies left of the pointer.
+      let to = 0;
+      bar.querySelectorAll<HTMLElement>('.tab').forEach((el, k) => {
+        if (k === from) return;
+        const r = el.getBoundingClientRect();
+        if (ev.clientX > r.left + r.width / 2) to++;
+      });
+      if (from >= 0 && to !== from) s.moveTab(from, to);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      dragging = null;
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -31,15 +68,13 @@
       class:focus={active && i === s.active}
       class:locked={tab.locked}
       class:last-locked={tab.locked && !s.tabs[i + 1]?.locked}
-      title={tab.locked ? `${label(tab)} – ${t('tabs.locked')}` : label(tab)}
-      draggable="true"
-      ondragstart={() => (dragFrom = i)}
-      ondragover={(e) => e.preventDefault()}
+      class:dragging={dragging === tab.id}
+      title={tab.home
+        ? `${label(tab)} – ${t('tabs.lockedFolder', { name: homeName(tab) })}`
+        : tab.locked
+          ? `${label(tab)} – ${t('tabs.locked')}`
+          : label(tab)}
       ondblclick={() => void renameTab(s, i)}
-      ondrop={() => {
-        if (dragFrom >= 0 && dragFrom !== i) s.moveTab(dragFrom, i);
-        dragFrom = -1;
-      }}
       oncontextmenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -50,11 +85,16 @@
         if (e.button === 1) {
           e.preventDefault();
           closeTab(s, i);
-        } else if (e.button === 0) s.active = i;
+        } else if (e.button === 0) {
+          s.active = i;
+          startDrag(e);
+        }
       }}
     >
       {#if tab.locked}
-        <span class="lock"><Lock size={11} strokeWidth={2.2} /></span>
+        <span class="lock">
+          {#if tab.home}<LockKeyhole size={11} strokeWidth={2.2} />{:else}<Lock size={11} strokeWidth={2.2} />{/if}
+        </span>
       {/if}
       <span class="ellipsis label">{label(tab)}</span>
       {#if !tab.locked && s.tabs.length > 1}
@@ -106,6 +146,10 @@
   }
   .tab:hover {
     background: var(--bg-hover);
+  }
+  .tab.dragging {
+    opacity: 0.75;
+    box-shadow: 0 0 0 1px var(--accent) inset;
   }
   .tab.on {
     background: var(--bg-panel);

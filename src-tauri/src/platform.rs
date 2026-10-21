@@ -157,6 +157,63 @@ pub fn open_with(path: &str, app: &str) -> AppResult<()> {
     }
 }
 
+/// An application that can open a file ("Open With" menu).
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppChoice {
+    pub name: String,
+    pub path: String,
+    pub default: bool,
+    /// Small PNG icon.
+    pub icon: Vec<u8>,
+}
+
+/// Applications registered for `path`, the default one first (macOS).
+pub fn open_with_apps(path: &str) -> Vec<AppChoice> {
+    #[cfg(target_os = "macos")]
+    {
+        use objc2::runtime::NSObjectProtocol;
+        use objc2_app_kit::NSWorkspace;
+        use objc2_foundation::{NSFileManager, NSString, NSURL};
+        objc2::rc::autoreleasepool(|_| {
+            let ws = NSWorkspace::sharedWorkspace();
+            let url = NSURL::fileURLWithPath(&NSString::from_str(path));
+            let default = ws.URLForApplicationToOpenURL(&url).and_then(|u| u.path()).map(|p| p.to_string());
+            let mut paths: Vec<String> = default.iter().cloned().collect();
+            // macOS 12+; older systems only get the default application.
+            if ws.respondsToSelector(objc2::sel!(URLsForApplicationsToOpenURL:)) {
+                for u in ws.URLsForApplicationsToOpenURL(&url).iter() {
+                    if let Some(p) = u.path() {
+                        paths.push(p.to_string());
+                    }
+                }
+            }
+            let fm = NSFileManager::defaultManager();
+            let mut out: Vec<AppChoice> = Vec::new();
+            for p in paths {
+                let name = fm.displayNameAtPath(&NSString::from_str(&p)).to_string();
+                let name = name.strip_suffix(".app").unwrap_or(&name).to_string();
+                if out.iter().any(|a| a.name == name) {
+                    continue;
+                }
+                let icon = crate::icons::macos::image_png(&ws.iconForFile(&NSString::from_str(&p)), 36).unwrap_or_default();
+                out.push(AppChoice { default: Some(&p) == default.as_ref(), name, path: p, icon });
+                if out.len() >= 40 {
+                    break;
+                }
+            }
+            let skip = usize::from(out.first().is_some_and(|a| a.default));
+            out[skip..].sort_by_key(|a| a.name.to_lowercase());
+            out
+        })
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = path;
+        Vec::new()
+    }
+}
+
 pub fn quick_look(path: &str) -> AppResult<()> {
     #[cfg(target_os = "macos")]
     {

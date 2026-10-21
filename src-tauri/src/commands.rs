@@ -157,21 +157,94 @@ pub fn qr_svg(text: String) -> AppResult<String> {
 }
 
 /// Native drag of local files out of the window (to Finder / Explorer / other apps).
+/// Runs on the main thread; failures are reported, never panic the event loop.
 #[tauri::command]
 pub fn drag_out(window: tauri::WebviewWindow, paths: Vec<String>) -> AppResult<()> {
-    let paths: Vec<std::path::PathBuf> = paths.into_iter().map(std::path::PathBuf::from).filter(|p| p.is_absolute()).collect();
-    let Some(first) = paths.first() else { return Ok(()) };
-    let icon = crate::icons::icon_png(crate::icons::IconKey::Path(first.to_string_lossy().into_owned()), 48)
-        .map(|p| p.to_vec())
-        .unwrap_or_else(|| include_bytes!("../icons/32x32.png").to_vec());
-    let w = window.clone();
-    window
-        .run_on_main_thread(move || {
-            if let Err(e) = drag::start_drag(&w, drag::DragItem::Files(paths), drag::Image::Raw(icon), |_, _| {}, drag::Options::default()) {
-                eprintln!("drag out: {e}");
-            }
-        })
-        .map_err(|e| AppError::other(e.to_string()))
+    let paths: Vec<String> = paths.into_iter().filter(|p| std::path::Path::new(p).is_absolute()).collect();
+    if paths.is_empty() {
+        return Ok(());
+    }
+    #[cfg(windows)]
+    {
+        let hwnd = crate::winshell::hwnd_of(&window)?.0 as usize;
+        window
+            .run_on_main_thread(move || {
+                let hwnd = windows::Win32::Foundation::HWND(hwnd as *mut std::ffi::c_void);
+                match std::panic::catch_unwind(|| crate::winshell::drag_out(hwnd, &paths)) {
+                    Ok(Err(e)) => eprintln!("drag out: {e}"),
+                    Err(_) => eprintln!("drag out: panicked"),
+                    Ok(Ok(())) => {}
+                }
+            })
+            .map_err(|e| AppError::other(e.to_string()))
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let first = std::path::PathBuf::from(&paths[0]);
+        let icon = crate::icons::icon_png(crate::icons::IconKey::Path(first.to_string_lossy().into_owned()), 48)
+            .map(|p| p.to_vec())
+            .unwrap_or_else(|| include_bytes!("../icons/32x32.png").to_vec());
+        let files: Vec<std::path::PathBuf> = paths.into_iter().map(std::path::PathBuf::from).collect();
+        let w = window.clone();
+        window
+            .run_on_main_thread(move || {
+                let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    drag::start_drag(&w, drag::DragItem::Files(files), drag::Image::Raw(icon), |_, _| {}, drag::Options::default())
+                }));
+                match r {
+                    Ok(Err(e)) => eprintln!("drag out: {e}"),
+                    Err(_) => eprintln!("drag out: panicked"),
+                    Ok(Ok(())) => {}
+                }
+            })
+            .map_err(|e| AppError::other(e.to_string()))
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        let _ = window;
+        Err(AppError::unsupported("Drag out is not supported here"))
+    }
+}
+
+#[tauri::command]
+pub async fn open_with_apps(path: String) -> Vec<platform::AppChoice> {
+    tauri::async_runtime::spawn_blocking(move || platform::open_with_apps(&path)).await.unwrap_or_default()
+}
+
+/// Explorer's context menu for files (Windows). Returns one of our command
+/// ids to run afterwards, or null. Errors make the frontend use its own menu.
+#[tauri::command]
+pub async fn shell_menu(
+    window: tauri::WebviewWindow,
+    paths: Vec<String>,
+    all_dirs: bool,
+    title: String,
+    items: Vec<serde_json::Value>,
+) -> AppResult<Option<String>> {
+    #[cfg(windows)]
+    {
+        let items: Vec<crate::winshell::AppItem> = items.into_iter().filter_map(|v| serde_json::from_value(v).ok()).collect();
+        let hwnd = crate::winshell::hwnd_of(&window)?.0 as usize;
+        let (tx, rx) = std::sync::mpsc::channel();
+        window
+            .run_on_main_thread(move || {
+                let hwnd = windows::Win32::Foundation::HWND(hwnd as *mut std::ffi::c_void);
+                let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    crate::winshell::context_menu(hwnd, &paths, all_dirs, &title, &items)
+                }))
+                .unwrap_or_else(|_| Err(AppError::other("Shell menu panicked")));
+                let _ = tx.send(r);
+            })
+            .map_err(|e| AppError::other(e.to_string()))?;
+        tauri::async_runtime::spawn_blocking(move || rx.recv().unwrap_or_else(|_| Err(AppError::other("Shell menu closed"))))
+            .await
+            .map_err(|e| AppError::other(e.to_string()))?
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (window, paths, all_dirs, title, items);
+        Err(AppError::unsupported("Shell menu is Windows only"))
+    }
 }
 
 #[tauri::command]

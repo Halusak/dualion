@@ -717,6 +717,17 @@ export function toggleLockTab(side: Side = app.activeSideObj, index = side.activ
   if (tab) side.setLocked(index, !tab.locked);
 }
 
+/** Locks the tab to its current folder (switching back returns there); again = unlock. */
+export function toggleLockTabFolder(side: Side = app.activeSideObj, index = side.active) {
+  const tab = side.tabs[index];
+  if (!tab) return;
+  if (tab.home) return side.setLocked(index, false);
+  const loc = tab.location;
+  if (loc.kind !== 'local' && loc.kind !== 'ftp' && loc.kind !== 'archive' && loc.kind !== 'drives') return;
+  if (!tab.locked) side.setLocked(index, true);
+  tab.home = loc;
+}
+
 /** Gives a tab its own name; an empty name returns to the folder name. */
 export async function renameTab(side: Side = app.activeSideObj, index = side.active) {
   const tab = side.tabs[index];

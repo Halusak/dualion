@@ -29,8 +29,9 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 
 ### Panely a navigace
 
-- **Dva panely s kartami.** Nová karta, duplikace, zavření ostatních, přetažením lze karty přeřadit, prostředním tlačítkem zavřít. Lišta karet sedí těsně u okrajů panelu, aktivní karta aktivního panelu má modrou linku.
+- **Dva panely s kartami.** Nová karta, duplikace, zavření ostatních, přetažením lze karty přeřadit (zamčené i odemčené vždy v rámci své skupiny), prostředním tlačítkem zavřít. Lišta karet sedí těsně u okrajů panelu, aktivní karta aktivního panelu má modrou linku.
 - **Zamčené karty** zůstávají vždy vlevo a nejdou zavřít; procházet se v nich dá normálně.
+- **Karty zamčené se složkou:** uvnitř se dá procházet kamkoli, a když přepnete na jinou kartu a vrátíte se, karta znovu ukáže svou složku.
 - **Přejmenování karet** dvojklikem na kartu nebo pravým klikem → Přejmenovat kartu.
 - **Lišta disků** nad každým panelem (lze vypnout): disky s nativními ikonami, aktuální disk zvýrazněný, pamatuje si poslední složku na každém disku; prostřední tlačítko otevře disk v nové kartě. Tlačítko **Síť** nabídne uložené FTP servery a síťové svazky.
 - **Drobečková navigace**: klik na úroveň vrátí do složky, šipka mezi úrovněmi nabídne podsložky, klik za poslední položku přepne do psaní cesty s našeptávačem (`~`, `$HOME`, `%USERPROFILE%`, relativní cesty; cesta k souboru otevře jeho složku a vybere ho).
@@ -38,7 +39,7 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 - **Rychlé hledání psaním** (skok nebo filtrování) a **rychlý filtr** panelu (maska `*.jpg` i dotazovací jazyk).
 - **Panel rychlého náhledu** (Quick View) v protějším panelu.
 - Živé obnovování složek při změnách na disku, obnovení relace (karty, složky, zobrazení) po spuštění.
-- Označování jako v TC: Insert / mezerník, Num + / − / * (maska, obrácení), stejná přípona, označení se klikem neruší; Ctrl/⌘+klik a Shift+klik jako ve Finderu / Průzkumníku.
+- Označování jako v TC: Insert / mezerník (označí a posune se dál, podržený mezerník značí postupně), Num + / − / * (maska, obrácení), stejná přípona, označení se klikem neruší; Ctrl/⌘+klik a Shift+klik jako ve Finderu / Průzkumníku.
 - Drag & drop mezi panely, z Finderu a Průzkumníka do Dualionu i z Dualionu ven do Finderu, Průzkumníka nebo jiné aplikace.
 
 ![Světlý motiv – sloupce s metadaty fotek a procházení archivu .tar.gz](docs/screenshots/light.png)
@@ -62,6 +63,7 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 - Řešení konfliktů (nahradit / přeskočit / ponechat oba / nahradit starší, „pro všechny“), opakování po chybě, přeskočení chybných souborů.
 - Rychlé kopírování: APFS klonování na macOS (okamžité), `CopyFileExW` na Windows; volitelné ověření kontrolním součtem, zachování časů, omezení rychlosti, filtr masky (`*.jpg;*.png | thumb*`).
 - **Hromadné přejmenování** s náhledem (`[N] [N2-5] [E] [C] [Y][M][D] [h][m][s] [P]`, hledat/nahradit vč. regexu, velikost písmen).
+- **Nativní kontextové menu:** na Windows menu Průzkumníku se všemi rozšířeními (Odeslat do, 7-Zip, OneDrive…) a příkazy Dualionu v podmenu; na macOS menu ve stylu Finderu s „Otevřít v aplikaci“ se seznamem aplikací, které soubor umí otevřít.
 - Otevřít, otevřít v…, zobrazit ve Finderu / Průzkumníku, vlastnosti, Quick Look (macOS), editor F4 a terminál F9 (nastavitelné).
 
 ### Zpět, historie a simulace

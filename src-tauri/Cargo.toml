@@ -81,10 +81,10 @@ tar = "0.4.46"
 bzip2 = "0.6.1"
 lzma-rust2 = "0.23.0"
 zstd = "0.14.3"
-drag = "2.1.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
+drag = "2.1.1"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSData", "NSGeometry", "NSDictionary", "NSArray", "NSObject", "NSURL", "NSError", "NSFileManager"] }
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSWorkspace", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSGraphicsContext", "NSGraphics", "NSColor", "NSColorSpace", "objc2-core-graphics", "objc2-core-foundation"] }
 objc2-core-foundation = "0.3"
@@ -95,6 +95,7 @@ block2 = "0.6"
 objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-app-kit", "WKWebView", "WKSnapshotConfiguration"] }
 
 [target.'cfg(windows)'.dependencies]
+raw-window-handle = "0.6"
 windows = { version = "0.62", features = [
     "Win32_Foundation",
     "Win32_Storage_FileSystem",
@@ -104,7 +105,9 @@ windows = { version = "0.62", features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_Graphics_Gdi",
     "Win32_System_Com",
+    "Win32_System_Ole",
     "Win32_System_Registry",
+    "Win32_UI_Input_KeyboardAndMouse",
     "Win32_System_Time",
 ] }
 

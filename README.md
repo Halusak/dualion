@@ -29,8 +29,9 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
 
 ### Panes and navigation
 
-- **Two panes with tabs.** You can open a new tab, duplicate a tab or close the others. Drag tabs to reorder them and middle-click to close one. The tab strip sits flush with the pane edges, and the active tab of the active pane has a blue accent line.
+- **Two panes with tabs.** You can open a new tab, duplicate a tab or close the others. Drag tabs to reorder them (locked and unlocked tabs each within their own group) and middle-click to close one. The tab strip sits flush with the pane edges, and the active tab of the active pane has a blue accent line.
 - **Locked tabs** always stay on the left and cannot be closed; you can still browse in them.
+- **Tabs locked to a folder:** browse anywhere inside, and when you switch to another tab and come back, the tab shows its folder again.
 - **Renamable tabs:** double-click a tab or right-click it → Rename Tab.
 - **Drive bar** above each pane, which you can turn off:
   - drives with native icons, with the current drive highlighted;
@@ -52,7 +53,7 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
   - folders refresh live when files change on disk;
   - your tabs, folders and views come back after a restart.
 - **TC-style marking:**
-  - Insert / Space marks files;
+  - Insert / Space marks files and moves to the next one (hold Space to mark a run of files);
   - Num + / − / * select by mask or invert the selection;
   - you can select every file with the same extension;
   - clicking does not clear marks;
@@ -116,6 +117,7 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
   - case conversion.
 - **Opening and external tools:**
   - open, or open with another app;
+  - **native context menu:** on Windows Explorer's own menu with all shell extensions (Send to, 7-Zip, OneDrive…) and Dualion's commands in a submenu; on macOS a Finder-style menu with Open With listing the apps that can open the file;
   - reveal in Finder or Explorer;
   - properties;
   - Quick Look on macOS;

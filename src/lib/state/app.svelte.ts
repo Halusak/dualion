@@ -8,7 +8,17 @@ export type SideName = 'left' | 'right';
 
 export class Side {
   tabs = $state<Tab[]>([]);
-  active = $state(0);
+  private _active = $state(0);
+  /** Index of the shown tab. Coming back to a tab locked with its folder shows that folder again. */
+  get active(): number {
+    return this._active;
+  }
+  set active(i: number) {
+    const prev = this.tabs[this._active];
+    this._active = i;
+    const next = this.tabs[i];
+    if (next && next !== prev) next.returnHome();
+  }
   tab = $derived<Tab>(this.tabs[Math.min(this.active, this.tabs.length - 1)]);
 
   constructor(tabs: Tab[]) {
@@ -59,6 +69,7 @@ export class Side {
     if (!tab) return;
     const current = this.tabs[this.active];
     tab.locked = locked;
+    if (!locked) tab.home = null;
     // Locked: last of the locked group. Unlocked: first after it.
     const rest = this.tabs.filter((t) => t !== tab);
     this.setTabs([...rest.filter((t) => t.locked), tab, ...rest.filter((t) => !t.locked)], current);

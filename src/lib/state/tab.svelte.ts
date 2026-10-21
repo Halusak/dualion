@@ -64,6 +64,8 @@ export interface TabSnapshot {
   locked?: boolean;
   /** Name given by the user (empty = folder name). */
   name?: string;
+  /** Folder the tab is locked to. */
+  home?: Location;
 }
 
 export class Tab {
@@ -93,6 +95,8 @@ export class Tab {
   locked = $state(false);
   /** Name given by the user; empty shows the folder name. */
   customTitle = $state('');
+  /** Locked with its folder: switching back to the tab returns here. */
+  home = $state.raw<Location | null>(null);
   /** Owning panel side (set by Side). */
   side: Side | null = null;
   /** Group leaders whose members are listed. */
@@ -128,14 +132,16 @@ export class Tab {
     this.sortDesc = init?.sortDesc ?? false;
     this.locked = init?.locked ?? false;
     this.customTitle = init?.name ?? '';
-    if (init?.location) this.location = init.location;
+    this.home = init?.locked && init.home ? init.home : null;
+    if (this.home) this.location = this.home;
+    else if (init?.location) this.location = init.location;
   }
 
   snapshot(): TabSnapshot {
     let loc: Location = this.location;
     for (let i = this.history.length - 1; loc.kind === 'search' && i >= 0; i--) loc = this.history[i];
     if (loc.kind === 'search' || loc.kind === 'ftp') loc = { kind: 'drives' };
-    return { location: loc, view: this.view, sortKey: this.sortKey, sortDesc: this.sortDesc, locked: this.locked, name: this.customTitle || undefined };
+    return { location: loc, view: this.view, sortKey: this.sortKey, sortDesc: this.sortDesc, locked: this.locked, name: this.customTitle || undefined, home: this.home ?? undefined };
   }
 
   /** Folder key for per-folder column choices. */
@@ -281,6 +287,11 @@ export class Tab {
     if (!sameLoc(this.history[this.history.length - 1], loc)) this.history.push(loc);
     if (this.history.length > 200) this.history.shift();
     this.histPos = this.history.length - 1;
+  }
+
+  /** Tab locked with its folder: back to that folder (called when the tab is shown again). */
+  returnHome() {
+    if (this.home && !sameLoc(this.location, this.home)) void this.navigate(this.home);
   }
 
   /** Loads `loc`. Keeps the old listing on failure (and reports the error). */
