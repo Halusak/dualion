@@ -21,7 +21,7 @@ import DuplicatesDialog from '../components/dialogs/DuplicatesDialog.svelte';
 import { ensureArchiveAccess, mount } from './archives';
 import { renameGroup } from './groups';
 import { pushHistory } from './state/history.svelte';
-import { F, type Entry, type JobRequest, type Location, type SortKey, type ViewMode } from './types';
+import { F, type AppError, type Entry, type JobRequest, type Location, type SortKey, type ViewMode } from './types';
 
 import AboutDialog from '../components/dialogs/AboutDialog.svelte';
 import ChecksumDialog from '../components/dialogs/ChecksumDialog.svelte';
@@ -68,6 +68,7 @@ export async function openEntry(tab: Tab, e: Entry | undefined, opts: { external
   if (e.flags & F.UP) return tab.up();
   const loc = tab.location;
   if (loc.kind === 'drives') return void tab.navigate({ kind: 'local', path: e.name });
+  if (loc.kind === 'network') return void openNetwork(tab, loc.host, e.name);
   const child = entryLoc(tab, e);
   if (e.isDir || (opts.inside && e.flags & F.PACKAGE)) return void tab.navigate(child);
   if (!opts.external && child.kind === 'local' && isArchiveName(e.name)) {
@@ -78,6 +79,32 @@ export async function openEntry(tab: Tab, e: Entry | undefined, opts: { external
     await api.openPath(path);
   } catch (err) {
     showError(err);
+  }
+}
+
+/**
+ * Network place: a computer shows its shares (signing in first when the
+ * computer asks for it), a share is connected and opened as a folder.
+ */
+async function openNetwork(tab: Tab, host: string | undefined, name: string) {
+  try {
+    if (!host) {
+      const target: Location = { kind: 'network', host: name };
+      try {
+        await api.listDir(target);
+      } catch (err) {
+        if ((err as AppError)?.code !== 'PermissionDenied') throw err;
+        // Windows signs in to the computer; macOS lets the user pick shares and mounts them.
+        const path = await api.networkConnect(name, null);
+        if (!isWindows) return void tab.navigate({ kind: 'local', path });
+      }
+      return void tab.navigate(target);
+    }
+    toast(t('net.connecting', { name: `${host}/${name}` }));
+    const path = await api.networkConnect(host, name);
+    await tab.navigate({ kind: 'local', path });
+  } catch (err) {
+    if ((err as AppError)?.code !== 'Cancelled') showError(err);
   }
 }
 
@@ -120,7 +147,7 @@ export async function copyMove(op: 'copy' | 'move', sameDir = false) {
   const dst = app.other;
   const items = src.targets();
   if (!items.length) return nothing();
-  if (src.location.kind === 'drives') return;
+  if (src.location.kind === 'drives' || src.location.kind === 'network') return;
   const extracting = src.location.kind === 'archive';
   if (extracting && op === 'move') op = 'copy';
   const dest = sameDir ? src.location : dst.location;

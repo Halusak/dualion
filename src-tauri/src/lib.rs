@@ -12,6 +12,7 @@ mod index;
 mod jobs;
 mod local;
 mod location;
+mod network;
 mod menu;
 mod platform;
 mod meta;
@@ -185,6 +186,7 @@ pub fn run() {
             commands::drag_out,
             commands::shell_menu,
             commands::open_with_apps,
+            commands::network_connect,
             commands::store_load,
             commands::store_save,
             commands::watch_dirs,

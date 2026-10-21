@@ -10,6 +10,11 @@ pub enum Location {
     Archive { archive: String, inner: String },
     /// "This PC" – list of drives (Windows) / volumes (macOS).
     Drives,
+    /// Computers on the local network, or the shared folders of `host`.
+    Network {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        host: Option<String>,
+    },
 }
 
 impl Location {

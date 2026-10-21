@@ -348,7 +348,7 @@ pub fn open_location(loc: &Location, reg: &FtpRegistry) -> AppResult<(Box<dyn Vf
             Ok((Box::new(FtpFs::connect(ftp_cfg(reg, session)?, session.clone())?), path.clone()))
         }
         Location::Archive { .. } => Err(AppError::unsupported("Writing into archives is not supported")),
-        Location::Drives => Err(AppError::invalid("Choose a folder")),
+        Location::Drives | Location::Network { .. } => Err(AppError::invalid("Choose a folder")),
     }
 }
 
@@ -383,7 +383,7 @@ fn loc_name(loc: &Location) -> String {
                 inner.trim_end_matches('/').rsplit('/').next().unwrap_or(inner).to_string()
             }
         }
-        Location::Drives => String::new(),
+        Location::Drives | Location::Network { .. } => String::new(),
     }
 }
 
@@ -395,7 +395,7 @@ pub fn loc_display(loc: &Location, reg: &FtpRegistry) -> String {
             Err(_) => path.clone(),
         },
         Location::Archive { archive, inner } => format!("{archive}/{inner}"),
-        Location::Drives => String::new(),
+        Location::Drives | Location::Network { .. } => String::new(),
     }
 }
 
@@ -410,7 +410,7 @@ pub fn parent_location(loc: &Location) -> Option<Location> {
         Location::Local { path } => Path::new(path).parent().map(|p| Location::local(path_str(p))),
         Location::Ftp { session, path } => ftp::parent(path).map(|p| Location::Ftp { session: session.clone(), path: p }),
         Location::Archive { archive, .. } => Path::new(archive).parent().map(|p| Location::local(path_str(p))),
-        Location::Drives => None,
+        Location::Drives | Location::Network { .. } => None,
     }
 }
 

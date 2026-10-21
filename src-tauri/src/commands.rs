@@ -206,6 +206,28 @@ pub fn drag_out(window: tauri::WebviewWindow, paths: Vec<String>) -> AppResult<(
     }
 }
 
+/// Connects a network share (system sign-in dialog when needed) and returns
+/// the folder to open. Without `share`: Windows signs in to the computer
+/// (to list its shares), macOS lets the user pick shares to mount.
+#[tauri::command]
+pub async fn network_connect(window: tauri::WebviewWindow, host: String, share: Option<String>) -> AppResult<String> {
+    #[cfg(windows)]
+    {
+        let hwnd = crate::winshell::hwnd_of(&window)?.0 as usize;
+        blocking(move || crate::network::connect(windows::Win32::Foundation::HWND(hwnd as *mut std::ffi::c_void), &host, share.as_deref())).await
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = window;
+        blocking(move || crate::network::mount(&host, share.as_deref())).await
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        let _ = (window, host, share);
+        Err(AppError::unsupported("Not supported here"))
+    }
+}
+
 #[tauri::command]
 pub async fn open_with_apps(path: String) -> Vec<platform::AppChoice> {
     tauri::async_runtime::spawn_blocking(move || platform::open_with_apps(&path)).await.unwrap_or_default()
@@ -286,6 +308,7 @@ pub async fn list_dir(state: State<'_, AppState>, location: Location) -> AppResu
     match location {
         Location::Local { path } => blocking(move || local::list_local(&path)).await,
         Location::Drives => blocking(|| Ok(local::list_drives())).await,
+        Location::Network { host } => blocking(move || crate::network::list(host.as_deref())).await,
         Location::Ftp { session, path } => {
             let s = state.ftp.get(&session)?;
             blocking(move || s.list(&path)).await
@@ -441,7 +464,7 @@ pub async fn materialize(state: State<'_, AppState>, location: Location) -> AppR
             })
             .await
         }
-        Location::Drives => Err(AppError::invalid("Not a file")),
+        Location::Drives | Location::Network { .. } => Err(AppError::invalid("Not a file")),
     }
 }
 

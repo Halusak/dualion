@@ -58,7 +58,10 @@
     app.activeSide = side;
     const el = e.currentTarget as HTMLElement;
     const r = el.getBoundingClientRect();
-    const items: (MenuItem | PredefinedMenuItem)[] = [];
+    const items: (MenuItem | PredefinedMenuItem)[] = [
+      await MenuItem.new({ text: t('net.neighborhood'), action: () => tab.navigate({ kind: 'network' }) }),
+      await PredefinedMenuItem.new({ item: 'Separator' }),
+    ];
     const sites = await api.sitesList().catch(() => []);
     for (const s of sites) {
       items.push(

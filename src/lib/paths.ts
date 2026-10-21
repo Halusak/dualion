@@ -53,6 +53,8 @@ export function locKey(loc: Location): string {
       return `arc:${loc.archive}!${loc.inner.replace(/^\/+|\/+$/g, '')}`;
     case 'drives':
       return 'drives';
+    case 'network':
+      return `net:${(loc.host ?? '').toLowerCase()}`;
     case 'search':
       return `search:${loc.id}`;
     case 'query':
@@ -76,6 +78,10 @@ export function childLoc(dir: Location, e: Entry): Location {
       return { kind: 'archive', archive: dir.archive, inner: dir.inner ? `${dir.inner}/${e.name}` : e.name };
     case 'drives':
       return { kind: 'local', path: e.name };
+    case 'network':
+      // Shares open by UNC path on Windows; macOS mounts them first (see openEntry).
+      if (!dir.host) return { kind: 'network', host: e.name };
+      return isWindows ? { kind: 'local', path: `\\\\${dir.host}\\${e.name}` } : dir;
     case 'search':
     case 'query':
       return { kind: 'local', path: e.name };
@@ -100,6 +106,8 @@ export function parentLoc(loc: Location): Location | null {
       const i = loc.inner.lastIndexOf('/');
       return { kind: 'archive', archive: loc.archive, inner: i < 0 ? '' : loc.inner.slice(0, i) };
     }
+    case 'network':
+      return loc.host ? { kind: 'network' } : null;
     default:
       return null;
   }
@@ -116,6 +124,8 @@ export function locPath(loc: Location): string {
       return loc.inner ? `${loc.archive}${SEP}${loc.inner.replaceAll('/', SEP)}` : loc.archive;
     case 'drives':
       return '';
+    case 'network':
+      return loc.host ? `\\\\${loc.host}` : '';
     case 'search':
     case 'query':
       return loc.label;

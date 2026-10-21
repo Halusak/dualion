@@ -16,6 +16,7 @@
   function label(tab: Tab): string {
     if (tab.customTitle) return tab.customTitle;
     if (tab.location.kind === 'drives') return t(isWindows ? 'place.drivesWin' : 'place.drivesMac');
+    if (tab.location.kind === 'network') return tab.location.host ?? t('drives.network');
     return tab.title || '…';
   }
 

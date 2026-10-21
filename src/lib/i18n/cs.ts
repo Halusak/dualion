@@ -321,6 +321,8 @@ export const cs: Record<Key, string> & Record<string, string> = {
   'sem.assistantHint': 'Volitelný – převádí věty jako „najdi videa z loňska větší než 1 GB“ na přesný dotaz. Bez něj to zvládnou vestavěná pravidla pro běžné obraty.',
   'viewer.syntax': 'Barvy syntaxe',
   'drives.network': 'Síť',
+  'net.neighborhood': 'Počítače v síti',
+  'net.connecting': 'Připojuji {name}…',
   'cmd.toggleDriveBar': 'Lišta disků',
   'cmd.nextTab': 'Další karta',
   'cmd.prevTab': 'Předchozí karta',

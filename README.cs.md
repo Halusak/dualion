@@ -34,6 +34,7 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 - **Karty zamčené se složkou:** uvnitř se dá procházet kamkoli, a když přepnete na jinou kartu a vrátíte se, karta znovu ukáže svou složku.
 - **Přejmenování karet** dvojklikem na kartu nebo pravým klikem → Přejmenovat kartu.
 - **Lišta disků** nad každým panelem (lze vypnout): disky s nativními ikonami, aktuální disk zvýrazněný, pamatuje si poslední složku na každém disku; prostřední tlačítko otevře disk v nové kartě. Tlačítko **Síť** nabídne uložené FTP servery a síťové svazky.
+- **Místa v síti** (jako Síť v TC): počítače v místní síti → jejich sdílené složky → připojení a procházení. Windows ukáže počítače jako Průzkumník a o přihlášení se zeptá systémovým oknem; macOS najde SMB servery přes Bonjour a připojí je stejnými dialogy jako Finder.
 - **Drobečková navigace**: klik na úroveň vrátí do složky, šipka mezi úrovněmi nabídne podsložky, klik za poslední položku přepne do psaní cesty s našeptávačem (`~`, `$HOME`, `%USERPROFILE%`, relativní cesty; cesta k souboru otevře jeho složku a vybere ho).
 - Místa (Domov, Plocha, Dokumenty, Stažené…), **oblíbené složky** (hotlist), historie zpět/vpřed, položka „..“, skryté soubory, „Tento počítač“ / „Disky“ s volným místem.
 - **Rychlé hledání psaním** (skok nebo filtrování) a **rychlý filtr** panelu (maska `*.jpg` i dotazovací jazyk).

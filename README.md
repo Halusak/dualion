@@ -38,6 +38,7 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
   - each drive remembers the last folder you used on it;
   - middle-click opens a drive in a new tab;
   - the **Network** button lists saved FTP servers and network volumes.
+- **Network place** (like TC's Network Neighborhood): computers on the local network → their shared folders → connect and browse. Windows lists the computers Explorer shows and asks for credentials with the system dialog; macOS finds SMB servers via Bonjour and connects with Finder's dialogs.
 - **Breadcrumbs:**
   - click a segment to go to that folder;
   - click the chevron between segments to list subfolders;

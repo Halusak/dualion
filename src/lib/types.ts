@@ -3,6 +3,8 @@ export type Location =
   | { kind: 'ftp'; session: string; path: string }
   | { kind: 'archive'; archive: string; inner: string }
   | { kind: 'drives' }
+  /** Computers on the local network, or the shared folders of `host`. */
+  | { kind: 'network'; host?: string }
   /** Frontend only: search results fed into a panel. */
   | { kind: 'search'; id: string; label: string }
   /** Frontend only: a saved index query ("smart folder"), re-run on open. */
@@ -49,7 +51,7 @@ export interface Entry {
 
 export interface Crumb {
   label: string;
-  icon: 'drives' | 'volume' | 'home' | 'server' | 'archive' | 'folder';
+  icon: 'drives' | 'network' | 'volume' | 'home' | 'server' | 'archive' | 'folder';
   location: Location;
 }
 

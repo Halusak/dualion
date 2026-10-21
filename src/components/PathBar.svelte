@@ -3,6 +3,7 @@
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import HardDrive from '@lucide/svelte/icons/hard-drive';
   import House from '@lucide/svelte/icons/house';
+  import Globe from '@lucide/svelte/icons/globe';
   import Monitor from '@lucide/svelte/icons/monitor';
   import Server from '@lucide/svelte/icons/server';
   import Archive from '@lucide/svelte/icons/archive';
@@ -66,6 +67,7 @@
 
   function crumbLabel(c: Crumb): string {
     if (c.icon === 'drives') return t(isWindows ? 'place.drivesWin' : 'place.drivesMac');
+    if (c.icon === 'network') return t('drives.network');
     return c.label || '/';
   }
 
@@ -158,6 +160,8 @@
       <Server size={15} strokeWidth={1.75} />
     {:else if tab.location.kind === 'drives'}
       <Monitor size={15} strokeWidth={1.75} />
+    {:else if tab.location.kind === 'network'}
+      <Globe size={15} strokeWidth={1.75} />
     {:else}
       <HardDrive size={15} strokeWidth={1.75} />
     {/if}

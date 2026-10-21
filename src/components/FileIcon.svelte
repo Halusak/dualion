@@ -49,6 +49,11 @@
   const src = $derived.by(() => {
     if (entry.flags & F.UP) return null;
     if (entry.flags & F.VOLUME) return pathIconUrl(entry.name, px);
+    if (location.kind === 'network') {
+      // Windows: the shell's computer / share icons; macOS: folders.
+      if (!isWindows) return kindIconUrl('dir', px);
+      return pathIconUrl(location.host ? `\\\\${location.host}\\${entry.name}` : `\\\\${entry.name}`, px);
+    }
     const cloud = (entry.flags & F.CLOUD) !== 0;
     if (localPath && (entry.flags & F.PACKAGE || (PER_FILE.has(ext) && !cloud) || (entry.isDir && special.has(localPath.toLowerCase())))) {
       return pathIconUrl(localPath, px);

@@ -161,10 +161,15 @@ pub fn local_parent(dir: &Path) -> Option<Location> {
     match dir.parent() {
         Some(p) if !p.as_os_str().is_empty() => Some(Location::local(path_str(p))),
         _ => {
-            if cfg!(windows) && !path_str(dir).starts_with("\\\\") {
-                Some(Location::Drives)
-            } else {
+            let s = path_str(dir);
+            if !cfg!(windows) {
                 None
+            } else if let Some(unc) = s.strip_prefix("\\\\") {
+                // Share root "\\server\share" → the server's shares in the Network place.
+                let host = unc.split('\\').next().unwrap_or("");
+                (!host.is_empty() && host != "?" && host != ".").then(|| Location::Network { host: Some(host.to_string()) })
+            } else {
+                Some(Location::Drives)
             }
         }
     }
@@ -196,8 +201,16 @@ pub fn local_crumbs(dir: &Path) -> Vec<Crumb> {
             };
             acc.push(prefix.as_os_str());
             acc.push("\\");
-            let icon = if matches!(prefix.kind(), Prefix::UNC(..) | Prefix::VerbatimUNC(..)) { "server" } else { "volume" };
-            crumbs.push(Crumb { label, icon, location: Location::local(path_str(&acc)) });
+            if let Prefix::UNC(server, share) = prefix.kind() {
+                // Network › server › share
+                let server = server.to_string_lossy().into_owned();
+                crumbs[0] = Crumb { label: String::new(), icon: "network", location: Location::Network { host: None } };
+                crumbs.push(Crumb { label: server.clone(), icon: "server", location: Location::Network { host: Some(server) } });
+                crumbs.push(Crumb { label: share.to_string_lossy().into_owned(), icon: "volume", location: Location::local(path_str(&acc)) });
+            } else {
+                let icon = if matches!(prefix.kind(), Prefix::VerbatimUNC(..)) { "server" } else { "volume" };
+                crumbs.push(Crumb { label, icon, location: Location::local(path_str(&acc)) });
+            }
             i = 2; // prefix + root dir
         }
     }
