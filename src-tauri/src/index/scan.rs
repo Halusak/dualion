@@ -169,7 +169,7 @@ mod tests {
         assert_eq!((d.files, d.dirs), (2, 3));
         let q = Query::parse("hello").unwrap();
         let (ids, _) = d.search(&q, &q.name_words(), None, 10, &|| false);
-        assert_eq!(d.path(ids[0]), root.join("a/b/hello.txt").to_string_lossy());
+        assert_eq!(d.path(ids[0]), root.join("a").join("b").join("hello.txt").to_string_lossy());
         std::fs::remove_dir_all(&root).unwrap();
     }
 
