@@ -69,6 +69,13 @@ pub fn batch_rename(dir: &str, pairs: Vec<RenamePair>) -> AppResult<Vec<RenameOu
     // Phase 2: give them their final names (restore on failure).
     for (i, tmp) in staged {
         let dst = base.join(&out[i].to);
+        // A source that was meant to make room may have stayed (its own new
+        // name was rejected): never replace it, rename() would do so silently.
+        if fs::symlink_metadata(&dst).is_ok() {
+            let _ = fs::rename(&tmp, base.join(&out[i].from));
+            out[i].error = Some(AppError::new(ErrorCode::AlreadyExists, "Target already exists").with_path(&dst));
+            continue;
+        }
         if let Err(e) = fs::rename(&tmp, &dst) {
             let _ = fs::rename(&tmp, base.join(&out[i].from));
             out[i].error = Some(AppError::io(e, &dst));
@@ -102,6 +109,25 @@ mod tests {
         assert_eq!(fs::read_to_string(dir.join("a.txt")).unwrap(), "B");
         assert_eq!(fs::read_to_string(dir.join("b.txt")).unwrap(), "A");
         assert_eq!(fs::read_to_string(dir.join("c.txt")).unwrap(), "C");
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// a→b may replace b only when b really moved away; here b's own new
+    /// name is rejected, so b stays and must not be overwritten.
+    #[test]
+    fn never_overwrites_a_source_that_stayed() {
+        let dir = std::env::temp_dir().join(format!("dualion-ren-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("a.txt"), "A").unwrap();
+        fs::write(dir.join("b.txt"), "B").unwrap();
+        let res = batch_rename(
+            &dir.to_string_lossy(),
+            vec![RenamePair { from: "a.txt".into(), to: "b.txt".into() }, RenamePair { from: "b.txt".into(), to: "bad/name".into() }],
+        )
+        .unwrap();
+        assert!(res[0].error.is_some() && res[1].error.is_some());
+        assert_eq!(fs::read_to_string(dir.join("a.txt")).unwrap(), "A");
+        assert_eq!(fs::read_to_string(dir.join("b.txt")).unwrap(), "B");
         fs::remove_dir_all(&dir).unwrap();
     }
 }

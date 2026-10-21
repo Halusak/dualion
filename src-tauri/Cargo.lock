@@ -1500,6 +1500,7 @@ dependencies = [
  "regex",
  "russh",
  "russh-sftp",
+ "same-file",
  "serde",
  "serde_json",
  "sevenz-rust2",

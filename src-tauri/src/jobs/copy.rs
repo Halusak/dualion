@@ -175,7 +175,10 @@ pub fn run(ctx: &JobCtx) -> AppResult<()> {
         };
         let mut overwrite = false;
         if let Some(t) = existing {
-            if same_fs && same_path(&item.src, &target) {
+            // The same file under another path (symlinked folder, /Volumes/Macintosh HD,
+            // hard link, mapped drive…): overwriting it would destroy the source.
+            let same_file = same_fs && dst_fs.is_local() && same_file::is_same_file(&item.src, &target).unwrap_or(false);
+            if same_fs && (same_file || same_path(&item.src, &target)) {
                 if is_move {
                     ctx.skip(item.meta.size);
                     continue;

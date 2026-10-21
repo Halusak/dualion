@@ -69,7 +69,8 @@ pub fn run(ctx: &JobCtx) -> AppResult<()> {
                 Kind::File => fs.remove_file(path),
                 Kind::Dir => fs.remove_dir(path),
                 Kind::LinkDir => {
-                    if cfg!(windows) {
+                    // Windows directory links / junctions are removed as folders; remote links as files.
+                    if cfg!(windows) && fs.is_local() {
                         fs.remove_dir(path)
                     } else {
                         fs.remove_file(path)

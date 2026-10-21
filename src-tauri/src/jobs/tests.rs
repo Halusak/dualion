@@ -156,6 +156,28 @@ fn move_across_volumes() {
     fs::remove_dir_all(&dst).unwrap();
 }
 
+/// Copying / moving a file onto itself through another path (a symlinked
+/// folder) with "overwrite" must never destroy it.
+#[cfg(unix)]
+#[test]
+fn never_overwrites_the_source_through_an_alias() {
+    let mgr = manager();
+    let root = tmp();
+    fs::create_dir_all(root.join("real")).unwrap();
+    let big = vec![9u8; 3 * 1024 * 1024];
+    fs::write(root.join("real/small.txt"), "keep me").unwrap();
+    fs::write(root.join("real/big.bin"), &big).unwrap();
+    std::os::unix::fs::symlink(root.join("real"), root.join("alias")).unwrap();
+    let sources = vec![loc(&root.join("real/small.txt")), loc(&root.join("real/big.bin"))];
+    for op in [JobOp::Copy, JobOp::Move] {
+        let s = run(&mgr, req(op, sources.clone(), Some(loc(&root.join("alias"))), ConflictPolicy::Overwrite));
+        assert_eq!(s.status, JobStatus::Done, "{op:?}: {:?}", s.error);
+        assert_eq!(fs::read_to_string(root.join("real/small.txt")).unwrap(), "keep me", "{op:?}");
+        assert_eq!(fs::read(root.join("real/big.bin")).unwrap(), big, "{op:?}");
+    }
+    fs::remove_dir_all(&root).unwrap();
+}
+
 #[test]
 fn move_with_new_name_is_rename() {
     let mgr = manager();

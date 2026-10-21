@@ -404,7 +404,12 @@ pub async fn rename_item(state: State<'_, AppState>, dir: Location, from: String
             blocking(move || {
                 local::check_name(&to)?;
                 let (a, b) = (remote::join(&path, &from), remote::join(&path, &to));
-                s.fs().rename(&a, &b).map_err(|e| if e.code == ErrorCode::CrossesDevices { AppError::unsupported("This server cannot rename folders – move them instead") } else { e })
+                let fs = s.fs();
+                // Many servers (and S3, rclone, docker mv) replace an existing target silently.
+                if from.to_lowercase() != to.to_lowercase() && fs.stat(&b)?.is_some() {
+                    return Err(AppError::new(ErrorCode::AlreadyExists, "Target already exists").with_path(&b));
+                }
+                fs.rename(&a, &b).map_err(|e| if e.code == ErrorCode::CrossesDevices { AppError::unsupported("This server cannot rename folders – move them instead") } else { e })
             })
             .await
         }
