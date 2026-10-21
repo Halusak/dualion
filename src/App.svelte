@@ -212,6 +212,12 @@
         for (const tab of app.visibleTabs()) if (keys.has(locKey(tab.location))) void tab.reload();
       }),
     );
+    unlisteners.push(
+      listen('network-changed', () => {
+        // Background discovery found other computers: refresh open Network places.
+        for (const tab of app.visibleTabs()) if (tab.location.kind === 'network' && !tab.location.host) void tab.reload();
+      }),
+    );
     unlisteners.push(listen('close-requested', () => void confirmQuit()));
     unlisteners.push(
       getCurrentWebview().onDragDropEvent((ev) => {

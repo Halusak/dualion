@@ -5,17 +5,79 @@
 //! shares via NetShareEnum, credentials via the system dialog (WNet).
 //! macOS: computers via Bonjour (`_smb._tcp`), shares via `smbutil view`,
 //! mounting via NetFS (the same dialogs as in Finder).
+//!
+//! Like Total Commander, the place opens at once with what is already known
+//! (computers found last time, servers of connected drives / volumes and,
+//! on Windows, the Network shortcuts); discovery runs in the background and
+//! the panel refreshes when it finds something new.
 
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::location::{flags, Crumb, Entry, Listing, Location};
+use parking_lot::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
+
+/// Computers found by the last discovery (also kept on disk).
+static KNOWN: Mutex<Option<Vec<String>>> = Mutex::new(None);
+static LAST_SCAN: Mutex<Option<Instant>> = Mutex::new(None);
+static SCANNING: AtomicBool = AtomicBool::new(false);
+static NOTIFY: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
+
+/// Called when background discovery changed the list of computers.
+pub fn set_notify(f: impl Fn() + Send + Sync + 'static) {
+    let _ = NOTIFY.set(Box::new(f));
+}
+
+fn cache_file() -> std::path::PathBuf {
+    crate::platform::data_dir().join("network-hosts.json")
+}
+
+fn known() -> Vec<String> {
+    let mut k = KNOWN.lock();
+    if k.is_none() {
+        *k = Some(std::fs::read(cache_file()).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default());
+    }
+    k.clone().unwrap_or_default()
+}
+
+/// Looks for computers in the background (at most every 30 s).
+fn scan_in_background() {
+    if LAST_SCAN.lock().is_some_and(|t| t.elapsed() < Duration::from_secs(30)) || SCANNING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    std::thread::Builder::new()
+        .name("network-scan".into())
+        .spawn(|| {
+            let mut found = hosts();
+            found.sort_by_key(|n| n.to_lowercase());
+            found.dedup();
+            let changed = known() != found;
+            if changed {
+                let _ = std::fs::write(cache_file(), serde_json::to_vec(&found).unwrap_or_default());
+                *KNOWN.lock() = Some(found);
+            }
+            *LAST_SCAN.lock() = Some(Instant::now());
+            SCANNING.store(false, Ordering::SeqCst);
+            if changed {
+                if let Some(n) = NOTIFY.get() {
+                    n();
+                }
+            }
+        })
+        .ok();
+}
 
 pub fn list(host: Option<&str>) -> AppResult<Listing> {
     let root = Crumb { label: String::new(), icon: "network", location: Location::Network { host: None } };
     match host {
         None => {
-            let mut names = hosts();
-            names.sort_by_key(|n| n.to_lowercase());
-            names.dedup();
+            // Known at once: last discovery, servers in use, network shortcuts ("\\server\share").
+            let mut names = known();
+            names.extend(quick_places());
+            names.sort_by_key(|n| (n.starts_with("\\\\"), n.to_lowercase()));
+            names.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+            scan_in_background();
             Ok(Listing {
                 location: Location::Network { host: None },
                 display_path: String::new(),
@@ -41,6 +103,16 @@ pub fn list(host: Option<&str>) -> AppResult<Listing> {
 
 fn auth_needed(host: &str) -> AppError {
     AppError::new(ErrorCode::PermissionDenied, "Sign in to see the shared folders").with_path(host)
+}
+
+/// "//user@nas._smb._tcp.local/Share" → "nas.local".
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn server_of_mount(from: &str) -> Option<String> {
+    let rest = from.strip_prefix("//")?;
+    let rest = rest.rsplit_once('@').map_or(rest, |(_, r)| r);
+    let server = percent_encoding::percent_decode_str(rest.split('/').next()?).decode_utf8_lossy().into_owned();
+    let server = server.replace("._smb._tcp", "").replace("._afpovertcp._tcp", "");
+    (!server.is_empty()).then_some(server)
 }
 
 /// Lines of `smbutil view` → disk share names (no hidden `$` shares).
@@ -166,29 +238,52 @@ mod imp {
         unsafe { DNSServiceRefDeallocate(r) };
 
         let me = hostname();
+        // Resolve all services at once (each may take up to a second).
+        let jobs: Vec<_> = found.into_iter().map(|f| std::thread::spawn(move || resolve(f))).collect();
         let mut out = Vec::new();
-        for f in found {
-            let mut host: Option<String> = None;
-            let mut rr: DnsRef = std::ptr::null_mut();
-            let (Ok(name), Ok(domain)) = (CString::new(f.name.clone()), CString::new(f.domain)) else { continue };
-            let err = unsafe {
-                DNSServiceResolve(&mut rr, 0, f.iface, name.as_ptr(), ty.as_ptr(), domain.as_ptr(), on_resolve, &mut host as *mut _ as *mut c_void)
-            };
+        for h in jobs.into_iter().filter_map(|j| j.join().ok()) {
+            // This Mac's own sharing is not a place to go to.
+            if me.as_deref().is_some_and(|m| h.eq_ignore_ascii_case(m)) || out.contains(&h) {
+                continue;
+            }
+            out.push(h);
+        }
+        out
+    }
+
+    fn resolve(f: Found) -> String {
+        let ty = CString::new("_smb._tcp").unwrap();
+        let mut host: Option<String> = None;
+        let mut rr: DnsRef = std::ptr::null_mut();
+        if let (Ok(name), Ok(domain)) = (CString::new(f.name.clone()), CString::new(f.domain.clone())) {
+            let err = unsafe { DNSServiceResolve(&mut rr, 0, f.iface, name.as_ptr(), ty.as_ptr(), domain.as_ptr(), on_resolve, &mut host as *mut _ as *mut c_void) };
             if err == 0 && !rr.is_null() {
                 let h = &host as *const Option<String>;
                 pump(rr, Instant::now() + Duration::from_millis(1000), &|| unsafe { (*h).is_some() });
                 unsafe { DNSServiceRefDeallocate(rr) };
             }
-            let h = host.unwrap_or_else(|| format!("{}.local", f.name.replace(' ', "-")));
-            // This Mac's own sharing is not a place to go to.
-            if me.as_deref().is_some_and(|m| h.eq_ignore_ascii_case(m)) {
-                continue;
-            }
-            if !out.contains(&h) {
-                out.push(h);
-            }
         }
-        out
+        host.unwrap_or_else(|| format!("{}.local", f.name.replace(' ', "-")))
+    }
+
+    /// Servers of mounted SMB / AFP volumes.
+    pub fn quick_places() -> Vec<String> {
+        let mut buf: *mut libc::statfs = std::ptr::null_mut();
+        let n = unsafe { libc::getmntinfo(&mut buf, libc::MNT_NOWAIT) };
+        if n <= 0 || buf.is_null() {
+            return Vec::new();
+        }
+        let all = unsafe { std::slice::from_raw_parts(buf, n as usize) };
+        all.iter()
+            .filter_map(|m| {
+                let fs = unsafe { CStr::from_ptr(m.f_fstypename.as_ptr()) }.to_string_lossy().into_owned();
+                if fs != "smbfs" && fs != "afpfs" {
+                    return None;
+                }
+                let from = unsafe { CStr::from_ptr(m.f_mntfromname.as_ptr()) }.to_string_lossy().into_owned();
+                server_of_mount(&from)
+            })
+            .collect()
     }
 
     fn hostname() -> Option<String> {
@@ -282,6 +377,59 @@ mod imp {
         IEnumIDList, ILFree, IShellFolder, SHGetDesktopFolder, SHGetKnownFolderIDList, StrRetToStrW, FOLDERID_NetworkFolder, SHCONTF_FOLDERS,
         SHGDN_FORPARSING,
     };
+
+    /// Servers of connected network drives and the user's Network shortcuts
+    /// (as `\\\\server\\share`).
+    pub fn quick_places() -> Vec<String> {
+        use windows::Win32::NetworkManagement::WNet::WNetGetConnectionW;
+        let mut out = Vec::new();
+        for v in crate::local::volumes().into_iter().filter(|v| v.kind == "network") {
+            let letter = HSTRING::from(v.path.trim_end_matches('\\'));
+            let mut buf = [0u16; 512];
+            let mut len = buf.len() as u32;
+            if unsafe { WNetGetConnectionW(&letter, Some(PWSTR(buf.as_mut_ptr())), &mut len) }.0 == 0 {
+                let unc = String::from_utf16_lossy(&buf[..buf.iter().position(|&c| c == 0).unwrap_or(0)]);
+                if let Some(host) = unc.strip_prefix("\\\\").and_then(|r| r.split('\\').next()) {
+                    out.push(host.to_string());
+                }
+            }
+        }
+        out.extend(network_shortcuts());
+        out
+    }
+
+    /// Targets of the shortcuts in "Network shortcuts" (This PC › Network locations).
+    fn network_shortcuts() -> Vec<String> {
+        use windows::Win32::System::SystemServices::SFGAO_LINK;
+        use windows::Win32::UI::Shell::{IEnumShellItems, IShellItem, SHCreateItemFromIDList, BHID_EnumItems, BHID_LinkTargetItem, FOLDERID_NetHood, SIGDN_DESKTOPABSOLUTEPARSING};
+        let _ = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+        let mut out = Vec::new();
+        unsafe {
+            let Ok(pidl) = SHGetKnownFolderIDList(&FOLDERID_NetHood, 0, None) else { return out };
+            let folder: windows::core::Result<IShellItem> = SHCreateItemFromIDList(pidl);
+            ILFree(Some(pidl));
+            let Ok(folder) = folder else { return out };
+            let Ok(en) = folder.BindToHandler::<_, IEnumShellItems>(None::<&IBindCtx>, &BHID_EnumItems) else { return out };
+            loop {
+                let mut one = [None];
+                let mut got = 0u32;
+                if en.Next(&mut one, Some(&mut got)).is_err() || got == 0 {
+                    break;
+                }
+                let Some(item) = one[0].take() else { continue };
+                let link = item.GetAttributes(SFGAO_LINK).map(|a| a.0 & SFGAO_LINK.0 != 0).unwrap_or(false);
+                let target = if link { item.BindToHandler::<_, IShellItem>(None::<&IBindCtx>, &BHID_LinkTargetItem).unwrap_or(item) } else { item };
+                if let Ok(p) = target.GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING) {
+                    let s = p.to_string().unwrap_or_default();
+                    CoTaskMemFree(Some(p.0 as *const _));
+                    if s.starts_with("\\\\") {
+                        out.push(s.trim_end_matches('\\').to_string());
+                    }
+                }
+            }
+        }
+        out
+    }
 
     /// Computers in Explorer's Network folder (WS-Discovery + NetBIOS).
     pub fn hosts() -> Vec<String> {
@@ -380,6 +528,9 @@ mod imp {
     pub fn hosts() -> Vec<String> {
         Vec::new()
     }
+    pub fn quick_places() -> Vec<String> {
+        Vec::new()
+    }
     pub fn shares(host: &str) -> AppResult<Vec<String>> {
         Err(auth_needed(host))
     }
@@ -390,6 +541,13 @@ pub use imp::*;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn servers_of_mounts() {
+        assert_eq!(server_of_mount("//jan@NAS._smb._tcp.local/Fotky").as_deref(), Some("NAS.local"));
+        assert_eq!(server_of_mount("//nas.lan/Share").as_deref(), Some("nas.lan"));
+        assert_eq!(server_of_mount("/dev/disk3s1"), None);
+    }
 
     #[test]
     fn parses_smbutil_view() {

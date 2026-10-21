@@ -63,14 +63,17 @@
     app.activeSide = side;
     const el = e.currentTarget as HTMLElement;
     const r = el.getBoundingClientRect();
-    const items: (MenuItem | PredefinedMenuItem)[] = [
-      await MenuItem.new({ text: t('net.neighborhood'), action: () => tab.navigate({ kind: 'network' }) }),
-      await PredefinedMenuItem.new({ item: 'Separator' }),
-    ];
+    const items: (MenuItem | PredefinedMenuItem)[] = [await MenuItem.new({ text: t('net.neighborhood'), action: () => tab.navigate({ kind: 'network' }) })];
+    // One separator between groups, never two in a row or at the end.
+    let pendingSep = true;
+    const add = async (item: MenuItem) => {
+      if (pendingSep && items.length) items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
+      pendingSep = false;
+      items.push(item);
+    };
+    const group = () => (pendingSep = true);
     const [sites, sources] = await Promise.all([api.sitesList().catch(() => []), remoteSources()]);
-    for (const s of sites) {
-      items.push(await MenuItem.new({ text: s.name || s.host, action: () => openSite(tab, s.id) }));
-    }
+    for (const s of sites) await add(await MenuItem.new({ text: s.name || s.host, action: () => openSite(tab, s.id) }));
     // Android devices, containers and rclone remotes found on this computer.
     const kinds = [
       ['mtp', 'net.mtp'],
@@ -81,18 +84,17 @@
     for (const [kind, label] of kinds) {
       const list = sources.filter((x) => x.protocol === kind);
       if (!list.length) continue;
-      if (items.length) items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
-      items.push(await MenuItem.new({ text: t(label), enabled: false }));
+      group();
+      await add(await MenuItem.new({ text: t(label), enabled: false }));
       for (const src of list) {
         const text = src.detail && src.detail !== src.name ? `${src.name}  (${src.detail})` : src.name;
-        items.push(await MenuItem.new({ text, action: () => openSource(tab, src) }));
+        await add(await MenuItem.new({ text, action: () => openSource(tab, src) }));
       }
     }
-    const net = volumes.list.filter((v) => v.kind === 'network');
-    if (items.length && net.length) items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
-    for (const v of net) items.push(await MenuItem.new({ text: v.name, action: () => tab.navigate({ kind: 'local', path: v.path }) }));
-    if (items.length) items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
-    items.push(await MenuItem.new({ text: t('cmd.ftpConnect'), action: () => run('ftpConnect') }));
+    group();
+    for (const v of volumes.list.filter((v) => v.kind === 'network')) await add(await MenuItem.new({ text: v.name, action: () => tab.navigate({ kind: 'local', path: v.path }) }));
+    group();
+    await add(await MenuItem.new({ text: t('cmd.ftpConnect'), action: () => run('ftpConnect') }));
     const menu = await Menu.new({ items });
     await menu.popup(new LogicalPosition(r.left, r.bottom));
   }

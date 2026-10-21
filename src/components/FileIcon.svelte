@@ -52,6 +52,7 @@
     if (location.kind === 'network') {
       // Windows: the shell's computer / share icons; macOS: folders.
       if (!isWindows) return kindIconUrl('dir', px);
+      if (entry.name.startsWith('\\\\')) return pathIconUrl(entry.name, px);
       return pathIconUrl(location.host ? `\\\\${location.host}\\${entry.name}` : `\\\\${entry.name}`, px);
     }
     const cloud = (entry.flags & F.CLOUD) !== 0;

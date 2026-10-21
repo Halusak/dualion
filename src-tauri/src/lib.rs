@@ -111,6 +111,10 @@ pub fn run() {
             let config_dir = app.path().app_config_dir()?;
             let data_dir = app.path().app_data_dir()?;
             platform::set_data_dir(data_dir.clone());
+            let notify = handle.clone();
+            network::set_notify(move || {
+                let _ = notify.emit("network-changed", ());
+            });
             if let Ok(cache) = app.path().app_cache_dir() {
                 thumbs::set_cache_dir(cache.join("thumbs"));
             }

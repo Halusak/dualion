@@ -89,6 +89,8 @@ export async function openEntry(tab: Tab, e: Entry | undefined, opts: { external
  */
 async function openNetwork(tab: Tab, host: string | undefined, name: string) {
   try {
+    // Network shortcuts and connected shares are plain paths ("\\\\server\\share").
+    if (!host && name.startsWith('\\\\')) return void tab.navigate({ kind: 'local', path: name });
     if (!host) {
       const target: Location = { kind: 'network', host: name };
       try {
