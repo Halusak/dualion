@@ -128,7 +128,14 @@ pub fn active_jobs(state: State<'_, AppState>) -> usize {
 
 #[tauri::command]
 pub fn open_path(path: String) -> AppResult<()> {
-    tauri_plugin_opener::open_path(&path, None::<&str>).map_err(|e| AppError::other(e.to_string()))
+    #[cfg(windows)]
+    {
+        crate::winshell::open_default(&path)
+    }
+    #[cfg(not(windows))]
+    {
+        tauri_plugin_opener::open_path(&path, None::<&str>).map_err(|e| AppError::other(e.to_string()))
+    }
 }
 
 /// Opens a web link in the default browser (only http/https).

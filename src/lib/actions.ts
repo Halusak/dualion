@@ -70,6 +70,11 @@ export async function openEntry(tab: Tab, e: Entry | undefined, opts: { external
   const loc = tab.location;
   if (loc.kind === 'drives') return void tab.navigate({ kind: 'local', path: e.name });
   if (loc.kind === 'network') return void openNetwork(tab, loc.host, e.name);
+  // Several marked files: open them all (after a confirmation).
+  if (!e.isDir && tab.marked.has(e.key)) {
+    const files = tab.targets().filter((x) => !x.isDir && !(x.flags & F.UP));
+    if (files.length > 1) return void openMany(tab, files);
+  }
   const child = entryLoc(tab, e);
   if (e.isDir || (opts.inside && e.flags & F.PACKAGE)) return void tab.navigate(child);
   if (!opts.external && child.kind === 'local' && isArchiveName(e.name)) {
@@ -80,6 +85,22 @@ export async function openEntry(tab: Tab, e: Entry | undefined, opts: { external
     await api.openPath(path);
   } catch (err) {
     showError(err);
+  }
+}
+
+/** Opens marked files one after another in their default applications. */
+async function openMany(tab: Tab, files: Entry[]) {
+  const ok = await ask(t('open.manyAsk', { n: files.length }), { title: t('open.manyTitle'), kind: 'info', okLabel: t('open.manyOk'), cancelLabel: t('cancel') });
+  if (!ok) return;
+  for (const f of files) {
+    try {
+      const loc = entryLoc(tab, f);
+      await api.openPath(loc.kind === 'local' ? loc.path : await api.materialize(loc as BackendLocation));
+    } catch (err) {
+      showError(err);
+    }
+    // A short pause keeps applications from choking on a burst of requests.
+    await new Promise((r) => setTimeout(r, 150));
   }
 }
 

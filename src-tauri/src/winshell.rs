@@ -75,6 +75,27 @@ fn shell_err(e: windows::core::Error) -> AppError {
 }
 
 // ---------------------------------------------------------------------------
+// Opening files
+// ---------------------------------------------------------------------------
+
+/// Opens a file like Explorer does: the association's default verb (which
+/// is not always "open", e.g. Photoshop's TIFF association).
+pub fn open_default(path: &str) -> AppResult<()> {
+    use windows::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_INVOKEIDLIST, SEE_MASK_NOASYNC, SHELLEXECUTEINFOW};
+    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    let _ = unsafe { windows::Win32::System::Com::CoInitializeEx(None, windows::Win32::System::Com::COINIT_APARTMENTTHREADED) };
+    let file = HSTRING::from(path);
+    let mut info = SHELLEXECUTEINFOW {
+        cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
+        fMask: SEE_MASK_INVOKEIDLIST | SEE_MASK_NOASYNC,
+        lpFile: PCWSTR(file.as_ptr()),
+        nShow: SW_SHOWNORMAL.0,
+        ..Default::default()
+    };
+    unsafe { ShellExecuteExW(&mut info) }.map_err(|e| AppError::other(e.message()).with_path(path))
+}
+
+// ---------------------------------------------------------------------------
 // Drag out
 // ---------------------------------------------------------------------------
 
