@@ -19,6 +19,8 @@
   <string>Dualion shows and manages files on external drives.</string>
   <key>NSNetworkVolumesUsageDescription</key>
   <string>Dualion shows and manages files on network volumes.</string>
+  <key>NSFileProviderDomainUsageDescription</key>
+  <string>Dualion shows and manages the files in iCloud Drive and other cloud storage.</string>
   <key>NSAppleEventsUsageDescription</key>
   <string>Dualion asks Finder to show the Get Info window.</string>
 </dict>
