@@ -1,4 +1,4 @@
-//! "Network" place like Total Commander's Network Neighborhood: computers on
+//! "Network" place: computers on
 //! the local network → their shared folders → connecting a share.
 //!
 //! Windows: computers from the shell's Network folder (what Explorer shows),
@@ -6,7 +6,7 @@
 //! macOS: computers via Bonjour (`_smb._tcp`), shares via `smbutil view`,
 //! mounting via NetFS (the same dialogs as in Finder).
 //!
-//! Like Total Commander, the place opens at once with what is already known
+//! The place opens at once with what is already known
 //! (computers found last time, servers of connected drives / volumes and,
 //! on Windows, the Network shortcuts); discovery runs in the background and
 //! the panel refreshes when it finds something new.

@@ -1,7 +1,7 @@
 <script lang="ts" module>
   import type { SearchHit, SearchParams } from '../../lib/types';
 
-  // Survives closing the dialog, like Total Commander keeps the last search.
+  // Survives closing the dialog: the last search is kept.
   const last = {
     params: null as SearchParams | null,
     hits: [] as SearchHit[],

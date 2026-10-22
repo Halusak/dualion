@@ -575,7 +575,7 @@ pub fn check_name(name: &str) -> AppResult<()> {
 }
 
 pub fn make_dir(parent: &str, name: &str) -> AppResult<String> {
-    // Allow "a/b/c" to create nested folders like Total Commander does.
+    // Allow "a/b/c" to create nested folders.
     let parts: Vec<&str> = name.split(['/', '\\']).filter(|s| !s.is_empty()).collect();
     if parts.is_empty() {
         return Err(AppError::new(ErrorCode::InvalidName, "Empty name"));

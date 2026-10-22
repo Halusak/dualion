@@ -168,7 +168,7 @@
   }
 
   function onKey(e: KeyboardEvent) {
-    // F2 = add to queue, like Total Commander.
+    // F2 = add to queue.
     if (e.key === 'F2') {
       e.preventDefault();
       void submit(true);

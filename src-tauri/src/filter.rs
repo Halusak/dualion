@@ -1,4 +1,4 @@
-//! Total Commander style name masks: `*.jpg;*.png | thumbs*`
+//! Name masks: `*.jpg;*.png | thumbs*`
 //! – patterns separated by `;` (or `,`), exclusions after `|`,
 //! a pattern without wildcards matches as a substring (`abc` == `*abc*`).
 

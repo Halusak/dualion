@@ -147,7 +147,7 @@ export function isDiskImage(name: string): boolean {
   return ['iso', 'dmg', 'img', 'vhd', 'vhdx', 'sparseimage', 'sparsebundle'].includes(extOf(name).toLowerCase());
 }
 
-/** Wildcard mask matcher compatible with the backend (TC syntax). */
+/** Wildcard mask matcher compatible with the backend (`*.jpg;*.png | thumbs*`). */
 export function maskMatcher(mask: string, caseSensitive = false): (name: string) => boolean {
   const [inc, exc = ''] = mask.split('|');
   const compile = (part: string) =>

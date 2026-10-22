@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Total Commander style drive buttons above each panel.
+  // Drive buttons above each panel.
   import Globe from '@lucide/svelte/icons/globe';
   import Plug from '@lucide/svelte/icons/plug';
   import { LogicalPosition } from '@tauri-apps/api/dpi';
@@ -27,7 +27,7 @@
     return watchVolumes();
   });
 
-  // Last folder visited on each drive, per panel (like TC).
+  // Last folder visited on each drive, per panel.
   const lastOnDrive = new Map<string, string>();
   const current = $derived(tab.location.kind === 'local' ? volumeOf(tab.location.path) : undefined);
   $effect(() => {

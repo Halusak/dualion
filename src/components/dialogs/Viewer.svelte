@@ -170,7 +170,7 @@
 
   function onKey(e: KeyboardEvent) {
     if (e.key === 'F3') {
-      // Like the TC lister: F3 / Shift+F3 = next / previous match (Esc closes).
+      // F3 / Shift+F3 = next / previous match (Esc closes).
       e.preventDefault();
       e.stopPropagation();
       if (find) findNext(e.shiftKey);

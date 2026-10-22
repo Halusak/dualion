@@ -817,7 +817,7 @@ export const cs: Record<Key, string> & Record<string, string> = {
   'help.nav.enter': 'Otevřít / vstoupit do složky',
   'help.nav.type': 'Rychlé hledání podle názvu',
   'help.nav.esc': 'Zrušit výběr nebo filtr',
-  'help.tip': 'Tip: všechny příkazy najdete i v menu. Většina F-kláves funguje jako v Total Commanderu.',
+  'help.tip': 'Tip: všechny příkazy najdete i v menu. Většina F-kláves funguje jako v klasických dvoupanelových správcích souborů.',
 
   'pv.preview': 'Náhled',
   'pv.rows': '{rows} řádků × {cols} sloupců',

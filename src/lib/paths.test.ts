@@ -39,7 +39,7 @@ describe('paths', () => {
     expect(locKey({ kind: 'drives' })).toBe('drives');
   });
 
-  it('matches Total Commander masks', () => {
+  it('matches wildcard masks', () => {
     const m = maskMatcher('*.jpg;*.png | thumb*');
     expect(m('A.JPG')).toBe(true);
     expect(m('thumb.png')).toBe(false);

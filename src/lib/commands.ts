@@ -28,7 +28,7 @@ const both = (k: string[]) => k;
 const mac = (m: string[], w: string[]) => (isMac ? m : w);
 
 export const commands: Command[] = [
-  // Function keys (Total Commander layout)
+  // Function keys (classic two-panel layout)
   { id: 'help', label: 'cmd.shortcuts', run: A.help, keys: ['F1'], global: true },
   { id: 'rename', label: 'cmd.rename', run: A.startRename, keys: ['F2', 'Shift+F6'] },
   { id: 'view', label: 'cmd.view', run: () => A.viewFile(), keys: ['F3'] },
@@ -494,7 +494,7 @@ async function maskDialog(select: boolean) {
   if (r) app.panel.markByMask(r.value, select, !!r.checked);
 }
 
-/** Function key bar entries (TC style). */
+/** Function key bar entries. */
 export const functionKeys: { key: string; label: string; cmd: string }[] = [
   { key: 'F1', label: 'fkey.help', cmd: 'help' },
   { key: 'F2', label: 'fkey.rename', cmd: 'rename' },

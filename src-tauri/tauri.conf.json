@@ -65,7 +65,7 @@
     "publisher": "Haluška",
     "copyright": "© 2026 Haluška",
     "shortDescription": "Dvoupanelový správce souborů",
-    "longDescription": "Dualion je rychlý dvoupanelový správce souborů pro Windows a macOS ve stylu Total Commanderu: fronty kopírování, vyhledávání v obsahu, FTP/FTPS se šifrovaným trezorem hesel, náhledy, hromadné přejmenování a ZIP archivy.",
+    "longDescription": "Dualion je rychlý dvoupanelový správce souborů pro Windows a macOS: fronty kopírování, vyhledávání v obsahu, FTP/FTPS se šifrovaným trezorem hesel, náhledy, hromadné přejmenování a ZIP archivy.",
     "macOS": {
       "minimumSystemVersion": "11.0",
       "dmg": {

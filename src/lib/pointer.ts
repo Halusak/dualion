@@ -39,7 +39,7 @@ export function itemPointerDown(e: PointerEvent, side: SideName, tab: Tab, entry
     return;
   }
 
-  // Like Total Commander: a plain click only moves the cursor, marks stay
+  // A plain click only moves the cursor, marks stay
   // (they are cleared explicitly: Deselect all, Num -, Esc …).
   tab.setCursor(index);
 

@@ -1,4 +1,4 @@
-// Multi-rename engine (Total Commander compatible mask syntax).
+// Multi-rename engine ([N] [E] [C] [Y][M][D]… mask syntax).
 //
 //   [N] name without extension     [N2-5] characters 2–5     [N3] character 3
 //   [N2,4] 4 characters from 2     [N-3,3] last three characters

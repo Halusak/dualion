@@ -8,7 +8,7 @@ const key = (init: Partial<KeyboardEvent>) =>
 describe('keymap', () => {
   beforeEach(() => resetShortcuts());
 
-  it('has Total Commander defaults', () => {
+  it('has the classic function key defaults', () => {
     expect(commandForCombo('F5')?.id).toBe('copy');
     expect(commandForCombo('F7')?.id).toBe('mkdir');
     expect(commandForCombo('Alt+F7')?.id).toBe('search');

@@ -821,7 +821,7 @@ export const en = {
   'help.nav.enter': 'Open / enter folder',
   'help.nav.type': 'Quick find by name',
   'help.nav.esc': 'Clear selection or filter',
-  'help.tip': 'Tip: commands are also in the menu bar. Most F-keys work like in Total Commander.',
+  'help.tip': 'Tip: commands are also in the menu bar. Most F-keys work like in classic two-panel file managers.',
 
   // Viewer
   'pv.preview': 'Preview',
