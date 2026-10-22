@@ -23,7 +23,8 @@
   const sideObj = $derived(app.side(side));
   const tab = $derived(sideObj.tab);
   const active = $derived(app.activeSide === side);
-  const showTabs = $derived(settings.alwaysShowTabs || sideObj.tabs.length > 1);
+  // Both panels show or hide the tab bar together, so their lists stay aligned.
+  const showTabs = $derived(settings.alwaysShowTabs || app.left.tabs.length > 1 || app.right.tabs.length > 1);
   const showQuickView = $derived(app.quickView && !active);
   const dropHere = $derived(drag.active && drag.over?.side === side && !drag.over.entryKey && drag.from !== side);
 
