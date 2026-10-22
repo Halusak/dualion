@@ -17,7 +17,10 @@ export class Side {
     const prev = this.tabs[this._active];
     this._active = i;
     const next = this.tabs[i];
-    if (next && next !== prev) next.returnHome();
+    if (!next || next === prev) return;
+    if (prev && settings.unmarkOnTabSwitch) prev.unmarkAll();
+    // Hidden tabs are not watched: show the folder as it is now.
+    if (!next.returnHome()) void next.reload();
   }
   tab = $derived<Tab>(this.tabs[Math.min(this.active, this.tabs.length - 1)]);
 

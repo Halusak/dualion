@@ -268,6 +268,12 @@ pub async fn shell_menu(
     }
 }
 
+/// Text on the system clipboard (go to the path in the clipboard).
+#[tauri::command]
+pub fn clipboard_text() -> AppResult<String> {
+    arboard::Clipboard::new().and_then(|mut c| c.get_text()).map_err(|e| AppError::other(e.to_string()))
+}
+
 #[tauri::command]
 pub fn reveal_path(path: String) -> AppResult<()> {
     tauri_plugin_opener::reveal_item_in_dir(&path).map_err(|e| AppError::other(e.to_string()))

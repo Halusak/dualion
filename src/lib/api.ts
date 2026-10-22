@@ -69,6 +69,7 @@ export const api = {
     invoke<string | null>('shell_menu', { paths, allDirs, title, items }),
   openWithApps: (path: string) => invoke<{ name: string; path: string; default: boolean; icon: number[] }[]>('open_with_apps', { path }),
   networkConnect: (host: string, share: string | null) => invoke<string>('network_connect', { host, share }),
+  clipboardText: () => invoke<string>('clipboard_text'),
   dragOut: (paths: string[]) => invoke<void>('drag_out', { paths }),
   revealPath: (path: string) => invoke<void>('reveal_path', { path }),
   openUrl: (url: string) => invoke<void>('open_url', { url }),

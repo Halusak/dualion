@@ -58,6 +58,10 @@ export interface Settings {
   rightMetaWidths: Record<string, number>;
   /** Both panels share column widths. */
   syncColumns: boolean;
+  /** Clear marks of the tab you leave. */
+  unmarkOnTabSwitch: boolean;
+  /** Clear marks after dragging the files somewhere. */
+  unmarkAfterDrop: boolean;
   showAttrs: boolean;
   hotlist: HotlistItem[];
   split: number;
@@ -104,6 +108,8 @@ export const defaultSettings = (): Settings => ({
   rightColWidths: { name: 0, folder: 220, ext: 64, size: 92, date: 136, attrs: 84 },
   rightMetaWidths: {},
   syncColumns: false,
+  unmarkOnTabSwitch: false,
+  unmarkAfterDrop: false,
   showAttrs: false,
   hotlist: [],
   split: 0.5,

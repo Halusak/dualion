@@ -189,6 +189,7 @@ pub fn run() {
             commands::app_info,
             commands::set_menu,
             commands::drag_out,
+            commands::clipboard_text,
             commands::shell_menu,
             commands::open_with_apps,
             commands::network_connect,

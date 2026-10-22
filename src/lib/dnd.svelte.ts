@@ -74,10 +74,16 @@ export function moveDrag(e: PointerEvent) {
 export function dragOutside(): boolean {
   const paths = drag.items.flatMap((i) => (i.kind === 'local' ? [i.path] : []));
   if (!paths.length || paths.length !== drag.items.length) return false;
+  const from = drag.from;
   drag.active = false;
   drag.over = null;
   drag.items = [];
-  void api.dragOut(paths).catch(showError);
+  void api
+    .dragOut(paths)
+    .then(() => {
+      if (from && settings.unmarkAfterDrop) app.side(from).tab.unmarkAll();
+    })
+    .catch(showError);
   return true;
 }
 
@@ -107,7 +113,7 @@ export async function endDrag() {
       dest,
       options: { verify: settings.verify },
     });
-    if (from) app.side(from).tab.unmarkAll();
+    if (from && settings.unmarkAfterDrop) app.side(from).tab.unmarkAll();
   } catch (e) {
     showError(e);
   }

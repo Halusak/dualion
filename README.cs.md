@@ -173,7 +173,7 @@ Každé vzdálené úložiště se v panelu otevře jako složka. Kopírování 
 | Mod+Alt+C | Kopírovat název | Mod+Alt+G | Seskupovat soubory |
 | Mod+Alt+U | Mapa disku | Mod+Alt+D | Duplicity |
 | Mod+1 … 4 | Podrobnosti / seznam / ikony / náhledy | Mod+Alt+L | Symbolický odkaz |
-| F12, Ctrl+Q | Rychlý náhled | | |
+| F12, Ctrl+Q | Rychlý náhled | Mod+Shift+G | Přejít na cestu ze schránky |
 
 `Mod` = ⌘ na macOS, Ctrl na Windows. Kompletní seznam je v aplikaci pod F1 a všechny zkratky lze změnit v Nastavení.
 

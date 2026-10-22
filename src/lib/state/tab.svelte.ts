@@ -290,8 +290,10 @@ export class Tab {
   }
 
   /** Tab locked with its folder: back to that folder (called when the tab is shown again). */
-  returnHome() {
-    if (this.home && !sameLoc(this.location, this.home)) void this.navigate(this.home);
+  returnHome(): boolean {
+    if (!this.home || sameLoc(this.location, this.home)) return false;
+    void this.navigate(this.home);
+    return true;
   }
 
   /** Loads `loc`. Keeps the old listing on failure (and reports the error). */

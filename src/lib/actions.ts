@@ -128,6 +128,22 @@ export async function goTo(tab: Tab, input: string): Promise<boolean> {
   }
 }
 
+/** Opens the folder (or selects the file) whose path is in the clipboard. */
+export async function goToClipboard(tab = app.panel) {
+  let text = '';
+  try {
+    text = await api.clipboardText();
+  } catch {
+    /* empty or not text */
+  }
+  // First line, without quotes and file:// prefix.
+  text = (text.split(/\r?\n/).find((l) => l.trim()) ?? '').trim().replace(/^["']|["']$/g, '');
+  if (text.startsWith('file://')) text = decodeURIComponent(text.slice(7).replace(/^localhost/, ''));
+  if (isWindows && /^\/[A-Za-z]:/.test(text)) text = text.slice(1);
+  if (!text) return toast(t('nav.clipboardEmpty'));
+  await goTo(tab, text);
+}
+
 export function goHome(tab = app.panel) {
   return tab.navigate({ kind: 'local', path: app.info.home });
 }

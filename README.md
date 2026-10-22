@@ -331,7 +331,7 @@ Every remote place opens in a panel like a folder. Copying (also directly betwee
 | Mod+Alt+C | Copy name | Mod+Alt+G | Group files |
 | Mod+Alt+U | Disk usage | Mod+Alt+D | Duplicates |
 | Mod+1 … 4 | Details / list / icons / thumbnails | Mod+Alt+L | Symbolic link |
-| F12, Ctrl+Q | Quick View | | |
+| F12, Ctrl+Q | Quick View | Mod+Shift+G | Go to path in clipboard |
 
 `Mod` is ⌘ on macOS and Ctrl on Windows. Press F1 in the app for the full list. You can change any shortcut in Settings.
 
