@@ -101,6 +101,7 @@ pub fn list(host: Option<&str>) -> AppResult<Listing> {
     }
 }
 
+#[cfg_attr(target_os = "linux", allow(dead_code))]
 fn auth_needed(host: &str) -> AppError {
     AppError::new(ErrorCode::PermissionDenied, "Sign in to see the shared folders").with_path(host)
 }

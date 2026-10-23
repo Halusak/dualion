@@ -503,7 +503,9 @@ fn names_for_path(path: &str) -> Vec<String> {
     names_for_ext(p.extension().and_then(|e| e.to_str()).unwrap_or(""))
 }
 
-static CHOSEN: LazyLock<Mutex<HashMap<(String, u32), Option<PathBuf>>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+/// (icon name, px) → chosen file.
+type Chosen = HashMap<(String, u32), Option<PathBuf>>;
+static CHOSEN: LazyLock<Mutex<Chosen>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Best file for an icon name at `px`: scalable first, else the nearest size.
 fn lookup(name: &str, px: u32) -> Option<PathBuf> {
