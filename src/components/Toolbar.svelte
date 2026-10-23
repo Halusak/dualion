@@ -18,6 +18,7 @@
   import Server from '@lucide/svelte/icons/server';
   import Settings from '@lucide/svelte/icons/settings';
   import SquareTerminal from '@lucide/svelte/icons/square-terminal';
+  import FavoritesBar from './FavoritesBar.svelte';
   import { run, shortcutOf } from '../lib/commands';
   import { t } from '../lib/i18n/index.svelte';
   import { isMac, shortcutLabel } from '../lib/platform';
@@ -111,6 +112,8 @@
 
   </div>
 
+  <FavoritesBar />
+
   <div class="trail" data-tauri-drag-region>
     <JobsIndicator />
     <button class="icon-btn" title={tip('cmd.settings', 'settings')} onclick={() => run('settings')}>
@@ -134,6 +137,7 @@
     align-items: center;
     gap: 10px;
     min-width: 0;
+    flex: none;
   }
   .lead {
     display: none;
@@ -147,17 +151,16 @@
   }
   /* macOS: actions centred in the unified title bar, like Finder/Safari. */
   .toolbar.mac {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    display: flex;
     padding: 2px 10px 0 0;
   }
   .toolbar.mac .lead {
     display: block;
     align-self: stretch;
     min-width: var(--chrome-left);
+    flex: none;
   }
   .toolbar.mac .trail {
-    justify-self: end;
     margin-left: 0;
   }
   .group {

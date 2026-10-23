@@ -20,11 +20,12 @@ export const drag = $state<{
   from: SideName | null;
   items: Location[];
   names: string[];
+  folders: boolean[];
   x: number;
   y: number;
   over: DropTarget | null;
   move: boolean;
-}>({ active: false, from: null, items: [], names: [], x: 0, y: 0, over: null, move: false });
+}>({ active: false, from: null, items: [], names: [], folders: [], x: 0, y: 0, over: null, move: false });
 
 /** Finds the panel/row under a viewport point using data attributes on the DOM. */
 export function targetAt(x: number, y: number): DropTarget | null {
@@ -55,6 +56,7 @@ export function startDrag(from: SideName, entries: Entry[], x: number, y: number
   drag.from = from;
   drag.items = entries.map((e) => childLoc(tab.location, e));
   drag.names = entries.map((e) => e.name);
+  drag.folders = entries.map((e) => e.isDir && !(e.flags & F.UP));
   drag.x = x;
   drag.y = y;
   drag.over = null;
@@ -80,6 +82,8 @@ export function dragOutside(): boolean {
   drag.active = false;
   drag.over = null;
   drag.items = [];
+  drag.names = [];
+  drag.folders = [];
   void api
     .dragOut(paths)
     .then(() => {
@@ -92,11 +96,23 @@ export function dragOutside(): boolean {
 export async function endDrag() {
   const over = drag.over;
   const items = drag.items;
+  const names = drag.names;
+  const folders = drag.folders;
+  const el = document.elementFromPoint(drag.x, drag.y) as HTMLElement | null;
+  const favoriteBar = el?.closest<HTMLElement>('[data-favorites-drop]');
   const move = drag.move;
   const from = drag.from;
   drag.active = false;
   drag.over = null;
   drag.items = [];
+  drag.names = [];
+  drag.folders = [];
+  if (favoriteBar && items.length === 1 && folders[0]) {
+    if (!settings.hotlist.some((h) => sameLoc(h.location, items[0]))) {
+      settings.hotlist = [...settings.hotlist, { name: names[0], location: items[0] }];
+    }
+    return;
+  }
   if (!over || !items.length) return;
   const dest = destOf(over);
   if (!dest) return;
