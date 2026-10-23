@@ -227,7 +227,12 @@ pub async fn network_connect(window: tauri::WebviewWindow, host: String, share: 
         let _ = window;
         blocking(move || crate::network::mount(&host, share.as_deref())).await
     }
-    #[cfg(not(any(windows, target_os = "macos")))]
+    #[cfg(target_os = "linux")]
+    {
+        let _ = window;
+        blocking(move || crate::network::mount(&host, share.as_deref())).await
+    }
+    #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
     {
         let _ = (window, host, share);
         Err(AppError::unsupported("Not supported here"))

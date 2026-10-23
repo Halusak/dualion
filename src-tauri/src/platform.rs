@@ -117,7 +117,11 @@ pub fn open_terminal(dir: &str, custom: Option<&str>) -> AppResult<()> {
         }
         spawn(Command::new("cmd.exe").current_dir(dir).creation_flags(CREATE_NEW_CONSOLE))
     }
-    #[cfg(not(any(target_os = "macos", windows)))]
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux::open_terminal(dir, custom)
+    }
+    #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
     {
         spawn(Command::new(custom.unwrap_or("x-terminal-emulator")).current_dir(dir))
     }
@@ -248,7 +252,11 @@ pub fn show_properties(path: &str) -> AppResult<()> {
         });
         Ok(())
     }
-    #[cfg(not(any(target_os = "macos", windows)))]
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux::show_properties(path)
+    }
+    #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
     {
         let _ = path;
         Err(AppError::unsupported("Not supported"))
@@ -306,7 +314,11 @@ pub fn mount_image(path: &str) -> AppResult<String> {
             _ => Err(AppError::other(String::from_utf8_lossy(&out.stderr).trim().to_string()).with_path(path)),
         }
     }
-    #[cfg(not(any(target_os = "macos", windows)))]
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux::mount_image(path)
+    }
+    #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
     {
         let _ = path;
         Err(AppError::unsupported("Mounting images is not supported on this system"))

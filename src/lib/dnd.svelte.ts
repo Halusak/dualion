@@ -3,7 +3,7 @@
 
 import { api } from './api';
 import { childLoc, sameLoc } from './paths';
-import { isMac } from './platform';
+import { isMac, platform } from './platform';
 import { app, type SideName } from './state/app.svelte';
 import { settings } from './state/settings.svelte';
 import { showError } from './state/ui.svelte';
@@ -72,6 +72,8 @@ export function moveDrag(e: PointerEvent) {
  * drag so they can be dropped into Finder / Explorer / other apps.
  */
 export function dragOutside(): boolean {
+  // Not available on Linux yet: the drag simply stays inside the window.
+  if (platform === 'linux') return false;
   const paths = drag.items.flatMap((i) => (i.kind === 'local' ? [i.path] : []));
   if (!paths.length || paths.length !== drag.items.length) return false;
   const from = drag.from;

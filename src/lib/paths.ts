@@ -1,5 +1,5 @@
 import type { Entry, Location } from './types';
-import { isWindows } from './platform';
+import { isWindows, platform } from './platform';
 
 export const SEP = isWindows ? '\\' : '/';
 
@@ -37,7 +37,8 @@ export function stemOf(name: string): string {
   return i > 0 ? name.slice(0, i) : name;
 }
 
-const caseInsensitive = true; // APFS and NTFS are case-insensitive by default
+// APFS and NTFS are case-insensitive by default; Linux file systems are not.
+const caseInsensitive = platform !== 'linux';
 
 /** Stable identity of a location (used for equality and watcher matching). */
 export function locKey(loc: Location): string {

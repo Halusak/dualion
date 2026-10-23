@@ -10,6 +10,8 @@ mod icons;
 mod index;
 mod jobs;
 mod local;
+#[cfg(target_os = "linux")]
+mod linux;
 mod location;
 mod network;
 mod remote;
@@ -103,7 +105,8 @@ pub fn run() {
             let px = query_px(&req);
             std::thread::spawn(move || {
                 let png = key.and_then(|k| icons::icon_png(k, px));
-                respond(responder, png.map(|p| (p.to_vec(), "image/png")));
+                // Linux icon themes also ship SVG icons.
+                respond(responder, png.map(|p| (p.to_vec(), if p.starts_with(b"\x89PNG") { "image/png" } else { "image/svg+xml" })));
             });
         })
         .setup(|app| {

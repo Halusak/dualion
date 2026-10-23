@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { baseName, childLoc, dirName, extOf, locKey, maskMatcher, parentLoc, sameLoc } from './paths';
+import { platform } from './platform';
 import { sortEntries } from './sort';
 import { F, type Entry } from './types';
 
@@ -34,8 +35,10 @@ describe('paths', () => {
     expect(childLoc({ kind: 'remote', session: 's', path: '/' }, entry('f'))).toEqual({ kind: 'remote', session: 's', path: '/f' });
   });
 
-  it('compares local paths case-insensitively and ignores trailing slashes', () => {
-    expect(sameLoc({ kind: 'local', path: '/Users/X/' }, { kind: 'local', path: '/users/x' })).toBe(true);
+  it('compares local paths like the file system does and ignores trailing slashes', () => {
+    // APFS / NTFS ignore case, Linux file systems do not.
+    expect(sameLoc({ kind: 'local', path: '/Users/X/' }, { kind: 'local', path: '/users/x' })).toBe(platform !== 'linux');
+    expect(sameLoc({ kind: 'local', path: '/Users/X/' }, { kind: 'local', path: '/Users/X' })).toBe(true);
     expect(locKey({ kind: 'drives' })).toBe('drives');
   });
 

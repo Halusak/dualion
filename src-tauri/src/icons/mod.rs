@@ -78,7 +78,11 @@ fn render(key: &IconKey, px: u32) -> Option<Vec<u8>> {
     {
         windows::render(key, px)
     }
-    #[cfg(not(any(target_os = "macos", windows)))]
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux::render_icon(key, px)
+    }
+    #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
     {
         let _ = (key, px);
         None

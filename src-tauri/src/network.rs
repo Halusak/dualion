@@ -522,7 +522,24 @@ mod imp {
     }
 }
 
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(target_os = "linux")]
+mod imp {
+    use super::*;
+    pub fn hosts() -> Vec<String> {
+        crate::linux::smb_hosts()
+    }
+    pub fn quick_places() -> Vec<String> {
+        crate::linux::network_servers()
+    }
+    pub fn shares(host: &str) -> AppResult<Vec<String>> {
+        crate::linux::smb_shares(host)
+    }
+    pub fn mount(host: &str, share: Option<&str>) -> AppResult<String> {
+        crate::linux::smb_mount(host, share)
+    }
+}
+
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
 mod imp {
     use super::*;
     pub fn hosts() -> Vec<String> {

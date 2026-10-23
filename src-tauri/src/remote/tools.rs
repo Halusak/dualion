@@ -68,8 +68,13 @@ fn candidates(tool: &str) -> Vec<PathBuf> {
     }
     #[cfg(not(any(target_os = "macos", windows)))]
     {
-        let _ = &home;
-        v.extend(["/usr/local/bin", "/usr/bin", "/snap/bin"].map(PathBuf::from));
+        v.extend(["/usr/local/bin", "/usr/bin", "/snap/bin", "/var/lib/flatpak/exports/bin"].map(PathBuf::from));
+        if tool == "adb" {
+            v.push(home.join("Android/Sdk/platform-tools"));
+            if let Ok(sdk) = std::env::var("ANDROID_HOME") {
+                v.push(PathBuf::from(sdk).join("platform-tools"));
+            }
+        }
     }
     v.into_iter().map(|d| d.join(exe(tool))).collect()
 }

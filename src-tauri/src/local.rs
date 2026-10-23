@@ -352,7 +352,12 @@ pub fn volumes() -> Vec<Volume> {
     out
 }
 
-#[cfg(all(unix, not(target_os = "macos")))]
+#[cfg(target_os = "linux")]
+pub fn volumes() -> Vec<Volume> {
+    crate::linux::volumes()
+}
+
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "linux"))))]
 pub fn volumes() -> Vec<Volume> {
     let s = space(Path::new("/")).unwrap_or_default();
     vec![Volume { name: "/".into(), path: "/".into(), total: s.total, free: s.free, kind: "system" }]
