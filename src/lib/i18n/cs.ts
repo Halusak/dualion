@@ -52,6 +52,7 @@ export const cs: Record<Key, string> & Record<string, string> = {
   'cmd.terminal': 'Otevřít terminál zde',
   'cmd.duplicate': 'Duplikovat',
   'cmd.search': 'Hledat soubory…',
+  'cmd.dirBranch': 'Zobrazit všechny soubory v aktuální složce a podsložkách',
   'cmd.ftpConnect': 'Připojit k serveru…',
   'cmd.ftpDisconnect': 'Odpojit',
   'cmd.multiRename': 'Hromadné přejmenování…',

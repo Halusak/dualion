@@ -122,6 +122,7 @@ export const commands: Command[] = [
   { id: 'toggleRightClickSelect', label: 'cmd.toggleRightClickSelect', run: () => (settings.rightClickSelect = !settings.rightClickSelect), checked: () => settings.rightClickSelect },
   { id: 'refresh', label: 'cmd.refresh', run: () => app.panel.reload(), keys: ['Mod+R'] },
   { id: 'filter', label: 'cmd.filter', run: () => (app.panel.filterOpen = true), keys: ['Mod+S'] },
+  { id: 'dirBranch', label: 'cmd.dirBranch', run: A.toggleDirBranch, keys: ['Ctrl+B'], checked: () => A.isDirBranch(app.panel) },
 
   // Go
   { id: 'back', label: 'cmd.back', run: () => app.panel.back(), keys: both(isMac ? ['Mod+[', 'Alt+ArrowLeft'] : ['Alt+ArrowLeft']) },
@@ -428,6 +429,7 @@ export function buildMenu(): MenuNode[] {
       item('wrapNames'),
       item('quickView'),
       item('filter'),
+      item('dirBranch'),
       sep,
       item('toggleToolbar'),
       item('toggleDriveBar'),

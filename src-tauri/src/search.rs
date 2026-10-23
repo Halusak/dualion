@@ -106,6 +106,71 @@ struct Compiled {
     text: Option<RegexMatcher>,
 }
 
+/// Avoid contending on the shared result queue for every match. Branch view
+/// can match nearly every file, unlike ordinary searches where hits are rare.
+struct HitBatch {
+    pending: Arc<Mutex<Vec<Hit>>>,
+    items: Vec<Hit>,
+}
+
+impl HitBatch {
+    fn new(pending: Arc<Mutex<Vec<Hit>>>) -> Self {
+        Self { pending, items: Vec::with_capacity(128) }
+    }
+
+    fn push(&mut self, hit: Hit) {
+        self.items.push(hit);
+        if self.items.len() >= 128 {
+            self.flush();
+        }
+    }
+
+    fn flush(&mut self) {
+        if !self.items.is_empty() {
+            self.pending.lock().append(&mut self.items);
+        }
+    }
+}
+
+impl Drop for HitBatch {
+    fn drop(&mut self) {
+        self.flush();
+    }
+}
+
+/// Keep the progress counter mostly local to each walker thread as well.
+struct ScanBatch {
+    total: Arc<AtomicU64>,
+    count: u64,
+}
+
+impl ScanBatch {
+    fn new(total: Arc<AtomicU64>) -> Self {
+        Self { total, count: 0 }
+    }
+
+    fn next(&mut self) -> u64 {
+        self.count += 1;
+        if self.count >= 256 {
+            self.flush();
+        }
+        self.total.load(Ordering::Relaxed) + self.count
+    }
+
+    fn flush(&mut self) {
+        if self.count > 0 {
+            self.total.fetch_add(self.count, Ordering::Relaxed);
+            self.count = 0;
+        }
+    }
+}
+
+impl Drop for ScanBatch {
+    fn drop(&mut self) {
+        self.flush();
+    }
+}
+
 fn compile(p: &SearchParams) -> AppResult<Compiled> {
     let name = if p.name.trim().is_empty() {
         NameMatch::Any
@@ -315,6 +380,8 @@ pub fn run(params: SearchParams, channel: Channel<SearchEvent>, cancel: Arc<Atom
                     cancel.clone(),
                 );
                 let mut grepper = Grepper::new(&params);
+                let mut hit_batch = HitBatch::new(pending.clone());
+                let mut scan_batch = ScanBatch::new(scanned.clone());
                 Box::new(move |res| {
                     if cancel.load(Ordering::Relaxed) {
                         return ignore::WalkState::Quit;
@@ -323,7 +390,7 @@ pub fn run(params: SearchParams, channel: Channel<SearchEvent>, cancel: Arc<Atom
                     if entry.depth() == 0 {
                         return ignore::WalkState::Continue;
                     }
-                    let n = scanned.fetch_add(1, Ordering::Relaxed);
+                    let n = scan_batch.next();
                     let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
                     if is_dir && n % 64 == 0 {
                         if let Some(mut c) = current.try_lock() {
@@ -385,7 +452,7 @@ pub fn run(params: SearchParams, channel: Channel<SearchEvent>, cancel: Arc<Atom
                         match_count: count,
                         cloud,
                     };
-                    pending.lock().push(hit);
+                    hit_batch.push(hit);
                     if found.fetch_add(1, Ordering::Relaxed) + 1 >= limit {
                         truncated.store(true, Ordering::Relaxed);
                         return ignore::WalkState::Quit;

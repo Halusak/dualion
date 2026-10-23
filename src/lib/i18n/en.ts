@@ -53,6 +53,7 @@ export const en = {
   'cmd.terminal': 'Open Terminal Here',
   'cmd.duplicate': 'Duplicate',
   'cmd.search': 'Find Files…',
+  'cmd.dirBranch': 'Show Files in Current Folder and Subfolders',
   'cmd.ftpConnect': 'Connect to Server…',
   'cmd.ftpDisconnect': 'Disconnect',
   'cmd.multiRename': 'Multi-Rename…',

@@ -22,7 +22,19 @@ import DuplicatesDialog from '../components/dialogs/DuplicatesDialog.svelte';
 import { ensureArchiveAccess, mount } from './archives';
 import { renameGroup } from './groups';
 import { pushHistory } from './state/history.svelte';
-import { F, type AppError, type Entry, type RemoteSource, type JobRequest, type Location, type SortKey, type ViewMode } from './types';
+import {
+  F,
+  type AppError,
+  type Entry,
+  type RemoteSource,
+  type JobRequest,
+  type Location,
+  type SearchEvent,
+  type SearchHit,
+  type SearchParams,
+  type SortKey,
+  type ViewMode,
+} from './types';
 
 import AboutDialog from '../components/dialogs/AboutDialog.svelte';
 import ChecksumDialog from '../components/dialogs/ChecksumDialog.svelte';
@@ -39,6 +51,100 @@ import Viewer from '../components/dialogs/Viewer.svelte';
 import type { Connected } from './types';
 
 const nothing = () => toast(t('misc.noSelection'));
+
+const branchOrigins = new Map<string, Location>();
+const branchRuns = new WeakMap<Tab, { origin: Location; opId: number | null; done: boolean }>();
+let branchSequence = 0;
+
+export function isDirBranch(tab: Tab): boolean {
+  if (tab.location.kind === 'search' && branchOrigins.has(tab.location.id)) return true;
+  const run = branchRuns.get(tab);
+  return !!run && sameLoc(tab.location, run.origin);
+}
+
+/** Toggle Total Commander-style flat results for the current folder tree. */
+export async function toggleDirBranch() {
+  const tab = app.panel;
+  if (tab.location.kind === 'search') {
+    const origin = branchOrigins.get(tab.location.id);
+    if (origin) {
+      await tab.navigate(origin);
+      return;
+    }
+  }
+
+  const active = branchRuns.get(tab);
+  if (active) {
+    branchRuns.delete(tab);
+    if (active.opId !== null) void api.cancelOp(active.opId);
+    if (sameLoc(tab.location, active.origin)) tab.loading = false;
+    return;
+  }
+
+  const origin = tab.location;
+  if (origin.kind !== 'local') return toast(t('misc.notLocal'));
+
+  const run = { origin, opId: null as number | null, done: false };
+  branchRuns.set(tab, run);
+  tab.loading = true;
+  const id = `branch-${Date.now()}-${++branchSequence}`;
+  const label = `${t('cmd.dirBranch')}: ${origin.path}`;
+  const hits: SearchHit[] = [];
+  const params: SearchParams = {
+    roots: [origin.path],
+    name: '',
+    nameRegex: false,
+    nameCase: false,
+    text: '',
+    textRegex: false,
+    textCase: false,
+    textWord: false,
+    textNot: false,
+    encoding: '',
+    binary: false,
+    minSize: null,
+    maxSize: null,
+    newerThan: null,
+    olderThan: null,
+    maxDepth: null,
+    hidden: settings.showHidden,
+    followLinks: false,
+    gitignore: false,
+    excludeDirs: '',
+    kind: 'files',
+    maxResults: null,
+    query: '',
+  };
+
+  try {
+    const opId = await api.searchStart(params, (event: SearchEvent) => {
+      if (branchRuns.get(tab) !== run) return;
+      if (event.type === 'hits') {
+        hits.push(...event.items);
+      } else if (event.type === 'done') {
+        run.done = true;
+        branchRuns.delete(tab);
+        if (!sameLoc(tab.location, origin)) return;
+        if (event.cancelled) {
+          tab.loading = false;
+          return;
+        }
+        branchOrigins.set(id, origin);
+        if (branchOrigins.size > 10) branchOrigins.delete(branchOrigins.keys().next().value!);
+        tab.showSearch(id, label, hits, true, [origin.path]);
+        if (event.truncated) toast(t('search.truncated'), 'warning');
+      }
+    });
+    run.opId = opId;
+    if (!run.done && branchRuns.get(tab) !== run) void api.cancelOp(opId);
+  } catch (e) {
+    if (branchRuns.get(tab) === run) {
+      branchRuns.delete(tab);
+      if (sameLoc(tab.location, origin)) tab.loading = false;
+    }
+    showError(e);
+  }
+}
 
 function backend(loc: Location): BackendLocation | null {
   return isResults(loc) ? null : (loc as BackendLocation);
