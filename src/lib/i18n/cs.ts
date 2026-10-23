@@ -394,7 +394,7 @@ export const cs: Record<Key, string> & Record<string, string> = {
   'panel.quickSearch': 'Hledat',
   'panel.retry': 'Zkusit znovu',
   'panel.goHome': 'Domů',
-  'panel.dropCopy': 'Kopírovat sem',
+  'panel.dropCopy': 'Kopírovat sem · podržte Shift pro přesun',
   'panel.dropMove': 'Přesunout sem',
   'panel.searchResults': 'Výsledky hledání',
   'panel.editPath': 'Klikněte pro zadání cesty',

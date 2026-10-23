@@ -394,7 +394,7 @@ export const en = {
   'panel.quickSearch': 'Find',
   'panel.retry': 'Try again',
   'panel.goHome': 'Go home',
-  'panel.dropCopy': 'Copy here',
+  'panel.dropCopy': 'Copy here · hold Shift to move',
   'panel.dropMove': 'Move here',
   'panel.searchResults': 'Search results',
   'panel.editPath': 'Click to type a path',

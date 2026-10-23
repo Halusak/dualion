@@ -20,6 +20,34 @@ let lastDown: { tab: Tab; key: string; at: number; x: number; y: number } | null
 let rightClickHandled = false;
 let rightSelectActive = false;
 
+/** Starts a file drag after the pointer crosses the movement threshold. */
+function watchItemDrag(e: PointerEvent, side: SideName, tab: Tab, entry: Entry) {
+  const sx = e.clientX;
+  const sy = e.clientY;
+  let dragging = false;
+  const move = (ev: PointerEvent) => {
+    if (!dragging && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 6 && !(entry.flags & F.UP)) {
+      dragging = true;
+      const items = tab.isMarked(entry.key) ? tab.targets() : [entry];
+      startDrag(side, items, ev.clientX, ev.clientY);
+    }
+    if (!dragging) return;
+    const outside = ev.clientX < 0 || ev.clientY < 0 || ev.clientX >= window.innerWidth || ev.clientY >= window.innerHeight;
+    if (outside && drag.active && dragOutside()) {
+      up();
+      return;
+    }
+    moveDrag(ev);
+  };
+  const up = () => {
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    if (dragging && drag.active) void endDrag();
+  };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+}
+
 export function canOpenContextMenu(e: MouseEvent, entry: Entry | null): boolean {
   if (!settings.rightClickSelect) return true;
   if (!entry) return true;
@@ -173,6 +201,7 @@ export function itemPointerDown(e: PointerEvent, side: SideName, tab: Tab, entry
   const mod = isMac ? e.metaKey : e.ctrlKey;
   if (e.shiftKey) {
     tab.selectTo(index);
+    watchItemDrag(e, side, tab, entry);
     return;
   }
   if (mod) {
@@ -196,30 +225,7 @@ export function itemPointerDown(e: PointerEvent, side: SideName, tab: Tab, entry
     return;
   }
 
-  const sx = e.clientX;
-  const sy = e.clientY;
-  let dragging = false;
-  const move = (ev: PointerEvent) => {
-    if (!dragging && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 6 && !(entry.flags & F.UP)) {
-      dragging = true;
-      const items = tab.isMarked(entry.key) ? tab.targets() : [entry];
-      startDrag(side, items, ev.clientX, ev.clientY);
-    }
-    if (!dragging) return;
-    const outside = ev.clientX < 0 || ev.clientY < 0 || ev.clientX >= window.innerWidth || ev.clientY >= window.innerHeight;
-    if (outside && drag.active && dragOutside()) {
-      up();
-      return;
-    }
-    moveDrag(ev);
-  };
-  const up = () => {
-    window.removeEventListener('pointermove', move);
-    window.removeEventListener('pointerup', up);
-    if (dragging && drag.active) void endDrag();
-  };
-  window.addEventListener('pointermove', move);
-  window.addEventListener('pointerup', up);
+  watchItemDrag(e, side, tab, entry);
 }
 
 /** Click on empty space below the items. */

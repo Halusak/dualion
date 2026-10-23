@@ -36,14 +36,16 @@ export function targetAt(x: number, y: number): DropTarget | null {
   const row = el?.closest<HTMLElement>('[data-key]');
   const key = row?.dataset.key ?? null;
   const tab = app.side(side).tab;
-  const entry = key ? tab.all.find((e) => e.key === key) : undefined;
-  return { side, entryKey: entry && entry.isDir && !(entry.flags & F.UP) ? entry.key : null };
+  // The `..` row is synthetic and only exists in `visible`, not `all`.
+  const entry = key ? tab.visible.find((e) => e.key === key) : undefined;
+  return { side, entryKey: entry && (entry.isDir || (entry.flags & F.UP) !== 0) ? entry.key : null };
 }
 
 function destOf(t: DropTarget): Location | null {
   const tab = app.side(t.side).tab;
   if (t.entryKey) {
-    const e = tab.all.find((x) => x.key === t.entryKey);
+    const e = tab.visible.find((x) => x.key === t.entryKey);
+    if (e?.flags & F.UP) return tab.listing?.parent ?? null;
     if (e) return childLoc(tab.location, e);
   }
   const loc = tab.location;
@@ -65,7 +67,7 @@ export function startDrag(from: SideName, entries: Entry[], x: number, y: number
 export function moveDrag(e: PointerEvent) {
   drag.x = e.clientX;
   drag.y = e.clientY;
-  drag.move = isMac ? e.metaKey : e.shiftKey;
+  drag.move = e.shiftKey || (isMac && e.metaKey);
   drag.over = targetAt(e.clientX, e.clientY);
 }
 
