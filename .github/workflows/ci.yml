@@ -33,10 +33,24 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: npm run build
-      - run: cargo clippy --all-targets -- -D warnings
+      - name: cargo clippy
         working-directory: src-tauri
-      - run: cargo test
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo clippy --all-targets -- -D warnings 2>&1 | tee clippy.log || {
+            echo "::error title=clippy failed::$(grep -v '^\s*\(Compiling\|Checking\|Fresh\|Downloaded\)' clippy.log | tail -n 80 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')"
+            exit 1
+          }
+      - name: cargo test
         working-directory: src-tauri
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test 2>&1 | tee test.log || {
+            echo "::error title=tests failed::$(grep -v '^\s*\(Compiling\|Checking\|Fresh\|Downloaded\)' test.log | tail -n 80 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')"
+            exit 1
+          }
       # Linux packages are built on other branches too, to catch packaging problems early.
       - name: Linux packages (deb, AppImage)
         if: runner.os == 'Linux' && github.ref != 'refs/heads/main'
