@@ -935,9 +935,30 @@ export async function renameTab(side: Side = app.activeSideObj, index = side.act
 export async function duplicateTab(side: Side = app.activeSideObj, index = side.active) {
   const cur = side.tabs[index];
   if (!cur) return;
-  const tab = new Tab({ location: cur.location, view: cur.view, sortKey: cur.sortKey, sortDesc: cur.sortDesc });
+  const tab = duplicateTabState(cur);
   side.addTab(tab);
   await tab.navigate(cur.location.kind === 'search' ? { kind: 'local', path: app.info.home } : cur.location, { focus: cur.current?.key });
+}
+
+function duplicateTabState(cur: Tab): Tab {
+  return new Tab({ location: cur.location, view: cur.view, sortKey: cur.sortKey, sortDesc: cur.sortDesc });
+}
+
+/** Sends the selected tab to the other panel. A panel's only tab is copied. */
+export async function moveTabToOtherSide(side: Side = app.activeSideObj, index = side.active) {
+  const cur = side.tabs[index];
+  if (!cur) return;
+  const other = side === app.left ? app.right : app.left;
+  let moved: Tab;
+  if (side.tabs.length === 1) {
+    moved = duplicateTabState(cur);
+    other.addTab(moved);
+    await moved.navigate(cur.location.kind === 'search' ? { kind: 'local', path: app.info.home } : cur.location, { focus: cur.current?.key });
+  } else {
+    moved = side.takeTab(index)!;
+    other.addTab(moved);
+  }
+  app.activeSide = other === app.left ? 'left' : 'right';
 }
 
 export function cycleTab(delta: number) {

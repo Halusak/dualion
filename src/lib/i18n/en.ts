@@ -82,6 +82,7 @@ export const en = {
   'cmd.closeTab': 'Close Tab',
   'cmd.lockTab': 'Lock Tab',
   'cmd.duplicateTab': 'Duplicate Tab',
+  'cmd.moveTabToOtherSide': 'Move Tab to Other Panel',
   'cmd.closeOtherTabs': 'Close Other Tabs',
   'tabs.lock': 'Lock Tab',
   'tabs.unlock': 'Unlock Tab',

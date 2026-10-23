@@ -81,6 +81,7 @@ export const cs: Record<Key, string> & Record<string, string> = {
   'cmd.closeTab': 'Zavřít kartu',
   'cmd.lockTab': 'Zamknout kartu',
   'cmd.duplicateTab': 'Duplikovat kartu',
+  'cmd.moveTabToOtherSide': 'Přesunout kartu do druhého panelu',
   'cmd.closeOtherTabs': 'Zavřít ostatní karty',
   'tabs.lock': 'Zamknout kartu',
   'tabs.unlock': 'Odemknout kartu',

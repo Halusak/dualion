@@ -62,6 +62,20 @@ export class Side {
     return true;
   }
 
+  /** Removes a tab for transfer to the other panel, keeping this panel non-empty. */
+  takeTab(index: number): Tab | null {
+    const tab = this.tabs[index];
+    if (!tab || this.tabs.length <= 1) return null;
+    const current = this.tabs[this.active];
+    const tabs = this.tabs.filter((_, i) => i !== index);
+    if (current === tab) {
+      this.tabs = tabs;
+      this.active = Math.min(index, tabs.length - 1);
+    } else this.setTabs(tabs, current);
+    tab.side = null;
+    return tab;
+  }
+
   closeOthers(index = this.active) {
     const keep = this.tabs[index];
     this.setTabs(this.tabs.filter((t) => t === keep || t.locked), keep);
