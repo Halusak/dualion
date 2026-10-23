@@ -358,6 +358,7 @@ export const en = {
   'cmd.focusOther': 'Switch Panel',
   'cmd.showPackage': 'Show Package Contents',
   'cmd.toggleFunctionBar': 'Function Key Bar',
+  'cmd.toggleRightClickSelect': 'Toggle Right-Click File Selection',
   'cmd.toggleToolbar': 'Toolbar',
 
   // Function key bar (short)
@@ -772,6 +773,7 @@ export const en = {
   'settings.syncColumns': 'Same column widths in both panels',
   'settings.unmarkOnTabSwitch': 'Clear marks when switching tabs',
   'settings.unmarkAfterDrop': 'Clear marks after dragging files',
+  'settings.rightClickSelect': 'Select files with right mouse button',
   'cmd.goToClipboard': 'Go to Path in Clipboard',
   'nav.clipboardEmpty': 'There is no path in the clipboard.',
   'open.manyTitle': 'Open Several Files',

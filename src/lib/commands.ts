@@ -119,6 +119,7 @@ export const commands: Command[] = [
   { id: 'toggleGroups', label: 'cmd.toggleGroups', run: () => (settings.groupFiles = !settings.groupFiles), keys: ['Mod+Alt+G'], checked: () => settings.groupFiles },
   { id: 'toggleDriveBar', label: 'cmd.toggleDriveBar', run: () => (settings.driveBar = !settings.driveBar), checked: () => settings.driveBar },
   { id: 'toggleFunctionBar', label: 'cmd.toggleFunctionBar', run: () => (settings.functionBar = !settings.functionBar), checked: () => settings.functionBar },
+  { id: 'toggleRightClickSelect', label: 'cmd.toggleRightClickSelect', run: () => (settings.rightClickSelect = !settings.rightClickSelect), checked: () => settings.rightClickSelect },
   { id: 'refresh', label: 'cmd.refresh', run: () => app.panel.reload(), keys: ['Mod+R'] },
   { id: 'filter', label: 'cmd.filter', run: () => (app.panel.filterOpen = true), keys: ['Mod+S'] },
 

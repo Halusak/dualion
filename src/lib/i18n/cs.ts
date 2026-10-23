@@ -361,6 +361,7 @@ export const cs: Record<Key, string> & Record<string, string> = {
   'cmd.focusOther': 'Přepnout panel',
   'cmd.showPackage': 'Zobrazit obsah balíčku',
   'cmd.toggleFunctionBar': 'Lišta funkčních kláves',
+  'cmd.toggleRightClickSelect': 'Přepnout výběr souborů pravým tlačítkem',
   'cmd.toggleToolbar': 'Panel nástrojů',
 
   'fkey.help': 'Nápověda',
@@ -769,6 +770,7 @@ export const cs: Record<Key, string> & Record<string, string> = {
   'settings.syncColumns': 'Stejné šířky sloupců v obou panelech',
   'settings.unmarkOnTabSwitch': 'Zrušit označení při přepnutí karty',
   'settings.unmarkAfterDrop': 'Zrušit označení po přetažení souborů',
+  'settings.rightClickSelect': 'Vybírat soubory pravým tlačítkem myši',
   'cmd.goToClipboard': 'Přejít na cestu ze schránky',
   'nav.clipboardEmpty': 'Ve schránce není cesta.',
   'open.manyTitle': 'Otevřít více souborů',

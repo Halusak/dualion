@@ -155,6 +155,7 @@
         <label class="check"><input type="checkbox" bind:checked={settings.syncColumns} /> {t('settings.syncColumns')}</label>
         <label class="check"><input type="checkbox" bind:checked={settings.unmarkOnTabSwitch} /> {t('settings.unmarkOnTabSwitch')}</label>
         <label class="check"><input type="checkbox" bind:checked={settings.unmarkAfterDrop} /> {t('settings.unmarkAfterDrop')}</label>
+        <label class="check"><input type="checkbox" bind:checked={settings.rightClickSelect} /> {t('settings.rightClickSelect')}</label>
         <label class="row">
           <span>{t('settings.thumbSize')}</span>
           <select class="input" bind:value={settings.thumbSize}>
