@@ -193,6 +193,8 @@ pub fn run() {
             commands::set_menu,
             commands::drag_out,
             commands::clipboard_text,
+            commands::clipboard_files,
+            commands::clipboard_set_files,
             commands::shell_menu,
             commands::open_with_apps,
             commands::network_connect,

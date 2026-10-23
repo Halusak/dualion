@@ -2,7 +2,7 @@
 // Shift+click selection, drag & drop start and double-click to open.
 
 import * as A from './actions';
-import { drag, dragOutside, endDrag, moveDrag, startDrag } from './dnd.svelte';
+import { cancelDrag, drag, dragKey, dragOutside, endDrag, moveDrag, startDrag, wantsMove } from './dnd.svelte';
 import { isMac } from './platform';
 import { app, type SideName } from './state/app.svelte';
 import type { Tab } from './state/tab.svelte';
@@ -43,13 +43,11 @@ export function itemPointerDown(e: PointerEvent, side: SideName, tab: Tab, entry
   // (they are cleared explicitly: Deselect all, Num -, Esc …).
   tab.setCursor(index);
 
+  // A second press on the same item opens it on release, unless the mouse
+  // moves first: a quick "click, then grab and drag" is a drag.
   const now = performance.now();
   const double = !!lastDown && lastDown.tab === tab && lastDown.key === entry.key && now - lastDown.at < DOUBLE_MS && Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) < 6;
   lastDown = double ? null : { tab, key: entry.key, at: now, x: e.clientX, y: e.clientY };
-  if (double) {
-    if (!tab.renaming) void A.openEntry(tab, entry, { external: e.altKey });
-    return;
-  }
 
   const sx = e.clientX;
   const sy = e.clientY;
@@ -68,13 +66,29 @@ export function itemPointerDown(e: PointerEvent, side: SideName, tab: Tab, entry
     }
     moveDrag(ev);
   };
-  const up = () => {
+  const keys = (ev: KeyboardEvent) => dragKey(ev);
+  const up = (ev?: PointerEvent) => {
     window.removeEventListener('pointermove', move);
     window.removeEventListener('pointerup', up);
-    if (dragging && drag.active) void endDrag();
+    window.removeEventListener('pointercancel', cancel);
+    window.removeEventListener('keydown', keys, true);
+    window.removeEventListener('keyup', keys, true);
+    if (dragging && drag.active) {
+      if (ev) drag.move = wantsMove(ev);
+      void endDrag();
+    } else if (!dragging && double && ev && !tab.renaming) {
+      void A.openEntry(tab, entry, { external: ev.altKey || e.altKey });
+    }
+  };
+  const cancel = () => {
+    up();
+    if (drag.active) cancelDrag();
   };
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', cancel);
+  window.addEventListener('keydown', keys, true);
+  window.addEventListener('keyup', keys, true);
 }
 
 /** Click on empty space below the items. */

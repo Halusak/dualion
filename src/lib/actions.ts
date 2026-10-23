@@ -8,10 +8,10 @@ import { withHostKey } from './remote';
 import { copyText } from './clipboard';
 import { formatSize } from './format';
 import { localeTag, t, what } from './i18n/index.svelte';
-import { childLoc, dirName, isArchiveName, isDiskImage, isResults, joinLocal, locPath, sameLoc, stemOf, extOf } from './paths';
+import { baseName, childLoc, dirName, isArchiveName, isDiskImage, isResults, joinLocal, locPath, sameLoc, stemOf, extOf } from './paths';
 import { isMac, isWindows, shortcutLabel } from './platform';
 import { links } from './links';
-import { app, Side, type SideName } from './state/app.svelte';
+import { app, Side, type FileClipboard, type SideName } from './state/app.svelte';
 import { settings } from './state/settings.svelte';
 import { Tab, UP_ENTRY } from './state/tab.svelte';
 import { openDialog, showError, toast } from './state/ui.svelte';
@@ -232,8 +232,13 @@ export async function copyMove(op: 'copy' | 'move', sameDir = false) {
 
 /** Ctrl+V: paste files from the internal clipboard into the active panel. */
 export async function pasteFiles() {
-  const cb = app.clipboard;
   const tab = app.panel;
+  // Files copied in Finder / Explorer since our own Copy / Cut win.
+  const os = await api.clipboardFiles().catch(() => [] as string[]);
+  const ours = app.clipboard?.items.flatMap((l) => (l.kind === 'local' ? [l.path] : [])) ?? [];
+  const same = os.length === ours.length && os.every((p) => ours.includes(p));
+  const cb: FileClipboard | null =
+    os.length && !same ? { op: 'copy', items: os.map((p) => ({ kind: 'local', path: p })), names: os.map(baseName) } : app.clipboard;
   if (!cb || !cb.items.length) return;
   if (!writable(tab.location)) return toast(t('err.Unsupported'), 'error');
   const extracting = cb.items[0].kind === 'archive';
@@ -258,7 +263,11 @@ export function clipboardSet(op: 'copy' | 'cut') {
   if (!items.length) return nothing();
   const locs = items.map((e) => entryLoc(tab, e));
   app.clipboard = { op, items: locs, names: items.map((e) => e.name) };
-  void copyText(locs.map(locPath).join('\n'));
+  // Local files also go to the system clipboard (paste in Finder / Explorer);
+  // otherwise their paths as text.
+  const local = locs.flatMap((l) => (l.kind === 'local' ? [l.path] : []));
+  if (local.length === locs.length) void api.clipboardSetFiles(local).catch(() => copyText(local.join('\n')));
+  else void copyText(locs.map(locPath).join('\n'));
   toast(`${op === 'cut' ? t('cmd.clipCut') : t('cmd.clipCopy')}: ${what(items.map((e) => e.name))}`);
 }
 

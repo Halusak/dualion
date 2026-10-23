@@ -286,6 +286,18 @@ pub fn clipboard_text() -> AppResult<String> {
     arboard::Clipboard::new().and_then(|mut c| c.get_text()).map_err(|e| AppError::other(e.to_string()))
 }
 
+/// Files copied in Finder / Explorer / a file manager (empty when none).
+#[tauri::command]
+pub fn clipboard_files() -> Vec<String> {
+    arboard::Clipboard::new().and_then(|mut c| c.get().file_list()).map(|l| l.iter().map(|p| util::path_str(p)).collect()).unwrap_or_default()
+}
+
+/// Puts files on the system clipboard so they can be pasted in other apps.
+#[tauri::command]
+pub fn clipboard_set_files(paths: Vec<String>) -> AppResult<()> {
+    arboard::Clipboard::new().and_then(|mut c| c.set().file_list(&paths)).map_err(|e| AppError::other(e.to_string()))
+}
+
 #[tauri::command]
 pub fn reveal_path(path: String) -> AppResult<()> {
     tauri_plugin_opener::reveal_item_in_dir(&path).map_err(|e| AppError::other(e.to_string()))

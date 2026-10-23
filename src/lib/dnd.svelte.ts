@@ -60,11 +60,34 @@ export function startDrag(from: SideName, entries: Entry[], x: number, y: number
   drag.over = null;
 }
 
+/** Shift moves instead of copying (on macOS also ⌘, like Finder). */
+export function wantsMove(e: { shiftKey: boolean; metaKey: boolean }): boolean {
+  return e.shiftKey || (isMac && e.metaKey);
+}
+
 export function moveDrag(e: PointerEvent) {
   drag.x = e.clientX;
   drag.y = e.clientY;
-  drag.move = isMac ? e.metaKey : e.shiftKey;
+  drag.move = wantsMove(e);
   drag.over = targetAt(e.clientX, e.clientY);
+}
+
+/** Modifier keys pressed / released while dragging (without moving the mouse). */
+export function dragKey(e: KeyboardEvent) {
+  if (!drag.active) return;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();
+    cancelDrag();
+    return;
+  }
+  drag.move = wantsMove(e);
+}
+
+export function cancelDrag() {
+  drag.active = false;
+  drag.over = null;
+  drag.items = [];
 }
 
 /**
