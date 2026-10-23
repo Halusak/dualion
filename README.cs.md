@@ -2,7 +2,7 @@
 
 **Česky** · [English](README.md)
 
-Rychlý dvoupanelový správce souborů pro **Windows** a **macOS** ve stylu Total Commanderu – s nativním vzhledem každého systému, frontou operací, okamžitým hledáním nad indexem souborů, náhledy desítek formátů, archivy včetně hesel, vzdálenými úložišti (FTP, SFTP, WebDAV, S3, Android, Docker, rclone, MTP) se šifrovaným trezorem a českým i anglickým rozhraním.
+Rychlý dvoupanelový správce souborů pro **Windows**, **macOS** a **Linux** ve stylu Total Commanderu – s nativním vzhledem každého systému, frontou operací, okamžitým hledáním nad indexem souborů, náhledy desítek formátů, archivy včetně hesel, vzdálenými úložišti (FTP, SFTP, WebDAV, S3, Android, Docker, rclone, MTP) se šifrovaným trezorem a českým i anglickým rozhraním.
 
 Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN)
 
@@ -177,6 +177,16 @@ Každé vzdálené úložiště se v panelu otevře jako složka. Kopírování 
 
 `Mod` = ⌘ na macOS, Ctrl na Windows. Kompletní seznam je v aplikaci pod F1 a všechny zkratky lze změnit v Nastavení.
 
+## Instalace na Linuxu
+
+Ke stažení v [Releases](https://github.com/Halusak/dualion/releases):
+
+- **Debian, Ubuntu, Mint…:** `sudo apt install ./Dualion_<verze>_amd64.deb`
+- **Arch Linux:** stáhněte `PKGBUILD` do prázdné složky a spusťte `makepkg -si`
+- **Jakákoli distribuce:** AppImage – `chmod +x Dualion_<verze>_amd64.AppImage` a spustit (potřebuje FUSE 2; na Archu `sudo pacman -S fuse2`)
+
+Volitelné nástroje zapnou další funkce: `udisks2` (obrazy disků), `gvfs-smb` / `gvfs-backends`, `smbclient` a `avahi-utils` (síťová sdílení), `adb`, `docker`, `rclone`. Na Linuxu zatím chybí přetahování souborů ven z okna a zařízení MTP (Android jde přes ADB).
+
 ## Sestavení
 
 Potřebujete [Rust](https://rustup.rs) (stable) a Node.js ≥ 20.19.
@@ -194,6 +204,7 @@ Výstupy `npm run tauri build`:
 
 - macOS: `src-tauri/target/release/bundle/macos/Dualion.app` a `bundle/dmg/Dualion_<verze>_<arch>.dmg`
 - Windows: `src-tauri/target/release/bundle/msi/Dualion_<verze>_x64_cs-CZ.msi` a `bundle/nsis/Dualion_<verze>_x64-setup.exe`
+- Linux: `src-tauri/target/release/bundle/deb/*.deb` a `bundle/appimage/*.AppImage` (potřebuje `libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, `librsvg2-dev`, `libxdo-dev`, `libssl-dev`)
 
 Univerzální build pro Mac (Intel + Apple Silicon): `npm run tauri build -- --target universal-apple-darwin`.
 Instalátory pro obě platformy sestaví i GitHub Actions (`.github/workflows/release.yml`) po pushnutí tagu `v*`.

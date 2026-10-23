@@ -2,7 +2,7 @@
 
 [Česky](README.cs.md) · **English**
 
-A fast dual-pane file manager for **Windows** and **macOS** in the spirit of Total Commander. It looks native on each system and adds an operation queue, instant search over a file index, previews for dozens of formats, archives with password support, remote file systems (FTP, SFTP, WebDAV, S3, Android, Docker, rclone, MTP) with an encrypted vault, and an English and Czech UI.
+A fast dual-pane file manager for **Windows**, **macOS** and **Linux** in the spirit of Total Commander. It looks native on each system and adds an operation queue, instant search over a file index, previews for dozens of formats, archives with password support, remote file systems (FTP, SFTP, WebDAV, S3, Android, Docker, rclone, MTP) with an encrypted vault, and an English and Czech UI.
 
 Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYYgN)
 
@@ -335,6 +335,16 @@ Every remote place opens in a panel like a folder. Copying (also directly betwee
 
 `Mod` is ⌘ on macOS and Ctrl on Windows. Press F1 in the app for the full list. You can change any shortcut in Settings.
 
+## Installing on Linux
+
+Download from [Releases](https://github.com/Halusak/dualion/releases):
+
+- **Debian, Ubuntu, Mint…:** `sudo apt install ./Dualion_<version>_amd64.deb`
+- **Arch Linux:** download `PKGBUILD` into an empty folder and run `makepkg -si`
+- **Any distribution:** the AppImage: `chmod +x Dualion_<version>_amd64.AppImage` and run it (needs FUSE 2; on Arch `sudo pacman -S fuse2`)
+
+Optional tools switch on more features: `udisks2` (disk images), `gvfs-smb` / `gvfs-backends`, `smbclient` and `avahi-utils` (network shares), `adb`, `docker`, `rclone`. Not available on Linux yet: dragging files out of the window and MTP devices (use ADB for Android).
+
 ## Building
 
 You need [Rust](https://rustup.rs) (stable) and Node.js ≥ 20.19, plus:
@@ -352,6 +362,7 @@ npm run tauri build    # installers
 
 - macOS: `src-tauri/target/release/bundle/macos/Dualion.app` and `bundle/dmg/Dualion_<version>_<arch>.dmg`
 - Windows: `src-tauri/target/release/bundle/msi/Dualion_<version>_x64_cs-CZ.msi` and `bundle/nsis/Dualion_<version>_x64-setup.exe`
+- Linux: `src-tauri/target/release/bundle/deb/*.deb` and `bundle/appimage/*.AppImage` (needs `libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, `librsvg2-dev`, `libxdo-dev`, `libssl-dev`)
 
 For a universal Mac build (Intel + Apple Silicon), run `npm run tauri build -- --target universal-apple-darwin`.
 
