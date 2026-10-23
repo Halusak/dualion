@@ -286,16 +286,44 @@ pub fn clipboard_text() -> AppResult<String> {
     arboard::Clipboard::new().and_then(|mut c| c.get_text()).map_err(|e| AppError::other(e.to_string()))
 }
 
-/// Files copied in Finder / Explorer / a file manager (empty when none).
-#[tauri::command]
-pub fn clipboard_files() -> Vec<String> {
-    arboard::Clipboard::new().and_then(|mut c| c.get().file_list()).map(|l| l.iter().map(|p| util::path_str(p)).collect()).unwrap_or_default()
+#[derive(serde::Serialize)]
+pub struct ClipboardFiles {
+    paths: Vec<String>,
+    /// Cut (Ctrl+X in Explorer): pasting moves them.
+    cut: bool,
 }
 
-/// Puts files on the system clipboard so they can be pasted in other apps.
+/// Files copied or cut in Finder / Explorer / a file manager (empty when none).
 #[tauri::command]
-pub fn clipboard_set_files(paths: Vec<String>) -> AppResult<()> {
-    arboard::Clipboard::new().and_then(|mut c| c.set().file_list(&paths)).map_err(|e| AppError::other(e.to_string()))
+pub fn clipboard_files() -> ClipboardFiles {
+    let paths: Vec<String> = arboard::Clipboard::new().and_then(|mut c| c.get().file_list()).map(|l| l.iter().map(|p| util::path_str(p)).collect()).unwrap_or_default();
+    #[cfg(windows)]
+    let cut = !paths.is_empty() && crate::winshell::clipboard_is_cut();
+    #[cfg(not(windows))]
+    let cut = false;
+    ClipboardFiles { paths, cut }
+}
+
+/// Puts files on the system clipboard so they can be pasted in other apps
+/// (`cut`: pasting in Explorer moves them).
+#[tauri::command]
+pub fn clipboard_set_files(paths: Vec<String>, cut: bool) -> AppResult<()> {
+    arboard::Clipboard::new().and_then(|mut c| c.set().file_list(&paths)).map_err(|e| AppError::other(e.to_string()))?;
+    #[cfg(windows)]
+    if cut {
+        crate::winshell::clipboard_mark_cut();
+    }
+    #[cfg(not(windows))]
+    let _ = cut;
+    Ok(())
+}
+
+/// Empties the system clipboard (after moving cut files away).
+#[tauri::command]
+pub fn clipboard_clear() {
+    if let Ok(mut c) = arboard::Clipboard::new() {
+        let _ = c.clear();
+    }
 }
 
 #[tauri::command]

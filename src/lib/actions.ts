@@ -234,11 +234,15 @@ export async function copyMove(op: 'copy' | 'move', sameDir = false) {
 export async function pasteFiles() {
   const tab = app.panel;
   // Files copied in Finder / Explorer since our own Copy / Cut win.
-  const os = await api.clipboardFiles().catch(() => [] as string[]);
+  const sys = await api.clipboardFiles().catch(() => ({ paths: [] as string[], cut: false }));
+  const os = sys.paths;
   const ours = app.clipboard?.items.flatMap((l) => (l.kind === 'local' ? [l.path] : [])) ?? [];
   const same = os.length === ours.length && os.every((p) => ours.includes(p));
-  const cb: FileClipboard | null =
-    os.length && !same ? { op: 'copy', items: os.map((p) => ({ kind: 'local', path: p })), names: os.map(baseName) } : app.clipboard;
+  // Ctrl+X in Explorer marks the files as cut: pasting moves them.
+  const fromSystem = os.length > 0 && !same;
+  const cb: FileClipboard | null = fromSystem
+    ? { op: sys.cut ? 'cut' : 'copy', items: os.map((p) => ({ kind: 'local', path: p })), names: os.map(baseName) }
+    : app.clipboard;
   if (!cb || !cb.items.length) return;
   if (!writable(tab.location)) return toast(t('err.Unsupported'), 'error');
   const extracting = cb.items[0].kind === 'archive';
@@ -251,7 +255,11 @@ export async function pasteFiles() {
       dest: tab.location,
       options: { verify: settings.verify },
     });
-    if (cb.op === 'cut') app.clipboard = null;
+    if (cb.op === 'cut') {
+      // Moved away: neither clipboard may offer them again.
+      app.clipboard = null;
+      void api.clipboardClear().catch(() => {});
+    }
   } catch (err) {
     showError(err);
   }
@@ -266,7 +274,7 @@ export function clipboardSet(op: 'copy' | 'cut') {
   // Local files also go to the system clipboard (paste in Finder / Explorer);
   // otherwise their paths as text.
   const local = locs.flatMap((l) => (l.kind === 'local' ? [l.path] : []));
-  if (local.length === locs.length) void api.clipboardSetFiles(local).catch(() => copyText(local.join('\n')));
+  if (local.length === locs.length) void api.clipboardSetFiles(local, op === 'cut').catch(() => copyText(local.join('\n')));
   else void copyText(locs.map(locPath).join('\n'));
   toast(`${op === 'cut' ? t('cmd.clipCut') : t('cmd.clipCopy')}: ${what(items.map((e) => e.name))}`);
 }
