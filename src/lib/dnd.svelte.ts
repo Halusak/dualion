@@ -20,11 +20,12 @@ export const drag = $state<{
   from: SideName | null;
   items: Location[];
   names: string[];
+  folders: boolean[];
   x: number;
   y: number;
   over: DropTarget | null;
   move: boolean;
-}>({ active: false, from: null, items: [], names: [], x: 0, y: 0, over: null, move: false });
+}>({ active: false, from: null, items: [], names: [], folders: [], x: 0, y: 0, over: null, move: false });
 
 /** Finds the panel/row under a viewport point using data attributes on the DOM. */
 export function targetAt(x: number, y: number): DropTarget | null {
@@ -35,14 +36,16 @@ export function targetAt(x: number, y: number): DropTarget | null {
   const row = el?.closest<HTMLElement>('[data-key]');
   const key = row?.dataset.key ?? null;
   const tab = app.side(side).tab;
-  const entry = key ? tab.all.find((e) => e.key === key) : undefined;
-  return { side, entryKey: entry && entry.isDir && !(entry.flags & F.UP) ? entry.key : null };
+  // The `..` row is synthetic and only exists in `visible`, not `all`.
+  const entry = key ? tab.visible.find((e) => e.key === key) : undefined;
+  return { side, entryKey: entry && (entry.isDir || (entry.flags & F.UP) !== 0) ? entry.key : null };
 }
 
 function destOf(t: DropTarget): Location | null {
   const tab = app.side(t.side).tab;
   if (t.entryKey) {
-    const e = tab.all.find((x) => x.key === t.entryKey);
+    const e = tab.visible.find((x) => x.key === t.entryKey);
+    if (e?.flags & F.UP) return tab.listing?.parent ?? null;
     if (e) return childLoc(tab.location, e);
   }
   const loc = tab.location;
@@ -55,6 +58,7 @@ export function startDrag(from: SideName, entries: Entry[], x: number, y: number
   drag.from = from;
   drag.items = entries.map((e) => childLoc(tab.location, e));
   drag.names = entries.map((e) => e.name);
+  drag.folders = entries.map((e) => e.isDir && !(e.flags & F.UP));
   drag.x = x;
   drag.y = y;
   drag.over = null;
@@ -63,7 +67,7 @@ export function startDrag(from: SideName, entries: Entry[], x: number, y: number
 export function moveDrag(e: PointerEvent) {
   drag.x = e.clientX;
   drag.y = e.clientY;
-  drag.move = isMac ? e.metaKey : e.shiftKey;
+  drag.move = e.shiftKey || (isMac && e.metaKey);
   drag.over = targetAt(e.clientX, e.clientY);
 }
 
@@ -80,6 +84,8 @@ export function dragOutside(): boolean {
   drag.active = false;
   drag.over = null;
   drag.items = [];
+  drag.names = [];
+  drag.folders = [];
   void api
     .dragOut(paths)
     .then(() => {
@@ -92,11 +98,23 @@ export function dragOutside(): boolean {
 export async function endDrag() {
   const over = drag.over;
   const items = drag.items;
+  const names = drag.names;
+  const folders = drag.folders;
+  const el = document.elementFromPoint(drag.x, drag.y) as HTMLElement | null;
+  const favoriteBar = el?.closest<HTMLElement>('[data-favorites-drop]');
   const move = drag.move;
   const from = drag.from;
   drag.active = false;
   drag.over = null;
   drag.items = [];
+  drag.names = [];
+  drag.folders = [];
+  if (favoriteBar && items.length === 1 && folders[0]) {
+    if (!settings.hotlist.some((h) => sameLoc(h.location, items[0]))) {
+      settings.hotlist = [...settings.hotlist, { name: names[0], location: items[0] }];
+    }
+    return;
+  }
   if (!over || !items.length) return;
   const dest = destOf(over);
   if (!dest) return;

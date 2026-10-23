@@ -83,8 +83,33 @@ fn apply_effects(app: &tauri::App) -> &'static str {
     "none"
 }
 
+/// Detects if portable mode is active (a `data` folder or `portable.dat` file exists next to the executable).
+fn detect_portable_dir() -> Option<std::path::PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let exe_dir = exe.parent()?;
+    let data_dir = exe_dir.join("data");
+    let marker = exe_dir.join("portable.dat");
+    if data_dir.is_dir() || marker.is_file() {
+        let _ = std::fs::create_dir_all(&data_dir);
+        Some(data_dir)
+    } else {
+        None
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let portable_dir = detect_portable_dir();
+    if let Some(ref p) = portable_dir {
+        // Redirect WebView2 data folder on Windows so no browser cache/state leaks to the host machine.
+        #[cfg(windows)]
+        {
+            let webview_dir = p.join("webview");
+            let _ = std::fs::create_dir_all(&webview_dir);
+            std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", webview_dir);
+        }
+    }
+
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
@@ -109,16 +134,26 @@ pub fn run() {
                 respond(responder, png.map(|p| (p.to_vec(), if p.starts_with(b"\x89PNG") { "image/png" } else { "image/svg+xml" })));
             });
         })
-        .setup(|app| {
+        .setup(move |app| {
             let handle = app.handle().clone();
-            let config_dir = app.path().app_config_dir()?;
-            let data_dir = app.path().app_data_dir()?;
+            let (config_dir, data_dir, cache_dir) = if let Some(ref p) = portable_dir {
+                let conf = p.join("config");
+                let data = p.join("data");
+                let cache = p.join("cache");
+                let _ = std::fs::create_dir_all(&conf);
+                let _ = std::fs::create_dir_all(&data);
+                let _ = std::fs::create_dir_all(&cache);
+                (conf, data, Some(cache))
+            } else {
+                (app.path().app_config_dir()?, app.path().app_data_dir()?, app.path().app_cache_dir().ok())
+            };
+
             platform::set_data_dir(data_dir.clone());
             let notify = handle.clone();
             network::set_notify(move || {
                 let _ = notify.emit("network-changed", ());
             });
-            if let Ok(cache) = app.path().app_cache_dir() {
+            if let Some(cache) = cache_dir {
                 thumbs::set_cache_dir(cache.join("thumbs"));
             }
             let remote = Arc::new(remote::Registry::default());

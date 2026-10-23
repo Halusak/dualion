@@ -37,6 +37,8 @@ export interface Settings {
   metaWidths: Record<string, number>;
   functionBar: boolean;
   toolbar: boolean;
+  /** Keep the favorites shortcuts visible in the toolbar. */
+  favoritesBarOpen: boolean;
   restoreSession: boolean;
   confirmDelete: boolean;
   useTrash: boolean;
@@ -62,6 +64,8 @@ export interface Settings {
   unmarkOnTabSwitch: boolean;
   /** Clear marks after dragging the files somewhere. */
   unmarkAfterDrop: boolean;
+  /** Select files with the right mouse button. */
+  rightClickSelect: boolean;
   showAttrs: boolean;
   hotlist: HotlistItem[];
   split: number;
@@ -91,6 +95,7 @@ export const defaultSettings = (): Settings => ({
   index: { enabled: true, roots: [], excludes: null, hidden: false, meta: true, skipCloud: false },
   functionBar: true,
   toolbar: true,
+  favoritesBarOpen: false,
   restoreSession: true,
   confirmDelete: true,
   useTrash: true,
@@ -110,6 +115,7 @@ export const defaultSettings = (): Settings => ({
   syncColumns: false,
   unmarkOnTabSwitch: false,
   unmarkAfterDrop: false,
+  rightClickSelect: true,
   showAttrs: false,
   hotlist: [],
   split: 0.5,

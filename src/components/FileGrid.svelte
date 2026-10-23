@@ -6,7 +6,7 @@
   import { drag } from '../lib/dnd.svelte';
   import { setMetrics } from '../lib/panelKeys.svelte';
   import { isWindows } from '../lib/platform';
-  import { backgroundPointerDown, itemPointerDown } from '../lib/pointer';
+  import { backgroundPointerDown, canOpenContextMenu, itemPointerDown } from '../lib/pointer';
   import type { SideName } from '../lib/state/app.svelte';
   import { settings } from '../lib/state/settings.svelte';
   import type { Tab } from '../lib/state/tab.svelte';
@@ -105,8 +105,10 @@
 
   function onContext(e: MouseEvent, entry: Entry | null) {
     e.preventDefault();
-    if (entry && !(entry.flags & F.UP)) void entryMenu(tab);
-    else void backgroundMenu(tab);
+    if (canOpenContextMenu(e, entry)) {
+      if (entry && !(entry.flags & F.UP)) void entryMenu(tab);
+      else void backgroundMenu(tab);
+    }
   }
 </script>
 

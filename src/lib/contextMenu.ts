@@ -234,6 +234,7 @@ export async function tabMenu(side: import('./state/app.svelte').Side, index: nu
     ...(tab.home ? [] : [await MenuItem.new({ text: t('tabs.lockFolder'), action: () => A.toggleLockTabFolder(side, index) })]),
     await MenuItem.new({ text: t('tabs.rename') + '…', action: () => void A.renameTab(side, index) }),
     await MenuItem.new({ text: t('cmd.duplicateTab'), action: () => void A.duplicateTab(side, index) }),
+    await MenuItem.new({ text: t('cmd.moveTabToOtherSide'), action: () => void A.moveTabToOtherSide(side, index) }),
     await PredefinedMenuItem.new({ item: 'Separator' }),
     await MenuItem.new({ text: t('cmd.closeTab'), enabled: !tab.locked && side.tabs.length > 1, action: () => A.closeTab(side, index) }),
     await MenuItem.new({ text: t('cmd.closeOtherTabs'), enabled: side.tabs.length > 1, action: () => side.closeOthers(index) }),
