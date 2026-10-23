@@ -37,6 +37,8 @@ export interface Settings {
   metaWidths: Record<string, number>;
   functionBar: boolean;
   toolbar: boolean;
+  /** Keep the favorites shortcuts visible in the toolbar. */
+  favoritesBarOpen: boolean;
   restoreSession: boolean;
   confirmDelete: boolean;
   useTrash: boolean;
@@ -93,6 +95,7 @@ export const defaultSettings = (): Settings => ({
   index: { enabled: true, roots: [], excludes: null, hidden: false, meta: true, skipCloud: false },
   functionBar: true,
   toolbar: true,
+  favoritesBarOpen: false,
   restoreSession: true,
   confirmDelete: true,
   useTrash: true,

@@ -109,10 +109,9 @@
       <Server {size} strokeWidth={sw} />
     </button>
   </div>
-
-  </div>
-
+  <span class="divider" aria-hidden="true"></span>
   <FavoritesBar />
+  </div>
 
   <div class="trail" data-tauri-drag-region>
     <JobsIndicator />
@@ -137,7 +136,7 @@
     align-items: center;
     gap: 10px;
     min-width: 0;
-    flex: none;
+    flex: 1;
   }
   .lead {
     display: none;
@@ -167,6 +166,12 @@
     display: flex;
     align-items: center;
     gap: 2px;
+  }
+  .divider {
+    width: 1px;
+    height: 18px;
+    flex: none;
+    background: var(--border-strong);
   }
   .segmented {
     display: flex;

@@ -13,8 +13,6 @@
 
   let pointer: { x: number; y: number; location: HotlistItem['location']; moved: boolean } | null = null;
   let suppressClick = false;
-  let showFavorites = $state(false);
-
   const iconPx = Math.round(18 * dpr());
 
   function open(item: HotlistItem) {
@@ -61,10 +59,10 @@
 </script>
 
 <nav class="favorites" data-favorites-drop aria-label={t('cmd.hotlist')} class:drop={drag.active}>
-  <button class="toggle icon-btn" class:on={showFavorites} title={t('cmd.hotlist')} aria-label={t('cmd.hotlist')} aria-pressed={showFavorites} onclick={() => (showFavorites = !showFavorites)}>
+  <button class="toggle icon-btn" class:on={settings.favoritesBarOpen} title={t('cmd.hotlist')} aria-label={t('cmd.hotlist')} aria-pressed={settings.favoritesBarOpen} onclick={() => (settings.favoritesBarOpen = !settings.favoritesBarOpen)}>
     <Star size={17} strokeWidth={1.7} />
   </button>
-  {#if showFavorites}
+  {#if settings.favoritesBarOpen}
     <div class="items">
       {#each settings.hotlist as item, i (locKey(item.location))}
         <button
@@ -97,7 +95,7 @@
     min-width: 0;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 3px;
     overflow: hidden;
     padding: 0 4px;
