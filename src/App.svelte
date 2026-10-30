@@ -7,16 +7,16 @@
   import { api } from './lib/api';
   import { buildMenu, handleKey, isTextTarget, run, runFromMenu } from './lib/commands';
   import { dropPaths } from './lib/dnd.svelte';
-  import { i18n, langFromLocale, t } from './lib/i18n/index.svelte';
+  import { useAppearance } from './lib/appearance.svelte';
+  import { t } from './lib/i18n/index.svelte';
   import { panelKey, quick } from './lib/panelKeys.svelte';
   import { baseName, locKey, sameLoc } from './lib/paths';
-  import { isMac, platform } from './lib/platform';
+  import { isMac } from './lib/platform';
   import { app, restoreSession, sessionSnapshot } from './lib/state/app.svelte';
   import { applySettings, settings, type Settings } from './lib/state/settings.svelte';
   import { dialogOpen, openDialog, toast, ui } from './lib/state/ui.svelte';
   import { journalLabel, pushHistory } from './lib/state/history.svelte';
   import { indexConfig, semanticConfig, startIndex } from './lib/state/index.svelte';
-  import { applyAccent } from './lib/theme';
   import type { Answer, JobDone, JobSnapshot, RuleActivity } from './lib/types';
   import ConflictDialog from './components/dialogs/ConflictDialog.svelte';
   import JobErrorDialog from './components/dialogs/JobErrorDialog.svelte';
@@ -29,35 +29,12 @@
   import Toolbar from './components/Toolbar.svelte';
 
   const root = document.documentElement;
-  root.dataset.platform = platform;
+  useAppearance();
 
   if (import.meta.env.DEV) {
     // Test hook for driving the UI from the dev tools (stripped from production builds).
     (window as unknown as Record<string, unknown>).__dualion = { app, settings, run, ui };
   }
-
-  const mq = window.matchMedia('(prefers-color-scheme: dark)');
-  let systemDark = $state(mq.matches);
-  mq.addEventListener('change', (e) => (systemDark = e.matches));
-  const dark = $derived(settings.theme === 'dark' || (settings.theme === 'system' && systemDark));
-
-  $effect(() => {
-    root.dataset.theme = dark ? 'dark' : 'light';
-    applyAccent(app.info.accent, dark);
-  });
-  $effect(() => {
-    void getCurrentWindow()
-      .setTheme(settings.theme === 'system' ? null : settings.theme)
-      .catch(() => {});
-  });
-  $effect(() => {
-    root.dataset.density = settings.density;
-    root.style.setProperty('--fs', settings.fontSize > 0 ? `${settings.fontSize}px` : '');
-  });
-  $effect(() => {
-    i18n.lang = settings.lang === 'auto' ? langFromLocale(app.info.locale) : settings.lang;
-    root.lang = i18n.lang;
-  });
 
   // Native menu (macOS) follows language and check-mark state. Other
   // platforms draw their menu bar in the window (MenuBar.svelte).
@@ -185,7 +162,15 @@
 
   onMount(() => {
     const unlisteners: Promise<() => void>[] = [];
-    unlisteners.push(listen<string>('menu', (e) => runFromMenu(e.payload, dialogOpen())));
+    // Menu accelerators reach every window: file commands must not run here
+    // while the Operations window has the focus.
+    let focused = true;
+    unlisteners.push(getCurrentWindow().onFocusChanged((e) => (focused = e.payload)));
+    unlisteners.push(
+      listen<string>('menu', (e) => {
+        if (runFromMenu(e.payload, dialogOpen() || !focused) && !focused && e.payload !== 'jobsWindow') void getCurrentWindow().setFocus();
+      }),
+    );
     unlisteners.push(listen<JobSnapshot[]>('jobs', (e) => (app.jobs = e.payload)));
     unlisteners.push(
       listen<JobDone>('job-done', (e) => {

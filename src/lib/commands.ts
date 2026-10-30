@@ -94,6 +94,7 @@ export const commands: Command[] = [
   { id: 'swapPanels', label: 'cmd.swapPanels', run: A.swapPanels, keys: ['Mod+U'] },
   { id: 'equalPanels', label: 'cmd.equalPanels', run: A.equalPanels, keys: ['Mod+E'] },
   { id: 'jobs', label: 'cmd.jobs', run: () => (app.showJobs = !app.showJobs), keys: ['Mod+J'], checked: () => app.showJobs, global: true },
+  { id: 'jobsWindow', label: 'cmd.jobsWindow', run: A.jobsWindow, keys: ['Mod+Shift+J'], global: true },
   { id: 'settings', label: 'cmd.settings', run: () => A.settingsDialog(), keys: ['Mod+,'], global: true },
   { id: 'about', label: 'cmd.about', run: A.about },
   { id: 'discord', label: 'cmd.discord', run: A.openDiscord },
@@ -275,9 +276,11 @@ type RunSource = 'key' | 'menu' | 'ui';
 let lastRun: { id: string; at: number; source: RunSource } = { id: '', at: 0, source: 'ui' };
 
 /** Native menu item: panel commands wait while a dialog is open (F3 in the viewer must not reopen it). */
-export function runFromMenu(id: string, dialogOpen: boolean) {
-  if (dialogOpen && !byId.get(id)?.global) return;
+/** Runs a menu command unless `blocked` (dialog open, other window focused) and it is not global. */
+export function runFromMenu(id: string, blocked: boolean): boolean {
+  if (blocked && !byId.get(id)?.global) return false;
   run(id, 'menu');
+  return true;
 }
 
 /**
@@ -408,7 +411,7 @@ export function buildMenu(): MenuNode[] {
   menu.push({
     type: 'submenu',
     label: t('menu.commands'),
-    items: [item('quickFind'), item('palette'), item('search'), item('multiRename'), item('dirSizes'), item('diskUsage'), item('duplicates'), sep, item('terminal'), sep, item('swapPanels'), item('equalPanels'), sep, item('jobs')],
+    items: [item('quickFind'), item('palette'), item('search'), item('multiRename'), item('dirSizes'), item('diskUsage'), item('duplicates'), sep, item('terminal'), sep, item('swapPanels'), item('equalPanels'), sep, item('jobs'), item('jobsWindow')],
   });
   menu.push({ type: 'submenu', label: t('menu.net'), items: [item('ftpConnect'), item('ftpDisconnect')] });
   menu.push({

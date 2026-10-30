@@ -41,6 +41,8 @@ export interface Settings {
   confirmDelete: boolean;
   useTrash: boolean;
   confirmCopy: boolean;
+  /** Show a progress window for copying / moving (it can be sent to the background). */
+  progressDialog: boolean;
   verify: boolean;
   editor: string;
   terminal: string;
@@ -95,6 +97,7 @@ export const defaultSettings = (): Settings => ({
   confirmDelete: true,
   useTrash: true,
   confirmCopy: true,
+  progressDialog: true,
   verify: false,
   editor: '',
   terminal: '',

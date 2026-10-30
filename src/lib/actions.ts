@@ -6,6 +6,7 @@ import { ask, open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { api, type BackendLocation } from './api';
 import { withHostKey } from './remote';
 import { copyText } from './clipboard';
+import { trackJob } from './progress';
 import { formatSize } from './format';
 import { localeTag, t, what } from './i18n/index.svelte';
 import { baseName, childLoc, dirName, isArchiveName, isDiskImage, isResults, joinLocal, locPath, sameLoc, stemOf, extOf } from './paths';
@@ -223,11 +224,19 @@ export async function copyMove(op: 'copy' | 'move', sameDir = false) {
     queue: result.queue,
   };
   try {
-    await api.jobEnqueue(req);
+    const id = await api.jobEnqueue(req);
     src.unmarkAll();
+    if (req.queue == null) trackJob(id);
+    else toast(t('jobs.addedToQueue', { n: req.queue }));
   } catch (err) {
     showError(err);
   }
+}
+
+/** The Operations window (a separate window with the details of every job). */
+export function jobsWindow() {
+  app.showJobs = false;
+  void api.openJobsWindow(t('jobs.title')).catch(showError);
 }
 
 /** Ctrl+V: paste files from the internal clipboard into the active panel. */
@@ -249,12 +258,13 @@ export async function pasteFiles() {
   const first = cb.items[0];
   if (first.kind === 'archive' && !(await ensureArchiveAccess(first.archive))) return;
   try {
-    await api.jobEnqueue({
+    const id = await api.jobEnqueue({
       op: extracting ? 'extract' : cb.op === 'cut' ? 'move' : 'copy',
       sources: cb.items,
       dest: tab.location,
       options: { verify: settings.verify },
     });
+    trackJob(id);
     if (cb.op === 'cut') {
       // Moved away: neither clipboard may offer them again.
       app.clipboard = null;
@@ -406,13 +416,25 @@ export async function duplicate() {
   return copyMove('copy', true);
 }
 
+/** Viewer ↑ / ↓: moves the panel cursor to the next / previous file (folders are skipped). */
+async function viewStep(tab: Tab, delta: number): Promise<{ path: string; name: string } | null> {
+  const v = tab.visible;
+  for (let i = tab.cursor + delta; i >= 0 && i < v.length; i += delta) {
+    const e = v[i];
+    if (e.isDir || e.flags & F.UP) continue;
+    tab.setCursorKey(e.key);
+    return { path: await localPathOf(tab, e), name: e.name };
+  }
+  return null;
+}
+
 export async function viewFile(tab = app.panel) {
   const e = tab.current;
   if (!e || e.flags & F.UP) return;
   if (e.isDir) return calcDirSize(tab, e);
   try {
     const path = await localPathOf(tab, e);
-    await openDialog(Viewer, { path, name: e.name });
+    await openDialog(Viewer, { path, name: e.name, step: (delta: number) => viewStep(tab, delta) });
   } catch (err) {
     showError(err);
   }

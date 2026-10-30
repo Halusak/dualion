@@ -12,7 +12,24 @@
   import { highlight, languageOf } from '../../lib/highlight';
   import Modal from './Modal.svelte';
 
-  let { path, name, close }: { path: string; name: string; close: (r: null) => void } = $props();
+  type ViewTarget = { path: string; name: string };
+  let {
+    path: initialPath,
+    name: initialName,
+    step,
+    close,
+  }: {
+    path: string;
+    name: string;
+    /** Next (+1) / previous (-1) file of the panel; null at the end of the list. */
+    step?: (delta: number) => Promise<ViewTarget | null>;
+    close: (r: null) => void;
+  } = $props();
+
+  // svelte-ignore state_referenced_locally
+  let path = $state(initialPath);
+  // svelte-ignore state_referenced_locally
+  let name = $state(initialName);
 
   const CHUNK = 4 * 1024 * 1024;
   let probe = $state<ViewerProbe | null>(null);
@@ -28,25 +45,61 @@
   let findInput = $state<HTMLInputElement>();
   let notFound = $state(false);
 
-  onMount(async () => {
+  // Bumped for every file shown: answers for an earlier file are dropped.
+  let token = 0;
+
+  async function load(first: boolean) {
+    const my = ++token;
     try {
-      probe = await api.viewerProbe(path);
-      encoding = probe.encoding || 'utf-8';
-      if (hasPreview(probe.kind)) mode = 'preview';
-      else if (probe.kind === 'binary') mode = 'hex';
-      else {
-        mode = 'text';
-        await loadText(true);
-      }
+      const p = await api.viewerProbe(path);
+      if (my !== token) return;
+      probe = p;
+      encoding = p.encoding || 'utf-8';
+      // Moving between files keeps the text / hex view where the file has one.
+      const keep = !first && (mode === 'hex' || (mode === 'text' && (!hasPreview(p.kind) || p.textual)) || (mode === 'preview' && hasPreview(p.kind)));
+      if (!keep) mode = hasPreview(p.kind) ? 'preview' : p.kind === 'binary' ? 'hex' : 'text';
+      if (mode === 'text') await loadText(true);
+    } catch (e) {
+      if (my !== token) return;
+      showError(e);
+      if (first) close(null);
+    }
+  }
+
+  onMount(() => load(true));
+
+  let stepping = false;
+  async function go(delta: number) {
+    if (!step || stepping) return;
+    stepping = true;
+    try {
+      const next = await step(delta);
+      if (!next) return;
+      path = next.path;
+      name = next.name;
+      probe = null;
+      text = '';
+      offset = 0;
+      eof = true;
+      notFound = false;
+      findPos = -1;
+      pages.clear();
+      loading.clear();
+      hexTop = 0;
+      if (hexEl) hexEl.scrollTop = 0;
+      await load(false);
     } catch (e) {
       showError(e);
-      close(null);
+    } finally {
+      stepping = false;
     }
-  });
+  }
 
   async function loadText(reset: boolean) {
+    const my = token;
     const start = reset ? 0 : offset;
     const chunk = await api.viewerReadText(path, start, CHUNK, encoding);
+    if (my !== token) return;
     text = reset ? chunk.text : text + chunk.text;
     offset = chunk.end;
     eof = chunk.eof;
@@ -57,8 +110,7 @@
   }
 
   // ---------------------------------------------------------------- syntax highlighting
-  // svelte-ignore state_referenced_locally
-  const lang = languageOf(name);
+  const lang = $derived(languageOf(name));
   let colored = $state(true);
   let codeEl = $state<HTMLElement>();
   let findPos = -1;
@@ -178,6 +230,13 @@
     } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
       e.preventDefault();
       findInput?.focus();
+    } else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && step && !e.altKey && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+      // ↑ / ↓ = previous / next file of the panel, unless the text, the hex
+      // dump or a form control has the focus (arrows scroll / edit there).
+      const el = e.target as HTMLElement;
+      if (el.closest('input, select, textarea, .code, .hex, video, audio')) return;
+      e.preventDefault();
+      void go(e.key === 'ArrowDown' ? 1 : -1);
     }
   }
 
@@ -257,7 +316,7 @@
           </div>
         </div>
       {:else if probe}
-        <Preview {path} {name} {probe} />
+        {#key path}<Preview {path} {name} {probe} />{/key}
       {/if}
     </div>
     {#if mode === 'text'}

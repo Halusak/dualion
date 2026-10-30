@@ -108,6 +108,8 @@ export const api = {
   jobStartNow: (id: number) => invoke<void>('job_start_now', { id }),
   jobMove: (id: number, delta: number) => invoke<void>('job_move', { id, delta }),
   jobsClearFinished: () => invoke<void>('jobs_clear_finished'),
+  jobSetQueue: (id: number, queue: number | null) => invoke<void>('job_set_queue', { id, queue }),
+  openJobsWindow: (title: string) => invoke<void>('open_jobs_window', { title }),
 
   searchStart: (params: SearchParams, onEvent: (e: SearchEvent) => void) => {
     const channel = new Channel<SearchEvent>();

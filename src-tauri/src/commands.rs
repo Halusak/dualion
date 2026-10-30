@@ -570,6 +570,30 @@ pub fn jobs_clear_finished(state: State<'_, AppState>) {
     state.jobs.clear_finished()
 }
 
+#[tauri::command]
+pub fn job_set_queue(state: State<'_, AppState>, id: u64, queue: Option<u32>) -> AppResult<()> {
+    state.jobs.set_queue(id, queue)
+}
+
+/// Opens (or brings forward) the separate Operations window.
+#[tauri::command]
+pub async fn open_jobs_window(app: AppHandle, title: String) -> AppResult<()> {
+    use tauri::Manager;
+    if let Some(w) = app.get_webview_window("jobs") {
+        let _ = w.unminimize();
+        w.show()?;
+        w.set_focus()?;
+        return Ok(());
+    }
+    tauri::WebviewWindowBuilder::new(&app, "jobs", tauri::WebviewUrl::App("index.html".into()))
+        .title(title)
+        .inner_size(920.0, 600.0)
+        .min_inner_size(560.0, 340.0)
+        .visible(false)
+        .build()?;
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Search, viewer, checksums
 // ---------------------------------------------------------------------------

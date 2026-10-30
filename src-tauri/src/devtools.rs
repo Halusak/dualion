@@ -1,6 +1,8 @@
 //! Development-only remote control (debug builds with `DUALION_DEBUG_DIR`
 //! set): drop `*.js` files into that folder to run them in the webview, or
 //! a `snapshot` file containing an output path to save a PNG of the page.
+//! Scripts named `jobs-*.js` and snapshot paths prefixed with `jobs:` target
+//! the Operations window instead of the main one.
 //! Used to verify the UI without screen-recording permissions.
 
 use std::path::PathBuf;
@@ -20,7 +22,8 @@ pub fn start(app: AppHandle) {
             if name.ends_with(".js") {
                 if let Ok(js) = std::fs::read_to_string(&path) {
                     let _ = std::fs::remove_file(&path);
-                    if let Some(w) = app.get_webview_window("main") {
+                    let label = if name.starts_with("jobs-") { "jobs" } else { "main" };
+                    if let Some(w) = app.get_webview_window(label) {
                         let _ = w.eval(&js);
                     }
                 }
@@ -41,7 +44,11 @@ fn snapshot(app: &AppHandle, out: String) {
     use objc2_foundation::{NSDictionary, NSError};
     use objc2_web_kit::WKWebView;
 
-    let Some(w) = app.get_webview_window("main") else { return };
+    let (label, out) = match out.strip_prefix("jobs:") {
+        Some(rest) => ("jobs", rest.to_string()),
+        None => ("main", out),
+    };
+    let Some(w) = app.get_webview_window(label) else { return };
     let r = w.with_webview(move |wv| unsafe {
         let web: &WKWebView = &*(wv.inner() as *const WKWebView);
         let out = out.clone();

@@ -135,7 +135,7 @@ pub fn run(ctx: &JobCtx) -> AppResult<()> {
             continue;
         }
         let mut target = item.rel.iter().fold(dest_dir.clone(), |acc, part| dst_fs.join(&acc, part));
-        ctx.set_current(&item.src);
+        ctx.begin_file(&item.src, if item.meta.is_dir { 0 } else { item.meta.size });
 
         if item.meta.is_dir && !(item.meta.is_link && !follow) {
             loop {

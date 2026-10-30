@@ -220,10 +220,24 @@ pub fn loc_display(loc: &Location, reg: &Registry) -> String {
     }
 }
 
-pub fn describe(req: &JobRequest, reg: &Registry) -> (String, usize, String) {
-    let first = req.sources.first().map(loc_name).unwrap_or_default();
-    let dest = req.dest.as_ref().map(|d| loc_display(d, reg)).unwrap_or_default();
-    (first, req.sources.len(), dest)
+/// What a job works on, as shown in the UI.
+pub struct Labels {
+    pub first: String,
+    pub count: usize,
+    pub source_dir: String,
+    pub sources: Vec<String>,
+    pub dest: String,
+}
+
+pub fn describe(req: &JobRequest, reg: &Registry) -> Labels {
+    let first = req.sources.first();
+    Labels {
+        first: first.map(loc_name).unwrap_or_default(),
+        count: req.sources.len(),
+        source_dir: first.and_then(parent_location).map(|p| loc_display(&p, reg)).unwrap_or_default(),
+        sources: req.sources.iter().take(super::MAX_SOURCES).map(|s| loc_display(s, reg)).collect(),
+        dest: req.dest.as_ref().map(|d| loc_display(d, reg)).unwrap_or_default(),
+    }
 }
 
 pub fn parent_location(loc: &Location) -> Option<Location> {

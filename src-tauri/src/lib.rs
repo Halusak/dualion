@@ -180,6 +180,15 @@ pub fn run() {
             let _ = app.emit("menu", event.id().0.as_str());
         })
         .on_window_event(|window, event| {
+            if window.label() != "main" {
+                return;
+            }
+            // The Operations window goes away with the main window.
+            if let WindowEvent::Destroyed = event {
+                if let Some(w) = window.get_webview_window("jobs") {
+                    let _ = w.destroy();
+                }
+            }
             if let WindowEvent::CloseRequested { api, .. } = event {
                 let state = window.state::<AppState>();
                 if state.jobs.active_count() > 0 {
@@ -235,6 +244,8 @@ pub fn run() {
             commands::job_start_now,
             commands::job_move,
             commands::jobs_clear_finished,
+            commands::job_set_queue,
+            commands::open_jobs_window,
             commands::search_start,
             commands::viewer_probe,
             commands::viewer_read_text,

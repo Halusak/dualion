@@ -166,8 +166,14 @@ pub struct JobSnapshot {
     pub op: JobOp,
     pub status: JobStatus,
     pub queue: Option<u32>,
+    /// Moved into a busy queue while running: paused until the queue frees up.
+    pub held: bool,
     pub first_source: String,
     pub source_count: usize,
+    /// Folder the (first) source lives in.
+    pub source_dir: String,
+    /// Full paths of the sources (at most [`MAX_SOURCES`]).
+    pub sources: Vec<String>,
     pub dest: String,
     pub to_trash: bool,
     pub total_bytes: u64,
@@ -175,6 +181,9 @@ pub struct JobSnapshot {
     pub total_files: u64,
     pub done_files: u64,
     pub current: String,
+    /// Size of the file being transferred and how much of it is done.
+    pub current_size: u64,
+    pub current_done: u64,
     pub speed: f64,
     pub eta: Option<u64>,
     pub error: Option<AppError>,
@@ -205,6 +214,8 @@ struct Progress {
     total_files: u64,
     done_files: u64,
     current: String,
+    cur_size: u64,
+    cur_start: u64,
     error: Option<AppError>,
     skipped: u64,
     errors: u64,
@@ -221,22 +232,48 @@ struct CtlState {
     answer: Option<Answer>,
 }
 
+/// How many source paths a snapshot lists.
+pub const MAX_SOURCES: usize = 200;
+
 pub struct Job {
     pub id: u64,
     pub req: JobRequest,
     created: i64,
+    /// Current queue (starts as `req.queue`, the user may move the job later).
+    queue: Mutex<Option<u32>>,
+    held: AtomicBool,
     cancel: AtomicBool,
     paused_flag: AtomicBool,
     ctl: Mutex<CtlState>,
     cv: Condvar,
     progress: Mutex<Progress>,
-    labels: (String, usize, String),
+    labels: vfs::Labels,
     journal: Mutex<Vec<undo::UndoAction>>,
 }
 
 impl Job {
     fn status(&self) -> JobStatus {
         self.progress.lock().status
+    }
+
+    fn queue(&self) -> Option<u32> {
+        *self.queue.lock()
+    }
+
+    fn is_held(&self) -> bool {
+        self.held.load(Ordering::Relaxed)
+    }
+
+    /// Running and occupying its queue (a held job waits for the queue instead).
+    fn occupies_queue(&self) -> bool {
+        self.status().is_active() && !self.is_held()
+    }
+
+    fn set_hold(&self, held: bool) {
+        self.held.store(held, Ordering::Relaxed);
+        self.paused_flag.store(held, Ordering::Relaxed);
+        self.ctl.lock().paused = held;
+        self.cv.notify_all();
     }
 
     pub fn snapshot_done_bytes(&self) -> u64 {
@@ -266,16 +303,21 @@ impl Job {
             id: self.id,
             op: self.req.op,
             status: p.status,
-            queue: self.req.queue,
-            first_source: self.labels.0.clone(),
-            source_count: self.labels.1,
-            dest: self.labels.2.clone(),
+            queue: self.queue(),
+            held: self.is_held(),
+            first_source: self.labels.first.clone(),
+            source_count: self.labels.count,
+            source_dir: self.labels.source_dir.clone(),
+            sources: self.labels.sources.clone(),
+            dest: self.labels.dest.clone(),
             to_trash: self.req.options.to_trash,
             total_bytes: p.total_bytes,
             done_bytes: p.done_bytes,
             total_files: p.total_files,
             done_files: p.done_files,
             current: p.current.clone(),
+            current_size: p.cur_size,
+            current_done: p.done_bytes.saturating_sub(p.cur_start).min(p.cur_size),
             speed: p.speed,
             eta,
             error: p.error.clone(),
@@ -430,11 +472,18 @@ impl<'a> JobCtx<'a> {
     }
 
     pub fn set_current(&self, s: &str) {
+        self.begin_file(s, 0);
+    }
+
+    /// Starts the transfer of one file (`size` bytes; 0 = no per-file progress).
+    pub fn begin_file(&self, s: &str, size: u64) {
         let mut p = self.job.progress.lock();
         if p.current != s {
             p.current.clear();
             p.current.push_str(s);
         }
+        p.cur_size = size;
+        p.cur_start = p.done_bytes;
         drop(p);
         self.touch();
     }
@@ -607,6 +656,8 @@ impl JobManager {
         let job = Arc::new(Job {
             id,
             created: now_ms(),
+            queue: Mutex::new(req.queue),
+            held: AtomicBool::new(false),
             cancel: AtomicBool::new(false),
             paused_flag: AtomicBool::new(false),
             ctl: Mutex::new(CtlState::default()),
@@ -618,6 +669,8 @@ impl JobManager {
                 total_files: 0,
                 done_files: 0,
                 current: String::new(),
+                cur_size: 0,
+                cur_start: 0,
                 error: None,
                 skipped: 0,
                 errors: 0,
@@ -637,22 +690,29 @@ impl JobManager {
         Ok(id)
     }
 
-    /// Starts immediate jobs and the head of every idle queue.
+    /// Starts immediate jobs and the head of every idle queue. Jobs moved
+    /// into a queue while running go first: they have already started.
     fn schedule(self: &Arc<Self>) {
         let to_start: Vec<Arc<Job>> = {
             let jobs = self.jobs.lock();
-            let mut busy_queues: Vec<u32> = jobs
-                .iter()
-                .filter(|j| j.status().is_active())
-                .filter_map(|j| j.req.queue)
-                .collect();
+            let mut busy_queues: Vec<u32> = jobs.iter().filter(|j| j.occupies_queue()).filter_map(|j| j.queue()).collect();
+            for j in jobs.iter().filter(|j| j.is_held()) {
+                match j.queue() {
+                    Some(q) if busy_queues.contains(&q) => {}
+                    q => {
+                        busy_queues.extend(q);
+                        j.set_hold(false);
+                        self.dirty.store(true, Ordering::Relaxed);
+                    }
+                }
+            }
             let mut start = Vec::new();
             for j in jobs.iter() {
                 let mut p = j.progress.lock();
                 if p.status != JobStatus::Queued {
                     continue;
                 }
-                match j.req.queue {
+                match j.queue() {
                     None => {}
                     Some(q) if busy_queues.contains(&q) => continue,
                     Some(q) => busy_queues.push(q),
@@ -723,6 +783,8 @@ impl JobManager {
 
     pub fn set_paused(&self, id: u64, paused: bool) -> AppResult<()> {
         let job = self.find(id)?;
+        // Resuming a job that waits for its queue runs it right away.
+        job.held.store(false, Ordering::Relaxed);
         job.paused_flag.store(paused, Ordering::Relaxed);
         job.ctl.lock().paused = paused;
         job.cv.notify_all();
@@ -756,6 +818,11 @@ impl JobManager {
     /// Takes a queued job out of its queue and starts it immediately.
     pub fn start_now(self: &Arc<Self>, id: u64) -> AppResult<()> {
         let job = self.find(id)?;
+        if job.is_held() {
+            job.set_hold(false);
+            self.dirty.store(true, Ordering::Relaxed);
+            return Ok(());
+        }
         if job.status() != JobStatus::Queued {
             return Ok(());
         }
@@ -769,13 +836,34 @@ impl JobManager {
         Ok(())
     }
 
+    /// Puts a job into a queue (None = run on its own). A running job moved
+    /// into a busy queue pauses until the jobs ahead of it are done.
+    pub fn set_queue(self: &Arc<Self>, id: u64, queue: Option<u32>) -> AppResult<()> {
+        let job = self.find(id)?;
+        if job.status().is_finished() {
+            return Ok(());
+        }
+        *job.queue.lock() = queue;
+        if job.status().is_active() {
+            let busy = queue.is_some_and(|q| {
+                self.jobs.lock().iter().any(|j| j.id != id && j.queue() == Some(q) && j.occupies_queue())
+            });
+            if busy != job.is_held() {
+                job.set_hold(busy);
+            }
+        }
+        self.dirty.store(true, Ordering::Relaxed);
+        self.schedule();
+        Ok(())
+    }
+
     /// Moves a queued job up (-1) or down (+1) within its queue.
     pub fn move_job(&self, id: u64, delta: i32) -> AppResult<()> {
         let mut jobs = self.jobs.lock();
         let Some(pos) = jobs.iter().position(|j| j.id == id) else { return Ok(()) };
-        let queue = jobs[pos].req.queue;
+        let queue = jobs[pos].queue();
         let same: Vec<usize> = (0..jobs.len())
-            .filter(|&i| jobs[i].req.queue == queue && jobs[i].status() == JobStatus::Queued)
+            .filter(|&i| jobs[i].queue() == queue && jobs[i].status() == JobStatus::Queued)
             .collect();
         let Some(k) = same.iter().position(|&i| i == pos) else { return Ok(()) };
         let target = k as i32 + delta;

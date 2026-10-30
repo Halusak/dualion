@@ -163,6 +163,7 @@
         </label>
       {:else if section === 'operations'}
         <label class="check"><input type="checkbox" bind:checked={settings.confirmCopy} /> {t('settings.confirmCopy')}</label>
+        <label class="check"><input type="checkbox" bind:checked={settings.progressDialog} /> {t('settings.progressDialog')}</label>
         <label class="check"><input type="checkbox" bind:checked={settings.confirmDelete} /> {t('settings.confirmDelete')}</label>
         <label class="check"><input type="checkbox" bind:checked={settings.useTrash} /> {t('settings.useTrash')}</label>
         <label class="check"><input type="checkbox" bind:checked={settings.verify} /> {t('settings.verify')}</label>
