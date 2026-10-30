@@ -17,7 +17,7 @@
   import { placesMenu, popupLocations, subfoldersMenu } from '../lib/placesMenu';
   import { app, type SideName } from '../lib/state/app.svelte';
   import { settings } from '../lib/state/settings.svelte';
-  import type { Tab } from '../lib/state/tab.svelte';
+  import { Tab } from '../lib/state/tab.svelte';
   import type { Crumb } from '../lib/types';
 
   let { tab, side, active }: { tab: Tab; side: SideName; active: boolean } = $props();
@@ -146,6 +146,14 @@
     void placesMenu(tab, { x: r.left, y: r.bottom + 2 });
   }
 
+  /** Middle click: open the folder in a new tab (like links in a browser). */
+  function openInNewTab(c: Crumb) {
+    app.activeSide = side;
+    const t = new Tab({ location: c.location, view: tab.view, sortKey: tab.sortKey, sortDesc: tab.sortDesc });
+    app.side(side).addTab(t);
+    void t.navigate(c.location);
+  }
+
   function chevron(e: MouseEvent, c: Crumb) {
     e.stopPropagation();
     app.activeSide = side;
@@ -219,6 +227,8 @@
             app.activeSide = side;
             void tab.navigate(c.location);
           }}
+          onauxclick={(e) => e.button === 1 && openInNewTab(c)}
+          onmousedown={(e) => e.button === 1 && e.preventDefault()}
         >
           {#if c.icon === 'home'}<House size={13} strokeWidth={1.75} />{/if}
           {#if c.icon === 'server'}<Server size={13} strokeWidth={1.75} />{/if}
