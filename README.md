@@ -101,6 +101,15 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
   - start a job immediately or add it to one of three queues, which run jobs one after another (F2 in the copy/move dialog, as in TC);
   - pause, resume or cancel a job, run it outside the queue, or reorder the queue;
   - progress shows speed and time remaining.
+- **Copy progress window** (F5/F6, paste, drag and drop):
+  - shows the current file and overall progress, speed, elapsed and remaining time;
+  - send the job to the **background**, pause it, cancel it, or move it **to a queue** even while it runs (it waits until the queue is free);
+  - can be turned off in Settings.
+- **Operations window** (Mod+Shift+J): a separate window with a table of all jobs and their details:
+  - full source and destination paths and the list of items;
+  - when the job was added, started and finished, how long it took, current and average speed;
+  - skipped files and errors;
+  - change the queue, pause or cancel a job.
 - **Conflict handling:**
   - replace, skip, keep both or replace older, with an "apply to all" option;
   - retry after an error, or skip the failing files.
@@ -173,6 +182,7 @@ Author: **Haluška** · Community: [Discord](https://discord.com/invite/DjnKfuYY
 
 ### Previews and the F3 viewer
 
+- **F3 viewer:** the **↑ / ↓ arrows** move to the previous / next file in the panel. Folders are skipped and the panel cursor follows.
 - **F3 viewer** and **Quick View** show:
   - **text:**
     - encoding detection (UTF-8/16, Windows-1250, ISO-8859-2, CP852, KOI8-R, Shift_JIS, GBK…);
@@ -236,7 +246,9 @@ Every remote place opens in a panel like a folder. Copying (also directly betwee
 - **Encrypted vault for saved logins:**
   - encrypted with **XChaCha20-Poly1305**;
   - the key is stored in the macOS Keychain or Windows Credential Manager, or derived from a master password with Argon2id;
-  - passwords never leave the backend.
+  - passwords never leave the backend;
+  - the vault file (`sites.vault`) can live in any folder (Settings → FTP), e.g. a cloud drive shared between computers; use a master password for that.
+- **Import from Total Commander:** FTP servers from `wcx_ftp.ini` (Settings → FTP), including passwords unless Total Commander uses a master password; such servers are imported without passwords. Servers you already have are skipped.
 
 ### Tools
 
@@ -332,6 +344,7 @@ Every remote place opens in a panel like a folder. Copying (also directly betwee
 | Mod+Alt+U | Disk usage | Mod+Alt+D | Duplicates |
 | Mod+1 … 4 | Details / list / icons / thumbnails | Mod+Alt+L | Symbolic link |
 | F12, Ctrl+Q | Quick View | Mod+Shift+G | Go to path in clipboard |
+| Mod+J | Operations queue | Mod+Shift+J | Operations window |
 
 `Mod` is ⌘ on macOS and Ctrl on Windows. Press F1 in the app for the full list. You can change any shortcut in Settings.
 
@@ -429,7 +442,7 @@ cargo test ollama -- --ignored                                                  
   - components (`components/`);
   - translations (`lib/i18n/`).
 
-Settings, sessions, the index and the vault are stored in the app's system folder:
+Settings, sessions, the index and the vault (unless moved elsewhere) are stored in the app's system folder:
 
 - macOS: `~/Library/Application Support/cz.dualion.commander`
 - Windows: `%APPDATA%\cz.dualion.commander`

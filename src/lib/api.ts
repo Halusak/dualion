@@ -136,6 +136,10 @@ export const api = {
   vaultUnlock: (password: string) => invoke<void>('vault_unlock', { password }),
   vaultLock: () => invoke<void>('vault_lock'),
   vaultSetMaster: (password: string | null) => invoke<void>('vault_set_master', { password }),
+  /** Moves the vault file to `dir` (null = default folder); returns the folder in use. */
+  vaultSetDir: (dir: string | null) => invoke<string>('vault_set_dir', { dir }),
+  vaultDir: () => invoke<string>('vault_dir'),
+  sitesImportTc: (path: string) => invoke<{ found: number; added: number; withoutPassword: number }>('sites_import_tc', { path }),
   /** First channel message is the op id (for cancelOp), then folder counts. */
   duScan: (path: string, onProgress: (n: number) => void) => {
     const channel = new Channel<number>();

@@ -1,11 +1,12 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { open as openNative } from '@tauri-apps/plugin-dialog';
   import { api } from '../../lib/api';
   import { DATE_PATTERNS, formatPattern } from '../../lib/format';
   import { localeTag, t } from '../../lib/i18n/index.svelte';
   import { index } from '../../lib/state/index.svelte';
-  import { showError } from '../../lib/state/ui.svelte';
-  import { isMac } from '../../lib/platform';
+  import { showError, toast } from '../../lib/state/ui.svelte';
+  import { isMac, isWindows } from '../../lib/platform';
   import { app } from '../../lib/state/app.svelte';
   import { settings } from '../../lib/state/settings.svelte';
   import AboutContent from '../AboutContent.svelte';
@@ -13,12 +14,12 @@
   import RulesEditor from './RulesEditor.svelte';
   import ShortcutsEditor from './ShortcutsEditor.svelte';
 
-  type Section = 'general' | 'appearance' | 'panels' | 'operations' | 'search' | 'rules' | 'tools' | 'shortcuts' | 'aboutSection';
+  type Section = 'general' | 'appearance' | 'panels' | 'operations' | 'search' | 'rules' | 'tools' | 'ftp' | 'shortcuts' | 'aboutSection';
   let { close, section: initial = 'general' }: { close: (r: null) => void; section?: Section } = $props();
 
   // svelte-ignore state_referenced_locally
   let section = $state<Section>(initial);
-  const sections: Section[] = ['general', 'appearance', 'panels', 'operations', 'search', 'rules', 'shortcuts', 'tools', 'aboutSection'];
+  const sections: Section[] = ['general', 'appearance', 'panels', 'operations', 'search', 'rules', 'shortcuts', 'tools', 'ftp', 'aboutSection'];
   const ix = $derived(index.status);
   const locale = $derived(localeTag());
   const sampleDate = new Date(2026, 9, 21, 18, 48, 5).getTime();
@@ -52,6 +53,39 @@
       showError(e);
     } finally {
       pulling = false;
+    }
+  }
+  let sitesDir = $state('');
+  let importing = $state(false);
+  $effect(() => {
+    if (section === 'ftp' && !sitesDir) api.vaultDir().then((d) => (sitesDir = d), showError);
+  });
+  async function changeSitesDir(pick: boolean) {
+    const dir = pick ? await openNative({ directory: true, defaultPath: sitesDir || undefined }) : null;
+    if (pick && typeof dir !== 'string') return;
+    try {
+      sitesDir = await api.vaultSetDir(dir);
+      settings.sitesDir = dir ?? '';
+    } catch (e) {
+      showError(e);
+    }
+  }
+  async function importTc() {
+    const tcDir = isWindows ? `${app.info.home}\\AppData\\Roaming\\GHISLER\\wcx_ftp.ini` : undefined;
+    const f = await openNative({ directory: false, defaultPath: tcDir, filters: [{ name: 'wcx_ftp.ini', extensions: ['ini'] }] });
+    if (typeof f !== 'string') return;
+    importing = true;
+    try {
+      const r = await api.sitesImportTc(f);
+      if (!r.found) toast(t('settings.tcImportNone'), 'error');
+      else {
+        const noPw = r.withoutPassword ? ' ' + t('settings.tcImportNoPw', { n: r.withoutPassword }) : '';
+        toast(t('settings.tcImportDone', { added: r.added, found: r.found }) + noPw, 'info', 6000);
+      }
+    } catch (e) {
+      showError(e);
+    } finally {
+      importing = false;
     }
   }
   function resetExcludes() {
@@ -262,6 +296,19 @@
           <input class="input" bind:value={settings.terminal} placeholder={isMac ? 'Terminal' : 'wt.exe'} spellcheck="false" />
           <small class="muted">{t(isMac ? 'settings.terminalHintMac' : 'settings.terminalHintWin')}</small>
         </label>
+      {:else if section === 'ftp'}
+        <label class="col">
+          <span>{t('settings.sitesDir')}</span>
+          <span class="with-btn">
+            <input class="input" value={sitesDir} readonly spellcheck="false" />
+            <button class="btn" onclick={() => changeSitesDir(true)}>{t('settings.sitesDirChange')}</button>
+            {#if settings.sitesDir}<button class="btn" onclick={() => changeSitesDir(false)}>{t('settings.sitesDirDefault')}</button>{/if}
+          </span>
+          <small class="muted">{t('settings.sitesDirHint')}</small>
+        </label>
+        <h4>{t('settings.tcImport')}</h4>
+        <div><button class="btn" disabled={importing} onclick={importTc}>{t('settings.tcImportBtn')}</button></div>
+        <small class="muted">{t('settings.tcImportHint')}</small>
       {/if}
     </div>
   </div>

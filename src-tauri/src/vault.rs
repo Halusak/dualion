@@ -189,14 +189,28 @@ pub struct VaultStatus {
 }
 
 struct State {
+    path: PathBuf,
     key: Option<Zeroizing<[u8; 32]>>,
     protection: Option<Protection>,
     data: Option<VaultData>,
 }
 
 pub struct Vault {
-    path: PathBuf,
     state: Mutex<State>,
+}
+
+/// Vault file in `dir`, or in the app data folder when `dir` is empty.
+pub fn vault_path(app: &tauri::AppHandle, dir: Option<&str>) -> AppResult<PathBuf> {
+    use tauri::Manager;
+    let dir = match dir.map(str::trim).filter(|d| !d.is_empty()) {
+        Some(d) => PathBuf::from(d),
+        None => app.path().app_data_dir().map_err(|e| AppError::other(e.to_string()))?,
+    };
+    Ok(dir.join("sites.vault"))
+}
+
+fn read_protection(path: &std::path::Path) -> Option<Protection> {
+    fs::read(path).ok().and_then(|b| serde_json::from_slice::<VaultFile>(&b).ok()).map(|f| f.protection)
 }
 
 fn random<const N: usize>() -> AppResult<[u8; N]> {
@@ -264,11 +278,35 @@ fn decrypt(key: &[u8; 32], nonce_b64: &str, data_b64: &str) -> AppResult<Zeroizi
 
 impl Vault {
     pub fn new(path: PathBuf) -> Self {
-        let protection = fs::read(&path)
-            .ok()
-            .and_then(|b| serde_json::from_slice::<VaultFile>(&b).ok())
-            .map(|f| f.protection);
-        Self { path, state: Mutex::new(State { key: None, protection, data: None }) }
+        let protection = read_protection(&path);
+        Self { state: Mutex::new(State { path, key: None, protection, data: None }) }
+    }
+
+    pub fn path(&self) -> PathBuf {
+        self.state.lock().path.clone()
+    }
+
+    /// Moves the vault file to `path`. When a vault already exists there,
+    /// switches to it instead (e.g. a folder shared between computers).
+    pub fn relocate(&self, path: PathBuf) -> AppResult<()> {
+        let mut s = self.state.lock();
+        if path == s.path {
+            return Ok(());
+        }
+        if path.exists() {
+            *s = State { protection: read_protection(&path), path, key: None, data: None };
+            return Ok(());
+        }
+        if let Some(dir) = path.parent() {
+            fs::create_dir_all(dir).map_err(|e| AppError::io(e, dir))?;
+        }
+        // Another volume: copy, then remove the original.
+        if s.path.exists() && fs::rename(&s.path, &path).is_err() {
+            fs::copy(&s.path, &path).map_err(|e| AppError::io(e, &path))?;
+            fs::remove_file(&s.path).map_err(|e| AppError::io(e, &s.path))?;
+        }
+        s.path = path;
+        Ok(())
     }
 
     pub fn status(&self) -> VaultStatus {
@@ -285,8 +323,8 @@ impl Vault {
         }
     }
 
-    fn read_file(&self) -> AppResult<VaultFile> {
-        let bytes = fs::read(&self.path).map_err(|e| AppError::io(e, &self.path))?;
+    fn read_file(s: &State) -> AppResult<VaultFile> {
+        let bytes = fs::read(&s.path).map_err(|e| AppError::io(e, &s.path))?;
         serde_json::from_slice(&bytes).map_err(|e| AppError::other(format!("Corrupted vault: {e}")))
     }
 
@@ -297,12 +335,12 @@ impl Vault {
         let plain = Zeroizing::new(serde_json::to_vec(data).map_err(|e| AppError::other(e.to_string()))?);
         let (nonce, ct) = encrypt(key, &plain)?;
         let file = VaultFile { version: 1, protection: protection.clone(), nonce, data: ct };
-        if let Some(dir) = self.path.parent() {
+        if let Some(dir) = s.path.parent() {
             fs::create_dir_all(dir).map_err(|e| AppError::io(e, dir))?;
         }
-        let tmp = self.path.with_extension("tmp");
+        let tmp = s.path.with_extension("tmp");
         fs::write(&tmp, serde_json::to_vec_pretty(&file).unwrap_or_default()).map_err(|e| AppError::io(e, &tmp))?;
-        fs::rename(&tmp, &self.path).map_err(|e| AppError::io(e, &self.path))
+        fs::rename(&tmp, &s.path).map_err(|e| AppError::io(e, &s.path))
     }
 
     /// Opens the vault without user interaction when possible (keychain
@@ -323,7 +361,7 @@ impl Vault {
                 Some(Protection::Keychain) => {
                     let key = keychain_get()?
                         .ok_or_else(|| AppError::new(ErrorCode::Keychain, "Vault key missing from the keychain"))?;
-                    let file = self.read_file()?;
+                    let file = Self::read_file(s)?;
                     let plain = decrypt(&key, &file.nonce, &file.data)?;
                     let data: VaultData = serde_json::from_slice(&plain).map_err(|e| AppError::other(e.to_string()))?;
                     s.key = Some(key);
@@ -339,7 +377,7 @@ impl Vault {
 
     pub fn unlock(&self, password: &str) -> AppResult<()> {
         let mut s = self.state.lock();
-        let file = self.read_file()?;
+        let file = Self::read_file(&s)?;
         let Protection::Master { salt, m_cost, t_cost, p_cost } = &file.protection else {
             drop(s);
             return self.sites().map(|_| ());
@@ -462,6 +500,27 @@ impl Vault {
         }
         self.persist(&s)?;
         Ok(summary)
+    }
+
+    /// Adds sites, skipping those already saved (same protocol, host, port
+    /// and user). Returns how many were added.
+    pub fn import(&self, sites: Vec<Site>) -> AppResult<usize> {
+        let mut s = self.state.lock();
+        let data = self.ensure_open(&mut s)?;
+        let key = |x: &Site| (x.protocol, x.host.to_lowercase(), x.port, x.username.clone());
+        let mut added = 0;
+        for mut site in sites {
+            if data.sites.iter().any(|x| key(x) == key(&site)) {
+                continue;
+            }
+            site.id = uuid::Uuid::new_v4().to_string();
+            data.sites.push(site);
+            added += 1;
+        }
+        if added > 0 {
+            self.persist(&s)?;
+        }
+        Ok(added)
     }
 
     pub fn delete(&self, id: &str) -> AppResult<()> {

@@ -46,6 +46,8 @@ export interface Settings {
   verify: boolean;
   editor: string;
   terminal: string;
+  /** Folder of the saved servers file (sites.vault); empty = app data folder. */
+  sitesDir: string;
   sizeFormat: SizeFormat;
   /** 'auto' (by language) or a pattern such as `DD.MM.YYYY HH:mm`. */
   dateFormat: string;
@@ -101,6 +103,7 @@ export const defaultSettings = (): Settings => ({
   verify: false,
   editor: '',
   terminal: '',
+  sitesDir: '',
   sizeFormat: 'auto',
   dateFormat: 'auto',
   typeAhead: 'jump',

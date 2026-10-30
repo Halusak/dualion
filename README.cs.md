@@ -61,6 +61,8 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 - Kopírování, přesun, mazání (do koše nebo trvale), přejmenování přímo v řádku, nová složka (i vnořená `a/b/c`), nový soubor, duplikace (Shift+F5), symbolický odkaz.
 - **Schránka**: vyjmout / kopírovat / vložit soubory, kopírování cesty k souboru, cesty ke složce a názvu.
 - **Fronty operací**: úlohu lze spustit hned, nebo zařadit do jedné ze tří front (běží postupně; v dialogu kopírování / přesunu klávesou F2 jako v TC); pauza, pokračování, zrušení, spuštění mimo frontu, přeřazení ve frontě, průběh s rychlostí a odhadem času.
+- **Okno průběhu kopírování** (F5/F6, vložení, přetažení): aktuální soubor i celkový průběh, rychlost, uplynulý a zbývající čas. Operaci lze poslat **na pozadí**, pozastavit, zrušit nebo přesunout **do fronty** – i když už běží (počká, než fronta doběhne). Okno lze v Nastavení vypnout.
+- **Okno operací** (Mod+Shift+J) – samostatné okno s tabulkou všech operací a podrobnostmi: celé cesty odkud a kam, seznam položek, kdy byla operace zadána, spuštěna a dokončena, jak dlouho trvala, aktuální i průměrná rychlost, přeskočené soubory a chyby; změna fronty, pauza, zrušení.
 - Řešení konfliktů (nahradit / přeskočit / ponechat oba / nahradit starší, „pro všechny“), opakování po chybě, přeskočení chybných souborů.
 - Rychlé kopírování: APFS klonování na macOS (okamžité), `CopyFileExW` na Windows; volitelné ověření kontrolním součtem, zachování časů, omezení rychlosti, filtr masky (`*.jpg;*.png | thumb*`).
 - **Hromadné přejmenování** s náhledem (`[N] [N2-5] [E] [C] [Y][M][D] [h][m][s] [P]`, hledat/nahradit vč. regexu, velikost písmen).
@@ -90,6 +92,7 @@ Autor: **Haluška** · Komunita: [Discord](https://discord.com/invite/DjnKfuYYgN
 ### Náhledy a prohlížeč F3
 
 - **Prohlížeč F3** a **rychlý náhled**:
+  - **šipkami ↑ / ↓ přechod na předchozí / další soubor** v panelu (složky se přeskakují, kurzor v panelu jde s prohlížečem),
   - text s detekcí kódování (UTF‑8/16, Windows‑1250, ISO‑8859‑2, CP852, KOI8‑R, Shift_JIS, GBK…), zalamování, hledání (F3 / Shift+F3 další / předchozí výskyt), načítání velkých souborů po částech, hex režim,
   - **barevné zvýraznění syntaxe** (40 jazyků: Dart, JSON, HTML/XML, PHP, CSS/SCSS/Less, Rust, JavaScript/TypeScript, Python, Java, Kotlin, Swift, Go, C/C++, C#, SQL, Shell, PowerShell, YAML, TOML/INI, Markdown, Dockerfile, Makefile, Gradle, Ruby, Lua, Perl, R, Scala, Haskell, Elixir, GraphQL…) s čísly řádků,
   - obrázky (přiblížení), video, audio s obalem alba, PDF,
@@ -120,7 +123,8 @@ Každé vzdálené úložiště se v panelu otevře jako složka. Kopírování 
 - **WebDAV / WebDAVS:** Nextcloud, ownCloud, Synology, SharePoint, Apache, nginx… Server jde zadat i celou adresou URL.
 - **S3 a kompatibilní úložiště:** AWS, Cloudflare R2, Backblaze B2, Wasabi, MinIO… V kořeni buckety, složky jako prefixy, velké soubory se nahrávají po částech.
 - **Automaticky nalezené** (tlačítko Síť): **zařízení Android** přes ADB (USB i Wi‑Fi ladění) s přesnými velikostmi, časy a právy; **telefony a fotoaparáty přes MTP** na Windows bez vývojářského režimu; **kontejnery Docker / Podman**; **úložiště rclone** – každá služba nastavená v rclone (Google Drive, OneDrive, Dropbox, Mega, pCloud, Box… přes 70).
-- Uložené přístupy jsou v **trezoru šifrovaném XChaCha20‑Poly1305**; klíč je v Klíčence macOS / Správci pověření Windows, nebo odvozený z hlavního hesla (Argon2id). Hesla nikdy neopustí backend.
+- Uložené přístupy jsou v **trezoru šifrovaném XChaCha20‑Poly1305**; klíč je v Klíčence macOS / Správci pověření Windows, nebo odvozený z hlavního hesla (Argon2id). Hesla nikdy neopustí backend. Soubor trezoru (`sites.vault`) může být v libovolné složce (Nastavení → FTP), třeba na cloudovém disku sdíleném mezi počítači; v tom případě použijte hlavní heslo.
+- **Import z Total Commanderu:** FTP servery ze souboru `wcx_ftp.ini` (Nastavení → FTP) včetně hesel, pokud Total Commander nepoužívá hlavní heslo; jinak se servery naimportují bez hesel. Servery, které už máte uložené, se přeskočí.
 
 ### Nástroje
 
@@ -174,6 +178,7 @@ Každé vzdálené úložiště se v panelu otevře jako složka. Kopírování 
 | Mod+Alt+U | Mapa disku | Mod+Alt+D | Duplicity |
 | Mod+1 … 4 | Podrobnosti / seznam / ikony / náhledy | Mod+Alt+L | Symbolický odkaz |
 | F12, Ctrl+Q | Rychlý náhled | Mod+Shift+G | Přejít na cestu ze schránky |
+| Mod+J | Fronta operací | Mod+Shift+J | Okno operací |
 
 `Mod` = ⌘ na macOS, Ctrl na Windows. Kompletní seznam je v aplikaci pod F1 a všechny zkratky lze změnit v Nastavení.
 
@@ -241,7 +246,7 @@ cargo test ollama -- --ignored                                                  
   - mapa disku (`diskusage.rs`), duplicity (`dupes.rs`), pravidla (`rules.rs`), štítky (`tags.rs`), nativní menu (`menu.rs`), sledování změn složek (`watcher.rs`), platformní funkce (`platform.rs`).
 - `src/` – Svelte 5 + TypeScript: stav panelů, karet, indexu a historie (`lib/state/`), příkazy a klávesové zkratky (`lib/commands.ts`), akce (`lib/actions.ts`), sloupce a skupiny (`lib/columns.ts`, `lib/groups.ts`), zvýraznění syntaxe (`lib/highlight.ts`), komponenty (`components/`), překlady (`lib/i18n/`).
 
-Nastavení, relace, index a trezor se ukládají do systémové složky aplikace (`~/Library/Application Support/cz.dualion.commander`, resp. `%APPDATA%\cz.dualion.commander`).
+Nastavení, relace, index a trezor (pokud ho nepřesunete jinam) se ukládají do systémové složky aplikace (`~/Library/Application Support/cz.dualion.commander`, resp. `%APPDATA%\cz.dualion.commander`).
 
 ## Licence
 

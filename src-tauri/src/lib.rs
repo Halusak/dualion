@@ -28,6 +28,7 @@ mod semantic;
 mod tags;
 mod thumbs;
 mod util;
+mod tcimport;
 mod vault;
 mod viewer;
 mod watcher;
@@ -127,7 +128,11 @@ pub fn run() {
                 let _ = emitter.emit(name, payload);
             });
             let jobs = jobs::JobManager::new(sink, remote.clone());
-            let vault = Arc::new(vault::Vault::new(data_dir.join("sites.vault")));
+            let sites_dir = std::fs::read(config_dir.join("settings.json"))
+                .ok()
+                .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
+                .and_then(|v| v.get("sitesDir")?.as_str().map(str::to_string));
+            let vault = Arc::new(vault::Vault::new(vault::vault_path(&handle, sites_dir.as_deref())?));
             let watcher = watcher::DirWatcher::new(handle.clone());
             let emitter = handle.clone();
             let index_sink: jobs::EventSink = Arc::new(move |name, payload| {
@@ -287,6 +292,9 @@ pub fn run() {
             commands::vault_unlock,
             commands::vault_lock,
             commands::vault_set_master,
+            commands::vault_set_dir,
+            commands::vault_dir,
+            commands::sites_import_tc,
             commands::sites_list,
             commands::site_save,
             commands::site_delete,

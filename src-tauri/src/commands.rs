@@ -1101,6 +1101,45 @@ pub async fn vault_set_master(state: State<'_, AppState>, password: Option<Strin
     blocking(move || v.set_master_password(password.as_deref())).await
 }
 
+/// Folder of the vault file; `None` / empty = the default data folder.
+#[tauri::command]
+pub async fn vault_set_dir(app: AppHandle, state: State<'_, AppState>, dir: Option<String>) -> AppResult<String> {
+    let v = state.vault.clone();
+    let path = crate::vault::vault_path(&app, dir.as_deref())?;
+    blocking(move || {
+        v.relocate(path)?;
+        Ok(util::path_str(v.path().parent().unwrap_or(std::path::Path::new(""))))
+    })
+    .await
+}
+
+#[tauri::command]
+pub fn vault_dir(state: State<'_, AppState>) -> String {
+    util::path_str(state.vault.path().parent().unwrap_or(std::path::Path::new("")))
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TcImport {
+    pub found: usize,
+    pub added: usize,
+    pub without_password: usize,
+}
+
+/// Imports FTP connections from Total Commander's `wcx_ftp.ini`.
+#[tauri::command]
+pub async fn sites_import_tc(state: State<'_, AppState>, path: String) -> AppResult<TcImport> {
+    let v = state.vault.clone();
+    blocking(move || {
+        let bytes = std::fs::read(&path).map_err(|e| AppError::io(e, std::path::Path::new(&path)))?;
+        let parsed = crate::tcimport::parse(&bytes);
+        let found = parsed.sites.len();
+        let added = v.import(parsed.sites)?;
+        Ok(TcImport { found, added, without_password: parsed.without_password })
+    })
+    .await
+}
+
 #[tauri::command]
 pub async fn sites_list(state: State<'_, AppState>) -> AppResult<Vec<SiteSummary>> {
     let v = state.vault.clone();
