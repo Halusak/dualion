@@ -369,6 +369,7 @@ You need [Rust](https://rustup.rs) (stable) and Node.js ≥ 20.19, plus:
 npm ci
 npm run tauri dev      # development with hot reload
 npm run tauri build    # installers
+npm run portable:win   # quick Windows portable build (no installer bundling)
 ```
 
 `npm run tauri build` produces:
@@ -378,6 +379,8 @@ npm run tauri build    # installers
 - Linux: `src-tauri/target/release/bundle/deb/*.deb` and `bundle/appimage/*.AppImage` (needs `libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, `librsvg2-dev`, `libxdo-dev`, `libssl-dev`)
 
 For a universal Mac build (Intel + Apple Silicon), run `npm run tauri build -- --target universal-apple-darwin`.
+
+On Windows, `npm run portable:win` builds the release executable without creating installers, then copies it to `portable\Dualion.exe` with a `portable.dat` marker. Run it from that folder; settings and data stay beside the executable. WebView2 Runtime is required. The script reuses Cargo's release build cache to make subsequent builds faster.
 
 GitHub Actions (`.github/workflows/release.yml`) builds installers for both platforms when you push a `v*` tag.
 
