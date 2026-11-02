@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
-  let { value, isDir, onDone }: { value: string; isDir: boolean; onDone: (v: string | null) => void } = $props();
+  let { value, isDir, onDone, onStep }: { value: string; isDir: boolean; onDone: (v: string | null) => void; onStep?: (v: string, delta: number) => void } = $props();
 
   let input: HTMLInputElement;
   // svelte-ignore state_referenced_locally
@@ -29,6 +29,11 @@
     } else if (e.key === 'Escape') {
       e.preventDefault();
       finish(null);
+    } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && onStep) {
+      e.preventDefault();
+      if (done) return;
+      done = true;
+      onStep(text, e.key === 'ArrowUp' ? -1 : 1);
     }
   }
 </script>

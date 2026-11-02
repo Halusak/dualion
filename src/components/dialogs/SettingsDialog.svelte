@@ -100,7 +100,7 @@
       {#each sections as s (s)}
         <button class:on={section === s} onclick={() => (section = s)}>{t(`settings.${s}`)}</button>
       {/each}
-      <div class="version muted">Dualion · {t('settings.about', { version: app.info.version })}</div>
+      <div class="version muted">Dualion · {t('about.forkLabel')} · {t('settings.about', { version: app.info.version })}</div>
     </nav>
     <div class="pane">
       {#if section === 'general'}
@@ -189,6 +189,7 @@
         <label class="check"><input type="checkbox" bind:checked={settings.syncColumns} /> {t('settings.syncColumns')}</label>
         <label class="check"><input type="checkbox" bind:checked={settings.unmarkOnTabSwitch} /> {t('settings.unmarkOnTabSwitch')}</label>
         <label class="check"><input type="checkbox" bind:checked={settings.unmarkAfterDrop} /> {t('settings.unmarkAfterDrop')}</label>
+        <label class="check"><input type="checkbox" bind:checked={settings.rightClickSelect} /> {t('settings.rightClickSelect')}</label>
         <label class="row">
           <span>{t('settings.thumbSize')}</span>
           <select class="input" bind:value={settings.thumbSize}>

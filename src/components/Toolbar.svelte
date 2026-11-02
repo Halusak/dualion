@@ -18,6 +18,7 @@
   import Server from '@lucide/svelte/icons/server';
   import Settings from '@lucide/svelte/icons/settings';
   import SquareTerminal from '@lucide/svelte/icons/square-terminal';
+  import FavoritesBar from './FavoritesBar.svelte';
   import { run, shortcutOf } from '../lib/commands';
   import { t } from '../lib/i18n/index.svelte';
   import { isMac, shortcutLabel } from '../lib/platform';
@@ -108,7 +109,8 @@
       <Server {size} strokeWidth={sw} />
     </button>
   </div>
-
+  <span class="divider" aria-hidden="true"></span>
+  <FavoritesBar />
   </div>
 
   <div class="trail" data-tauri-drag-region>
@@ -134,6 +136,7 @@
     align-items: center;
     gap: 10px;
     min-width: 0;
+    flex: 1;
   }
   .lead {
     display: none;
@@ -147,23 +150,28 @@
   }
   /* macOS: actions centred in the unified title bar, like Finder/Safari. */
   .toolbar.mac {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    display: flex;
     padding: 2px 10px 0 0;
   }
   .toolbar.mac .lead {
     display: block;
     align-self: stretch;
     min-width: var(--chrome-left);
+    flex: none;
   }
   .toolbar.mac .trail {
-    justify-self: end;
     margin-left: 0;
   }
   .group {
     display: flex;
     align-items: center;
     gap: 2px;
+  }
+  .divider {
+    width: 1px;
+    height: 18px;
+    flex: none;
+    background: var(--border-strong);
   }
   .segmented {
     display: flex;
