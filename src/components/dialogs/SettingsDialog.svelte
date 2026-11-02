@@ -100,7 +100,7 @@
       {#each sections as s (s)}
         <button class:on={section === s} onclick={() => (section = s)}>{t(`settings.${s}`)}</button>
       {/each}
-      <div class="version muted">Dualion · {t('settings.about', { version: app.info.version })}</div>
+      <div class="version muted">Dualion · {t('about.forkLabel')} · {t('settings.about', { version: app.info.version })}</div>
     </nav>
     <div class="pane">
       {#if section === 'general'}

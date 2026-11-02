@@ -856,6 +856,7 @@ export const en = {
   'keys.conflict': '{combo} is used by “{command}”. Assign it here instead?',
   'keys.reassign': 'Reassign',
   'about.author': 'Author',
+  'about.forkLabel': 'Community fork',
   'about.tagline': 'Fast dual-pane file manager for Windows and macOS.',
   'about.tech': 'Built with Tauri, Rust and Svelte.',
   'about.community': 'Community',

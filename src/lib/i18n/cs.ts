@@ -853,6 +853,7 @@ export const cs: Record<Key, string> & Record<string, string> = {
   'keys.conflict': '{combo} používá příkaz „{command}“. Přiřadit ji sem?',
   'keys.reassign': 'Přeřadit',
   'about.author': 'Autor',
+  'about.forkLabel': 'Komunitní fork',
   'about.tagline': 'Rychlý dvoupanelový správce souborů pro Windows a macOS.',
   'about.tech': 'Postaveno na Tauri, Rustu a Svelte.',
   'about.community': 'Komunita',

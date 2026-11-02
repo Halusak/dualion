@@ -46,7 +46,10 @@
     <img src={icon} alt="" width="76" height="76" />
     <div class="title">
       <h1>Dualion</h1>
-      <p class="muted">{t('settings.about', { version: app.info.version })}</p>
+      <p class="version-line">
+        <span class="fork-label">{t('about.forkLabel')}</span>
+        <span class="muted">{t('settings.about', { version: app.info.version })}</span>
+      </p>
       <p>{t('about.tagline')}</p>
       <p class="muted small">{t('about.author')}: <strong>{author}</strong> · © 2026</p>
     </div>
@@ -114,6 +117,19 @@
   }
   .title p {
     margin: 2px 0;
+  }
+  .version-line {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .fork-label {
+    padding: 2px 6px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    color: var(--text-2);
+    font-size: 10px;
+    line-height: 1.2;
   }
   h1 {
     margin: 0;
