@@ -485,6 +485,18 @@ export function startRename() {
   tab.renaming = e.key;
 }
 
+/** Inline rename ↑ / ↓: commits the current name and continues with the previous / next item. */
+export async function renameStep(tab: Tab, e: Entry, newName: string, delta: number) {
+  const v = tab.visible;
+  const i = v.findIndex((x) => x.key === e.key) + delta;
+  const next = v[i];
+  if (!next || next.flags & F.UP) return;
+  await commitRename(tab, e, newName);
+  if (!tab.visible.some((x) => x.key === next.key)) return;
+  tab.setCursorKey(next.key);
+  tab.renaming = next.key;
+}
+
 export async function commitRename(tab: Tab, e: Entry, newName: string) {
   tab.renaming = null;
   const name = newName.trim();

@@ -2,7 +2,7 @@
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import ChevronUp from '@lucide/svelte/icons/chevron-up';
   import Cloud from '@lucide/svelte/icons/cloud';
-  import { commitRename } from '../lib/actions';
+  import { commitRename, renameStep } from '../lib/actions';
   import { isResults } from '../lib/paths';
   import { columnById, type MetaColumn } from '../lib/columns';
   import { backgroundMenu, columnsMenu, entryMenu } from '../lib/contextMenu';
@@ -229,7 +229,7 @@
             <FileIcon entry={e} location={tab.location} size={16} />
             {#if e.groupOf}<span class="branch">↳</span>{/if}
             {#if tab.renaming === e.key}
-              <RenameInput value={e.name} isDir={e.isDir} onDone={(v) => (v === null ? (tab.renaming = null) : commitRename(tab, e, v))} />
+              <RenameInput value={e.name} isDir={e.isDir} onDone={(v) => (v === null ? (tab.renaming = null) : commitRename(tab, e, v))} onStep={(v, d) => renameStep(tab, e, v, d)} />
             {:else}
               <span class="ellipsis label" class:wrap={lines > 1} title={lines > 1 ? undefined : e.name.length > 40 ? e.name : undefined}>{vol ? vol.name : e.name}</span>
               {#if e.flags & F.CLOUD}<span class="cloudmark" title={t('cloud.onlineOnly')}><Cloud size={12} /></span>{/if}

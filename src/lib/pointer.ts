@@ -17,11 +17,28 @@ import { F, type Entry } from './types';
 const DOUBLE_MS = 500;
 let lastDown: { tab: Tab; key: string; at: number; x: number; y: number } | null = null;
 
+/** Total Commander style: a second, slow click on the item that already has the
+ *  cursor starts renaming after a pause, unless something else happens first. */
+const SLOW_CLICK_RENAME_MS = 1000;
+let slowRenameTimer: ReturnType<typeof setTimeout> | null = null;
+
+function cancelSlowRename() {
+  if (slowRenameTimer) clearTimeout(slowRenameTimer);
+  slowRenameTimer = null;
+}
+
+function scheduleSlowRename(side: SideName, tab: Tab, entry: Entry) {
+  slowRenameTimer = setTimeout(() => {
+    slowRenameTimer = null;
+    if (app.activeSide === side && tab.current?.key === entry.key && !tab.renaming && !drag.active) A.startRename();
+  }, SLOW_CLICK_RENAME_MS);
+}
+
 let rightClickHandled = false;
 let rightSelectActive = false;
 
 /** Starts a file drag after the pointer crosses the movement threshold. */
-function watchItemDrag(e: PointerEvent, side: SideName, tab: Tab, entry: Entry) {
+function watchItemDrag(e: PointerEvent, side: SideName, tab: Tab, entry: Entry, onClick?: () => void) {
   const sx = e.clientX;
   const sy = e.clientY;
   let dragging = false;
@@ -49,8 +66,8 @@ function watchItemDrag(e: PointerEvent, side: SideName, tab: Tab, entry: Entry) 
     if (dragging && drag.active) {
       if (ev) drag.move = wantsMove(ev);
       void endDrag();
-    } else if (!dragging && double && ev && !tab.renaming) {
-      void A.openEntry(tab, entry, { external: ev.altKey || e.altKey });
+    } else if (!dragging && ev && !tab.renaming) {
+      onClick?.();
     }
   };
   const cancel = () => {
@@ -75,6 +92,8 @@ export function canOpenContextMenu(e: MouseEvent, entry: Entry | null): boolean 
 }
 
 export function itemPointerDown(e: PointerEvent, side: SideName, tab: Tab, entry: Entry, index: number) {
+  cancelSlowRename();
+  const wasCursor = app.activeSide === side && tab.current?.key === entry.key && !tab.renaming;
   app.activeSide = side;
   if (tab.renaming && tab.renaming !== entry.key) tab.renaming = null;
 
@@ -241,12 +260,13 @@ export function itemPointerDown(e: PointerEvent, side: SideName, tab: Tab, entry
     return;
   }
 
-  watchItemDrag(e, side, tab, entry);
+  watchItemDrag(e, side, tab, entry, wasCursor && !(entry.flags & F.UP) ? () => scheduleSlowRename(side, tab, entry) : undefined);
 }
 
 /** Click on empty space below the items. */
 export function backgroundPointerDown(e: PointerEvent, side: SideName, tab: Tab) {
   app.activeSide = side;
+  cancelSlowRename();
   if (e.button === 0 && e.target === e.currentTarget) {
     tab.renaming = null;
   }

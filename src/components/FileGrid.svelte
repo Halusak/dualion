@@ -1,7 +1,7 @@
 <script lang="ts">
   import Cloud from '@lucide/svelte/icons/cloud';
   import { t } from '../lib/i18n/index.svelte';
-  import { commitRename } from '../lib/actions';
+  import { commitRename, renameStep } from '../lib/actions';
   import { backgroundMenu, entryMenu } from '../lib/contextMenu';
   import { drag } from '../lib/dnd.svelte';
   import { setMetrics } from '../lib/panelKeys.svelte';
@@ -164,7 +164,7 @@
           {/if}
         </div>
         {#if tab.renaming === e.key}
-          <RenameInput value={e.name} isDir={e.isDir} onDone={(v) => (v === null ? (tab.renaming = null) : commitRename(tab, e, v))} />
+          <RenameInput value={e.name} isDir={e.isDir} onDone={(v) => (v === null ? (tab.renaming = null) : commitRename(tab, e, v))} onStep={(v, d) => renameStep(tab, e, v, d)} />
         {:else}
           <span class="name">{e.name}</span>
         {/if}
