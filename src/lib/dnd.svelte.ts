@@ -46,7 +46,7 @@ function destOf(t: DropTarget): Location | null {
   const tab = app.side(t.side).tab;
   if (t.entryKey) {
     const e = tab.visible.find((x) => x.key === t.entryKey);
-    if (e?.flags & F.UP) return tab.listing?.parent ?? null;
+    if (e && e.flags & F.UP) return tab.listing?.parent ?? null;
     if (e) return childLoc(tab.location, e);
   }
   const loc = tab.location;

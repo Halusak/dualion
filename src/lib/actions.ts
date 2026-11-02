@@ -133,7 +133,7 @@ export async function toggleDirBranch() {
         branchOrigins.set(id, origin);
         if (branchOrigins.size > 10) branchOrigins.delete(branchOrigins.keys().next().value!);
         tab.showSearch(id, label, hits, true, [origin.path]);
-        if (event.truncated) toast(t('search.truncated'), 'warning');
+        if (event.truncated) toast(t('search.truncated'));
       }
     });
     run.opId = opId;
@@ -491,18 +491,18 @@ export async function renameStep(tab: Tab, e: Entry, newName: string, delta: num
   const i = v.findIndex((x) => x.key === e.key) + delta;
   const next = v[i];
   if (!next || next.flags & F.UP) return;
-  await commitRename(tab, e, newName);
+  if (!(await commitRename(tab, e, newName))) return;
   if (!tab.visible.some((x) => x.key === next.key)) return;
   tab.setCursorKey(next.key);
   tab.renaming = next.key;
 }
 
-export async function commitRename(tab: Tab, e: Entry, newName: string) {
+export async function commitRename(tab: Tab, e: Entry, newName: string): Promise<boolean> {
   tab.renaming = null;
   const name = newName.trim();
-  if (!name || name === e.name) return;
+  if (!name || name === e.name) return true;
   const b = backend(tab.location);
-  if (!b) return;
+  if (!b) return false;
   // A collapsed group is renamed as a whole: every file keeps its own suffix.
   const members = tab.groupMembers(e.key);
   if (members && !tab.expandedGroups.has(e.key) && b.kind === 'local') {
@@ -517,16 +517,19 @@ export async function commitRename(tab: Tab, e: Entry, newName: string) {
       if (lead) tab.setCursorKey(lead.to);
     } catch (err) {
       showError(err);
+      return false;
     }
-    return;
+    return true;
   }
   try {
     await api.renameItem(b, e.name, name);
     if (b.kind === 'local') pushHistory({ label: `${t('history.rename')}: ${e.name} → ${name}`, rename: { dir: b.path, pairs: [{ from: name, to: e.name }] } });
     await tab.reload();
     tab.setCursorKey(name);
+    return true;
   } catch (err) {
     showError(err);
+    return false;
   }
 }
 
