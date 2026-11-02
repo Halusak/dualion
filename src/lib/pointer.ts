@@ -4,7 +4,7 @@
 
 import * as A from './actions';
 import { backgroundMenu, entryMenu } from './contextMenu';
-import { drag, dragOutside, endDrag, moveDrag, startDrag } from './dnd.svelte';
+import { cancelDrag, drag, dragKey, dragOutside, endDrag, moveDrag, startDrag, wantsMove } from './dnd.svelte';
 import { isMac } from './platform';
 import { app, type SideName } from './state/app.svelte';
 import { settings } from './state/settings.svelte';
@@ -39,13 +39,29 @@ function watchItemDrag(e: PointerEvent, side: SideName, tab: Tab, entry: Entry) 
     }
     moveDrag(ev);
   };
-  const up = () => {
+  const keys = (ev: KeyboardEvent) => dragKey(ev);
+  const up = (ev?: PointerEvent) => {
     window.removeEventListener('pointermove', move);
     window.removeEventListener('pointerup', up);
-    if (dragging && drag.active) void endDrag();
+    window.removeEventListener('pointercancel', cancel);
+    window.removeEventListener('keydown', keys, true);
+    window.removeEventListener('keyup', keys, true);
+    if (dragging && drag.active) {
+      if (ev) drag.move = wantsMove(ev);
+      void endDrag();
+    } else if (!dragging && double && ev && !tab.renaming) {
+      void A.openEntry(tab, entry, { external: ev.altKey || e.altKey });
+    }
+  };
+  const cancel = () => {
+    up();
+    if (drag.active) cancelDrag();
   };
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', cancel);
+  window.addEventListener('keydown', keys, true);
+  window.addEventListener('keyup', keys, true);
 }
 
 export function canOpenContextMenu(e: MouseEvent, entry: Entry | null): boolean {

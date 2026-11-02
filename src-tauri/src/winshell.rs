@@ -75,6 +75,59 @@ fn shell_err(e: windows::core::Error) -> AppError {
 }
 
 // ---------------------------------------------------------------------------
+// Clipboard: cut vs. copy ("Preferred DropEffect", as Explorer uses it)
+// ---------------------------------------------------------------------------
+
+fn drop_effect_format() -> u32 {
+    use windows::Win32::System::DataExchange::RegisterClipboardFormatW;
+    unsafe { RegisterClipboardFormatW(&HSTRING::from("Preferred DropEffect")) }
+}
+
+/// True when the files on the clipboard were cut (Ctrl+X in Explorer).
+pub fn clipboard_is_cut() -> bool {
+    use windows::Win32::Foundation::HGLOBAL;
+    use windows::Win32::System::DataExchange::{CloseClipboard, GetClipboardData, OpenClipboard};
+    use windows::Win32::System::Memory::{GlobalLock, GlobalUnlock};
+    unsafe {
+        if OpenClipboard(None).is_err() {
+            return false;
+        }
+        let mut cut = false;
+        if let Ok(h) = GetClipboardData(drop_effect_format()) {
+            let g = HGLOBAL(h.0);
+            let p = GlobalLock(g) as *const u32;
+            if !p.is_null() {
+                cut = *p & DROPEFFECT_MOVE.0 != 0;
+                let _ = GlobalUnlock(g);
+            }
+        }
+        let _ = CloseClipboard();
+        cut
+    }
+}
+
+/// Marks the files on the clipboard as cut, so pasting in Explorer moves them.
+pub fn clipboard_mark_cut() {
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::System::DataExchange::{CloseClipboard, OpenClipboard, SetClipboardData};
+    use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+    unsafe {
+        let Ok(g) = GlobalAlloc(GMEM_MOVEABLE, 4) else { return };
+        let p = GlobalLock(g) as *mut u32;
+        if p.is_null() {
+            return;
+        }
+        *p = DROPEFFECT_MOVE.0;
+        let _ = GlobalUnlock(g);
+        if OpenClipboard(None).is_ok() {
+            // The clipboard owns the memory from here on.
+            let _ = SetClipboardData(drop_effect_format(), Some(HANDLE(g.0)));
+            let _ = CloseClipboard();
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Opening files
 // ---------------------------------------------------------------------------
 

@@ -6,12 +6,13 @@ import { ask, open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { api, type BackendLocation } from './api';
 import { withHostKey } from './remote';
 import { copyText } from './clipboard';
+import { trackJob } from './progress';
 import { formatSize } from './format';
 import { localeTag, t, what } from './i18n/index.svelte';
-import { childLoc, dirName, isArchiveName, isDiskImage, isResults, joinLocal, locPath, sameLoc, stemOf, extOf } from './paths';
+import { baseName, childLoc, dirName, isArchiveName, isDiskImage, isResults, joinLocal, locPath, sameLoc, stemOf, extOf } from './paths';
 import { isMac, isWindows, shortcutLabel } from './platform';
 import { links } from './links';
-import { app, Side, type SideName } from './state/app.svelte';
+import { app, Side, type FileClipboard, type SideName } from './state/app.svelte';
 import { settings } from './state/settings.svelte';
 import { Tab, UP_ENTRY } from './state/tab.svelte';
 import { openDialog, showError, toast } from './state/ui.svelte';
@@ -329,30 +330,52 @@ export async function copyMove(op: 'copy' | 'move', sameDir = false) {
     queue: result.queue,
   };
   try {
-    await api.jobEnqueue(req);
+    const id = await api.jobEnqueue(req);
     src.unmarkAll();
+    if (req.queue == null) trackJob(id);
+    else toast(t('jobs.addedToQueue', { n: req.queue }));
   } catch (err) {
     showError(err);
   }
 }
 
+/** The Operations window (a separate window with the details of every job). */
+export function jobsWindow() {
+  app.showJobs = false;
+  void api.openJobsWindow(t('jobs.title')).catch(showError);
+}
+
 /** Ctrl+V: paste files from the internal clipboard into the active panel. */
 export async function pasteFiles() {
-  const cb = app.clipboard;
   const tab = app.panel;
+  // Files copied in Finder / Explorer since our own Copy / Cut win.
+  const sys = await api.clipboardFiles().catch(() => ({ paths: [] as string[], cut: false }));
+  const os = sys.paths;
+  const ours = app.clipboard?.items.flatMap((l) => (l.kind === 'local' ? [l.path] : [])) ?? [];
+  const same = os.length === ours.length && os.every((p) => ours.includes(p));
+  // Ctrl+X in Explorer marks the files as cut: pasting moves them.
+  const fromSystem = os.length > 0 && !same;
+  const cb: FileClipboard | null = fromSystem
+    ? { op: sys.cut ? 'cut' : 'copy', items: os.map((p) => ({ kind: 'local', path: p })), names: os.map(baseName) }
+    : app.clipboard;
   if (!cb || !cb.items.length) return;
   if (!writable(tab.location)) return toast(t('err.Unsupported'), 'error');
   const extracting = cb.items[0].kind === 'archive';
   const first = cb.items[0];
   if (first.kind === 'archive' && !(await ensureArchiveAccess(first.archive))) return;
   try {
-    await api.jobEnqueue({
+    const id = await api.jobEnqueue({
       op: extracting ? 'extract' : cb.op === 'cut' ? 'move' : 'copy',
       sources: cb.items,
       dest: tab.location,
       options: { verify: settings.verify },
     });
-    if (cb.op === 'cut') app.clipboard = null;
+    trackJob(id);
+    if (cb.op === 'cut') {
+      // Moved away: neither clipboard may offer them again.
+      app.clipboard = null;
+      void api.clipboardClear().catch(() => {});
+    }
   } catch (err) {
     showError(err);
   }
@@ -364,7 +387,11 @@ export function clipboardSet(op: 'copy' | 'cut') {
   if (!items.length) return nothing();
   const locs = items.map((e) => entryLoc(tab, e));
   app.clipboard = { op, items: locs, names: items.map((e) => e.name) };
-  void copyText(locs.map(locPath).join('\n'));
+  // Local files also go to the system clipboard (paste in Finder / Explorer);
+  // otherwise their paths as text.
+  const local = locs.flatMap((l) => (l.kind === 'local' ? [l.path] : []));
+  if (local.length === locs.length) void api.clipboardSetFiles(local, op === 'cut').catch(() => copyText(local.join('\n')));
+  else void copyText(locs.map(locPath).join('\n'));
   toast(`${op === 'cut' ? t('cmd.clipCut') : t('cmd.clipCopy')}: ${what(items.map((e) => e.name))}`);
 }
 
@@ -495,13 +522,25 @@ export async function duplicate() {
   return copyMove('copy', true);
 }
 
+/** Viewer ↑ / ↓: moves the panel cursor to the next / previous file (folders are skipped). */
+async function viewStep(tab: Tab, delta: number): Promise<{ path: string; name: string } | null> {
+  const v = tab.visible;
+  for (let i = tab.cursor + delta; i >= 0 && i < v.length; i += delta) {
+    const e = v[i];
+    if (e.isDir || e.flags & F.UP) continue;
+    tab.setCursorKey(e.key);
+    return { path: await localPathOf(tab, e), name: e.name };
+  }
+  return null;
+}
+
 export async function viewFile(tab = app.panel) {
   const e = tab.current;
   if (!e || e.flags & F.UP) return;
   if (e.isDir) return calcDirSize(tab, e);
   try {
     const path = await localPathOf(tab, e);
-    await openDialog(Viewer, { path, name: e.name });
+    await openDialog(Viewer, { path, name: e.name, step: (delta: number) => viewStep(tab, delta) });
   } catch (err) {
     showError(err);
   }

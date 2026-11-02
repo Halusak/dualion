@@ -7,6 +7,7 @@ import { isMac, platform } from './platform';
 import { app, type SideName } from './state/app.svelte';
 import { settings } from './state/settings.svelte';
 import { showError } from './state/ui.svelte';
+import { trackJob } from './progress';
 import { F, type Entry, type Location } from './types';
 
 export interface DropTarget {
@@ -64,11 +65,34 @@ export function startDrag(from: SideName, entries: Entry[], x: number, y: number
   drag.over = null;
 }
 
+/** Shift moves instead of copying (on macOS also ⌘, like Finder). */
+export function wantsMove(e: { shiftKey: boolean; metaKey: boolean }): boolean {
+  return e.shiftKey || (isMac && e.metaKey);
+}
+
 export function moveDrag(e: PointerEvent) {
   drag.x = e.clientX;
   drag.y = e.clientY;
-  drag.move = e.shiftKey || (isMac && e.metaKey);
+  drag.move = wantsMove(e);
   drag.over = targetAt(e.clientX, e.clientY);
+}
+
+/** Modifier keys pressed / released while dragging (without moving the mouse). */
+export function dragKey(e: KeyboardEvent) {
+  if (!drag.active) return;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();
+    cancelDrag();
+    return;
+  }
+  drag.move = wantsMove(e);
+}
+
+export function cancelDrag() {
+  drag.active = false;
+  drag.over = null;
+  drag.items = [];
 }
 
 /**
@@ -127,12 +151,13 @@ export async function endDrag() {
     if (!(await ensureArchiveAccess(items[0].archive))) return;
   }
   try {
-    await api.jobEnqueue({
+    const id = await api.jobEnqueue({
       op: extracting ? 'extract' : move ? 'move' : 'copy',
       sources: items,
       dest,
       options: { verify: settings.verify },
     });
+    trackJob(id);
     if (from && settings.unmarkAfterDrop) app.side(from).tab.unmarkAll();
   } catch (e) {
     showError(e);
@@ -153,5 +178,5 @@ export function dropPaths(paths: string[], pos: { x: number; y: number }) {
       dest,
       options: { verify: settings.verify },
     })
-    .catch(showError);
+    .then(trackJob, showError);
 }

@@ -70,6 +70,9 @@ export const api = {
   openWithApps: (path: string) => invoke<{ name: string; path: string; default: boolean; icon: number[] }[]>('open_with_apps', { path }),
   networkConnect: (host: string, share: string | null) => invoke<string>('network_connect', { host, share }),
   clipboardText: () => invoke<string>('clipboard_text'),
+  clipboardFiles: () => invoke<{ paths: string[]; cut: boolean }>('clipboard_files'),
+  clipboardSetFiles: (paths: string[], cut: boolean) => invoke<void>('clipboard_set_files', { paths, cut }),
+  clipboardClear: () => invoke<void>('clipboard_clear'),
   dragOut: (paths: string[]) => invoke<void>('drag_out', { paths }),
   revealPath: (path: string) => invoke<void>('reveal_path', { path }),
   openUrl: (url: string) => invoke<void>('open_url', { url }),
@@ -105,6 +108,8 @@ export const api = {
   jobStartNow: (id: number) => invoke<void>('job_start_now', { id }),
   jobMove: (id: number, delta: number) => invoke<void>('job_move', { id, delta }),
   jobsClearFinished: () => invoke<void>('jobs_clear_finished'),
+  jobSetQueue: (id: number, queue: number | null) => invoke<void>('job_set_queue', { id, queue }),
+  openJobsWindow: (title: string) => invoke<void>('open_jobs_window', { title }),
 
   searchStart: (params: SearchParams, onEvent: (e: SearchEvent) => void) => {
     const channel = new Channel<SearchEvent>();
@@ -131,6 +136,10 @@ export const api = {
   vaultUnlock: (password: string) => invoke<void>('vault_unlock', { password }),
   vaultLock: () => invoke<void>('vault_lock'),
   vaultSetMaster: (password: string | null) => invoke<void>('vault_set_master', { password }),
+  /** Moves the vault file to `dir` (null = default folder); returns the folder in use. */
+  vaultSetDir: (dir: string | null) => invoke<string>('vault_set_dir', { dir }),
+  vaultDir: () => invoke<string>('vault_dir'),
+  sitesImportTc: (path: string) => invoke<{ found: number; added: number; withoutPassword: number }>('sites_import_tc', { path }),
   /** First channel message is the op id (for cancelOp), then folder counts. */
   duScan: (path: string, onProgress: (n: number) => void) => {
     const channel = new Channel<number>();

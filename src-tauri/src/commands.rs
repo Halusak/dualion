@@ -286,6 +286,46 @@ pub fn clipboard_text() -> AppResult<String> {
     arboard::Clipboard::new().and_then(|mut c| c.get_text()).map_err(|e| AppError::other(e.to_string()))
 }
 
+#[derive(serde::Serialize)]
+pub struct ClipboardFiles {
+    paths: Vec<String>,
+    /// Cut (Ctrl+X in Explorer): pasting moves them.
+    cut: bool,
+}
+
+/// Files copied or cut in Finder / Explorer / a file manager (empty when none).
+#[tauri::command]
+pub fn clipboard_files() -> ClipboardFiles {
+    let paths: Vec<String> = arboard::Clipboard::new().and_then(|mut c| c.get().file_list()).map(|l| l.iter().map(|p| util::path_str(p)).collect()).unwrap_or_default();
+    #[cfg(windows)]
+    let cut = !paths.is_empty() && crate::winshell::clipboard_is_cut();
+    #[cfg(not(windows))]
+    let cut = false;
+    ClipboardFiles { paths, cut }
+}
+
+/// Puts files on the system clipboard so they can be pasted in other apps
+/// (`cut`: pasting in Explorer moves them).
+#[tauri::command]
+pub fn clipboard_set_files(paths: Vec<String>, cut: bool) -> AppResult<()> {
+    arboard::Clipboard::new().and_then(|mut c| c.set().file_list(&paths)).map_err(|e| AppError::other(e.to_string()))?;
+    #[cfg(windows)]
+    if cut {
+        crate::winshell::clipboard_mark_cut();
+    }
+    #[cfg(not(windows))]
+    let _ = cut;
+    Ok(())
+}
+
+/// Empties the system clipboard (after moving cut files away).
+#[tauri::command]
+pub fn clipboard_clear() {
+    if let Ok(mut c) = arboard::Clipboard::new() {
+        let _ = c.clear();
+    }
+}
+
 #[tauri::command]
 pub fn reveal_path(path: String) -> AppResult<()> {
     tauri_plugin_opener::reveal_item_in_dir(&path).map_err(|e| AppError::other(e.to_string()))
@@ -528,6 +568,30 @@ pub fn job_move(state: State<'_, AppState>, id: u64, delta: i32) -> AppResult<()
 #[tauri::command]
 pub fn jobs_clear_finished(state: State<'_, AppState>) {
     state.jobs.clear_finished()
+}
+
+#[tauri::command]
+pub fn job_set_queue(state: State<'_, AppState>, id: u64, queue: Option<u32>) -> AppResult<()> {
+    state.jobs.set_queue(id, queue)
+}
+
+/// Opens (or brings forward) the separate Operations window.
+#[tauri::command]
+pub async fn open_jobs_window(app: AppHandle, title: String) -> AppResult<()> {
+    use tauri::Manager;
+    if let Some(w) = app.get_webview_window("jobs") {
+        let _ = w.unminimize();
+        w.show()?;
+        w.set_focus()?;
+        return Ok(());
+    }
+    tauri::WebviewWindowBuilder::new(&app, "jobs", tauri::WebviewUrl::App("index.html".into()))
+        .title(title)
+        .inner_size(920.0, 600.0)
+        .min_inner_size(560.0, 340.0)
+        .visible(false)
+        .build()?;
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -1035,6 +1099,45 @@ pub fn vault_lock(state: State<'_, AppState>) {
 pub async fn vault_set_master(state: State<'_, AppState>, password: Option<String>) -> AppResult<()> {
     let v = state.vault.clone();
     blocking(move || v.set_master_password(password.as_deref())).await
+}
+
+/// Folder of the vault file; `None` / empty = the default data folder.
+#[tauri::command]
+pub async fn vault_set_dir(app: AppHandle, state: State<'_, AppState>, dir: Option<String>) -> AppResult<String> {
+    let v = state.vault.clone();
+    let path = crate::vault::vault_path(&app, dir.as_deref())?;
+    blocking(move || {
+        v.relocate(path)?;
+        Ok(util::path_str(v.path().parent().unwrap_or(std::path::Path::new(""))))
+    })
+    .await
+}
+
+#[tauri::command]
+pub fn vault_dir(state: State<'_, AppState>) -> String {
+    util::path_str(state.vault.path().parent().unwrap_or(std::path::Path::new("")))
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TcImport {
+    pub found: usize,
+    pub added: usize,
+    pub without_password: usize,
+}
+
+/// Imports FTP connections from Total Commander's `wcx_ftp.ini`.
+#[tauri::command]
+pub async fn sites_import_tc(state: State<'_, AppState>, path: String) -> AppResult<TcImport> {
+    let v = state.vault.clone();
+    blocking(move || {
+        let bytes = std::fs::read(&path).map_err(|e| AppError::io(e, std::path::Path::new(&path)))?;
+        let parsed = crate::tcimport::parse(&bytes);
+        let found = parsed.sites.len();
+        let added = v.import(parsed.sites)?;
+        Ok(TcImport { found, added, without_password: parsed.without_password })
+    })
+    .await
 }
 
 #[tauri::command]

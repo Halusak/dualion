@@ -191,8 +191,14 @@ export interface JobSnapshot {
   op: JobOp;
   status: JobStatus;
   queue: number | null;
+  /** Moved into a busy queue while running; waits for it. */
+  held: boolean;
   firstSource: string;
   sourceCount: number;
+  /** Folder of the (first) source. */
+  sourceDir: string;
+  /** Full source paths (capped). */
+  sources: string[];
   dest: string;
   toTrash: boolean;
   totalBytes: number;
@@ -200,6 +206,8 @@ export interface JobSnapshot {
   totalFiles: number;
   doneFiles: number;
   current: string;
+  currentSize: number;
+  currentDone: number;
   speed: number;
   eta: number | null;
   error: AppError | null;

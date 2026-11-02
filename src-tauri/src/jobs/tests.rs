@@ -310,3 +310,42 @@ fn pause_and_cancel() {
     }
     fs::remove_dir_all(&root).unwrap();
 }
+
+#[test]
+fn running_job_moved_into_busy_queue_waits() {
+    let mgr = manager();
+    let root = tmp();
+    fs::create_dir_all(root.join("src")).unwrap();
+    for i in 0..8 {
+        fs::write(root.join(format!("src/{i}.bin")), vec![0u8; 256 * 1024]).unwrap();
+    }
+    let (d1, d2) = (root.join("d1"), root.join("d2"));
+    fs::create_dir_all(&d1).unwrap();
+    fs::create_dir_all(&d2).unwrap();
+    let mut a = req(JobOp::Copy, vec![loc(&root.join("src"))], Some(loc(&d1)), ConflictPolicy::Ask);
+    a.queue = Some(1);
+    a.options.speed_limit = Some(4 * 1024 * 1024);
+    let mut b = req(JobOp::Copy, vec![loc(&root.join("src"))], Some(loc(&d2)), ConflictPolicy::Ask);
+    b.options.speed_limit = Some(4 * 1024 * 1024);
+    let ida = mgr.enqueue(a).unwrap();
+    let idb = mgr.enqueue(b).unwrap();
+    let snap = |id| mgr.snapshot().into_iter().find(|j| j.id == id).unwrap();
+    std::thread::sleep(Duration::from_millis(150));
+    mgr.set_queue(idb, Some(1)).unwrap();
+    std::thread::sleep(Duration::from_millis(300));
+    let held = snap(idb);
+    assert!(held.held && held.queue == Some(1), "{held:?}");
+    assert_eq!(held.status, JobStatus::Paused);
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !(snap(ida).status.is_finished() && snap(idb).status.is_finished()) {
+        assert!(Instant::now() < deadline);
+        if !snap(ida).status.is_finished() {
+            assert_eq!(snap(idb).done_bytes, held.done_bytes, "held job must not progress");
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(snap(idb).status, JobStatus::Done);
+    assert!(!snap(idb).held);
+    assert_eq!(fs::read_dir(d2.join("src")).unwrap().count(), 8);
+    fs::remove_dir_all(&root).unwrap();
+}

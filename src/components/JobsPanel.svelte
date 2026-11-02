@@ -3,34 +3,23 @@
   import ArrowUp from '@lucide/svelte/icons/arrow-up';
   import CircleAlert from '@lucide/svelte/icons/circle-alert';
   import Check from '@lucide/svelte/icons/check';
+  import AppWindow from '@lucide/svelte/icons/app-window';
   import Pause from '@lucide/svelte/icons/pause';
   import Play from '@lucide/svelte/icons/play';
   import X from '@lucide/svelte/icons/x';
   import { api } from '../lib/api';
+  import { jobsWindow } from '../lib/actions';
   import { formatDuration, formatSize, formatSpeed } from '../lib/format';
   import { localeTag, t } from '../lib/i18n/index.svelte';
+  import { isFinished as finished, jobPct as pct, jobStatus, jobTitle as title } from '../lib/jobs';
+  import { showProgress } from '../lib/progress';
   import { app } from '../lib/state/app.svelte';
   import { settings } from '../lib/state/settings.svelte';
   import { errorText } from '../lib/state/ui.svelte';
-  import type { JobSnapshot } from '../lib/types';
 
   const locale = $derived(localeTag());
   const jobs = $derived([...app.jobs].reverse());
 
-  function title(j: JobSnapshot): string {
-    const op = j.op === 'delete' && j.toTrash ? t('jobs.op.trash') : t(`jobs.op.${j.op}`);
-    const what = j.sourceCount === 1 ? t('what.one', { name: j.firstSource }) : t('what.items', { count: j.sourceCount });
-    return `${op} ${what}`;
-  }
-
-  function pct(j: JobSnapshot): number {
-    if (j.status === 'done') return 100;
-    if (j.totalBytes > 0) return Math.min(100, (100 * j.doneBytes) / j.totalBytes);
-    if (j.totalFiles > 0) return Math.min(100, (100 * j.doneFiles) / j.totalFiles);
-    return 0;
-  }
-
-  const finished = (j: JobSnapshot) => j.status === 'done' || j.status === 'failed' || j.status === 'cancelled';
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -39,7 +28,10 @@
 <aside class="jobs" aria-label={t('jobs.title')}>
   <header>
     <strong>{t('jobs.title')}</strong>
-    <button class="btn small" disabled={!app.jobs.some(finished)} onclick={() => api.jobsClearFinished()}>{t('jobs.clear')}</button>
+    <div class="h-actions">
+      <button class="btn small" disabled={!app.jobs.some(finished)} onclick={() => api.jobsClearFinished()}>{t('jobs.clear')}</button>
+      <button class="icon-btn" title={t('jobs.openWindow')} onclick={jobsWindow}><AppWindow size={15} /></button>
+    </div>
   </header>
   <div class="list">
     {#if jobs.length === 0}
@@ -48,7 +40,11 @@
     {#each jobs as j (j.id)}
       <div class="job" class:done={j.status === 'done'} class:failed={j.status === 'failed'}>
         <div class="top">
-          <div class="title ellipsis" title={title(j)}>{title(j)}</div>
+          {#if finished(j)}
+            <div class="title ellipsis" title={title(j)}>{title(j)}</div>
+          {:else}
+            <button class="title ellipsis link" title={t('jobs.showProgress')} onclick={() => showProgress(j.id)}>{title(j)}</button>
+          {/if}
           <div class="actions">
             {#if j.status === 'queued'}
               <button class="icon-btn" title={t('jobs.up')} onclick={() => api.jobMove(j.id, -1)}><ArrowUp size={14} /></button>
@@ -56,6 +52,8 @@
               <button class="icon-btn" title={t('jobs.startNow')} onclick={() => api.jobStartNow(j.id)}><Play size={14} /></button>
             {:else if j.status === 'running' || j.status === 'scanning'}
               <button class="icon-btn" title={t('jobs.pause')} onclick={() => api.jobPause(j.id, true)}><Pause size={14} /></button>
+            {:else if j.held}
+              <button class="icon-btn" title={t('jobs.startNow')} onclick={() => api.jobStartNow(j.id)}><Play size={14} /></button>
             {:else if j.status === 'paused'}
               <button class="icon-btn" title={t('jobs.resume')} onclick={() => api.jobPause(j.id, false)}><Play size={14} /></button>
             {/if}
@@ -74,7 +72,7 @@
         <div class="bar" class:indeterminate={j.status === 'scanning'}><span style="width: {pct(j)}%"></span></div>
         <div class="meta muted">
           <span>
-            {t(`jobs.st.${j.status}`)}
+            {jobStatus(j)}
             {#if j.queue !== null && j.status === 'queued'}· {t('jobs.queue', { n: j.queue })}{/if}
           </span>
           {#if j.totalBytes > 0}
@@ -152,6 +150,25 @@
   .title {
     flex: 1;
     font-weight: 600;
+  }
+  .h-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .link {
+    border: none;
+    background: none;
+    padding: 0;
+    text-align: left;
+    min-width: 0;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .link:hover {
+    color: var(--accent-text);
   }
   .actions {
     display: flex;
