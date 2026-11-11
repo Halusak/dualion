@@ -15,6 +15,7 @@ mod linux;
 mod location;
 mod network;
 mod remote;
+mod remote_edit;
 mod menu;
 mod platform;
 mod meta;

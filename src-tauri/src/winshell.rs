@@ -159,9 +159,22 @@ pub fn drag_out(hwnd: HWND, paths: &[String]) -> AppResult<()> {
     let pidls = Pidls::parse(paths)?;
     let array = unsafe { SHCreateShellItemArrayFromIDLists(&pidls.as_const()) }.map_err(shell_err)?;
     let data: IDataObject = unsafe { array.BindToHandler(None::<&IBindCtx>, &BHID_DataObject) }.map_err(shell_err)?;
+    // Hovering a taskbar button during the drag makes Explorer bring that
+    // window to the front, but the foreground lock refuses it: the input goes
+    // to us, not to the taskbar (minimised windows are only restored, which
+    // works). Keep granting the right while the modal drag loop runs.
+    use windows::Win32::UI::WindowsAndMessaging::{AllowSetForegroundWindow, KillTimer, SetTimer, ASFW_ANY};
+    unsafe extern "system" fn allow_foreground(_: HWND, _: u32, _: usize, _: u32) {
+        let _ = unsafe { AllowSetForegroundWindow(ASFW_ANY) };
+    }
+    let _ = unsafe { AllowSetForegroundWindow(ASFW_ANY) };
+    let timer = unsafe { SetTimer(None, 0, 100, Some(allow_foreground)) };
     // SHDoDragDrop supplies the drop source and the drag image (like Explorer).
-    unsafe { SHDoDragDrop(Some(hwnd), &data, None::<&IDropSource>, DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK) }
-        .map_err(shell_err)?;
+    let r = unsafe { SHDoDragDrop(Some(hwnd), &data, None::<&IDropSource>, DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK) };
+    if timer != 0 {
+        let _ = unsafe { KillTimer(None, timer) };
+    }
+    r.map_err(shell_err)?;
     Ok(())
 }
 

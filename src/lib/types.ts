@@ -74,6 +74,7 @@ export type ErrorCode =
   | 'CrossesDevices'
   | 'StorageFull'
   | 'ReadOnly'
+  | 'ReadOnlyNtfs'
   | 'Busy'
   | 'Cancelled'
   | 'IntoItself'

@@ -55,12 +55,12 @@ export function entryLoc(tab: Tab, e: Entry): Location {
 }
 
 /** Local file system path of an entry, materializing remote/archived files. */
-async function localPathOf(tab: Tab, e: Entry): Promise<string> {
+async function localPathOf(tab: Tab, e: Entry, watch = false): Promise<string> {
   const loc = entryLoc(tab, e);
   if (loc.kind === 'local') return loc.path;
   const b = backend(loc);
   if (!b) throw new Error('unsupported');
-  return api.materialize(b);
+  return api.materialize(b, watch);
 }
 
 // ---------------------------------------------------------------- navigation
@@ -82,7 +82,7 @@ export async function openEntry(tab: Tab, e: Entry | undefined, opts: { external
     return void tab.navigate({ kind: 'archive', archive: child.path, inner: '' });
   }
   try {
-    const path = child.kind === 'local' ? child.path : await api.materialize(child as BackendLocation);
+    const path = child.kind === 'local' ? child.path : await api.materialize(child as BackendLocation, true);
     await api.openPath(path);
   } catch (err) {
     showError(err);
@@ -93,10 +93,11 @@ export async function openEntry(tab: Tab, e: Entry | undefined, opts: { external
 async function openMany(tab: Tab, files: Entry[]) {
   const ok = await ask(t('open.manyAsk', { n: files.length }), { title: t('open.manyTitle'), kind: 'info', okLabel: t('open.manyOk'), cancelLabel: t('cancel') });
   if (!ok) return;
+  if (settings.unmarkAfterOpen) tab.unmarkAll();
   for (const f of files) {
     try {
       const loc = entryLoc(tab, f);
-      await api.openPath(loc.kind === 'local' ? loc.path : await api.materialize(loc as BackendLocation));
+      await api.openPath(loc.kind === 'local' ? loc.path : await api.materialize(loc as BackendLocation, true));
     } catch (err) {
       showError(err);
     }
@@ -445,7 +446,7 @@ export async function editFile() {
   const e = tab.current;
   if (!e || e.isDir) return;
   try {
-    const path = await localPathOf(tab, e);
+    const path = await localPathOf(tab, e, true);
     await api.editFile(path, settings.editor);
   } catch (err) {
     showError(err);
@@ -465,7 +466,7 @@ export async function openWith() {
   });
   if (!picked || Array.isArray(picked)) return;
   try {
-    await api.openWith(await localPathOf(tab, e), picked);
+    await api.openWith(await localPathOf(tab, e, true), picked);
   } catch (err) {
     showError(err);
   }

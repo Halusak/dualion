@@ -15,6 +15,8 @@ pub enum ErrorCode {
     CrossesDevices,
     StorageFull,
     ReadOnly,
+    /// macOS: an NTFS disk, which the system mounts read-only.
+    ReadOnlyNtfs,
     Busy,
     Cancelled,
     IntoItself,
@@ -61,7 +63,11 @@ impl AppError {
     }
 
     pub fn io(err: io::Error, path: impl AsRef<Path>) -> Self {
-        Self::from(err).with_path(path)
+        let mut e = Self::from(err);
+        if e.code == ErrorCode::ReadOnly && on_ntfs(path.as_ref()) {
+            e.code = ErrorCode::ReadOnlyNtfs;
+        }
+        e.with_path(path)
     }
 
     pub fn cancelled() -> Self {
@@ -95,6 +101,24 @@ impl fmt::Display for AppError {
 }
 
 impl std::error::Error for AppError {}
+
+/// Whether `path` (or its nearest existing ancestor) is on an NTFS volume.
+#[cfg(target_os = "macos")]
+fn on_ntfs(path: &Path) -> bool {
+    use std::os::unix::ffi::OsStrExt;
+    let Some(p) = path.ancestors().find(|p| p.exists()) else { return false };
+    let Ok(c) = std::ffi::CString::new(p.as_os_str().as_bytes()) else { return false };
+    let mut st: libc::statfs = unsafe { std::mem::zeroed() };
+    if unsafe { libc::statfs(c.as_ptr(), &mut st) } != 0 {
+        return false;
+    }
+    unsafe { std::ffi::CStr::from_ptr(st.f_fstypename.as_ptr()) }.to_bytes().eq_ignore_ascii_case(b"ntfs")
+}
+
+#[cfg(not(target_os = "macos"))]
+fn on_ntfs(_: &Path) -> bool {
+    false
+}
 
 pub fn code_for_io(kind: io::ErrorKind) -> ErrorCode {
     use io::ErrorKind as K;

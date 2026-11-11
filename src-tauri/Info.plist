@@ -22,6 +22,6 @@
   <key>NSFileProviderDomainUsageDescription</key>
   <string>Dualion shows and manages the files in iCloud Drive and other cloud storage.</string>
   <key>NSAppleEventsUsageDescription</key>
-  <string>Dualion asks Finder to show the Get Info window.</string>
+  <string>Dualion asks Finder to show the Get Info window and to move iCloud Drive items to the trash.</string>
 </dict>
 </plist>

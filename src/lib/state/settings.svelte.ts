@@ -66,6 +66,8 @@ export interface Settings {
   unmarkOnTabSwitch: boolean;
   /** Clear marks after dragging the files somewhere. */
   unmarkAfterDrop: boolean;
+  /** Clear marks after opening several marked files at once. */
+  unmarkAfterOpen: boolean;
   showAttrs: boolean;
   hotlist: HotlistItem[];
   split: number;
@@ -116,6 +118,7 @@ export const defaultSettings = (): Settings => ({
   syncColumns: false,
   unmarkOnTabSwitch: false,
   unmarkAfterDrop: false,
+  unmarkAfterOpen: true,
   showAttrs: false,
   hotlist: [],
   split: 0.5,

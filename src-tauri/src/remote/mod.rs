@@ -425,6 +425,16 @@ impl Session {
         out
     }
 
+    /// File system for a one-off transfer: FTP gets its own connection (the
+    /// caller closes it), the other protocols share the session's.
+    pub fn transfer_fs(&self) -> AppResult<Arc<dyn RemoteFs>> {
+        if self.cfg.protocol.is_ftp() {
+            Ok(Arc::new(ftp::FtpRemote::connect(self.cfg.clone())?.0))
+        } else {
+            Ok(self.fs())
+        }
+    }
+
     /// File system for a job. FTP needs its own connection (one transfer at a
     /// time); the other protocols share the session's.
     pub fn job_fs(&self) -> AppResult<Box<dyn Vfs>> {

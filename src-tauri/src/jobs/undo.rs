@@ -37,7 +37,17 @@ pub fn trash(path: &str) -> AppResult<Option<String>> {
                 if !Path::new(path).exists() && std::fs::symlink_metadata(path).is_err() {
                     return Err(AppError::new(ErrorCode::NotFound, "Not found").with_path(path));
                 }
-                Err(AppError::new(ErrorCode::Io, e.localizedDescription().to_string()).with_path(path))
+                // iCloud Drive / File Provider items whose content is only in
+                // the cloud cannot leave their domain (the system would have to
+                // download them first) and fail with "permission" / I/O errors.
+                // Finder puts them in the cloud's own trash.
+                trash_with_finder(path).map_err(|finder| {
+                    let mut msg = e.localizedDescription().to_string();
+                    if finder.contains("-1743") {
+                        msg.push_str("\nAllow Dualion to control Finder: System Settings → Privacy & Security → Automation.");
+                    }
+                    AppError::new(ErrorCode::Io, msg).with_path(path)
+                })
             }
         }
     }
@@ -46,6 +56,27 @@ pub fn trash(path: &str) -> AppResult<Option<String>> {
         trash::delete(path).map_err(|e| AppError::new(ErrorCode::Io, e.to_string()).with_path(path))?;
         Ok(None)
     }
+}
+
+/// Asks Finder to move `path` to the trash; returns where it ended up.
+/// The error is Finder's message (with its AppleScript error number).
+#[cfg(target_os = "macos")]
+fn trash_with_finder(path: &str) -> Result<Option<String>, String> {
+    const SCRIPT: &str = "on run argv
+tell application \"Finder\"
+set r to delete (POSIX file (item 1 of argv) as alias)
+return POSIX path of (r as alias)
+end tell
+end run";
+    let out = std::process::Command::new("/usr/bin/osascript").args(["-e", SCRIPT, path]).output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    if std::fs::symlink_metadata(path).is_ok() {
+        return Err("Finder did not move the item".into());
+    }
+    let to = String::from_utf8_lossy(&out.stdout).trim().trim_end_matches('/').to_string();
+    Ok((!to.is_empty()).then_some(to))
 }
 
 /// State of the destination before a job runs, to tell what the job added.
@@ -247,3 +278,4 @@ mod tests {
         std::fs::remove_dir_all(&root).unwrap();
     }
 }
+

@@ -98,7 +98,8 @@ export const api = {
   createLink: (target: string, dir: string, name: string, hard: boolean) =>
     invoke<void>('create_link', { target, dir, name, hard }),
   writeTextFile: (path: string, content: string) => invoke<void>('write_text_file', { path, content }),
-  materialize: (location: BackendLocation) => invoke<string>('materialize', { location }),
+  /** `watch`: opened for editing, a remote file is uploaded back when saved. */
+  materialize: (location: BackendLocation, watch = false) => invoke<string>('materialize', { location, watch }),
 
   jobEnqueue: (request: JobRequest) => invoke<number>('job_enqueue', { request }),
   jobsList: () => invoke<JobSnapshot[]>('jobs_list'),

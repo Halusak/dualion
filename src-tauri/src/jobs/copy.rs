@@ -509,9 +509,28 @@ pub fn copy_local_file(ctx: &JobCtx, src: &Path, dst: &Path, size: u64, overwrit
     }
     let _ = overwrite;
 
-    if size <= 2 * 1024 * 1024 {
-        // Small files: let the OS fast path (fcopyfile / CopyFileExW / copy_file_range) do it.
-        fs::copy(src, dst).map_err(|e| AppError::io(e, src))?;
+    // Small files: let the OS fast path (fcopyfile / CopyFileExW / copy_file_range)
+    // do it. It also copies metadata (ACLs, extended attributes), which some
+    // external / network file systems refuse: then the data is copied by hand.
+    let existed = fs::symlink_metadata(dst).is_ok();
+    let fast = size <= 2 * 1024 * 1024
+        && match fs::copy(src, dst) {
+            Ok(_) => true,
+            Err(e) => {
+                use std::io::ErrorKind as K;
+                match e.kind() {
+                    K::NotFound => return Err(AppError::io(e, src)),
+                    K::StorageFull | K::ReadOnlyFilesystem => return Err(AppError::io(e, dst)),
+                    _ => {
+                        if !existed {
+                            let _ = fs::remove_file(dst);
+                        }
+                        false
+                    }
+                }
+            }
+        };
+    if fast {
         ctx.add_bytes(size);
     } else {
         let mut r = fs::File::open(src).map_err(|e| AppError::io(e, src))?;

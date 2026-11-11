@@ -5,11 +5,12 @@
 use super::data::{flags, Entry, IndexData, NONE};
 use crate::util::system_time_ms;
 use parking_lot::{Condvar, Mutex};
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 #[derive(Clone)]
 pub struct Excludes {
@@ -38,17 +39,82 @@ impl Excludes {
     }
 }
 
-/// Reads one directory into index entries.
+/// Reads one directory into index entries. Mount points of network and
+/// virtual file systems are left out: reading them can hang (a dead share)
+/// or never end (/dev, /proc).
 pub fn read_dir(path: &Path, hidden: bool) -> Vec<Entry> {
     let Ok(rd) = std::fs::read_dir(path) else { return Vec::new() };
+    #[cfg(unix)]
+    let dev = {
+        use std::os::unix::fs::MetadataExt;
+        std::fs::metadata(path).map(|m| m.dev()).ok()
+    };
     let mut out = Vec::new();
     for de in rd.flatten() {
         let name = de.file_name().to_string_lossy().into_owned();
-        if let Some(e) = entry_for(&de.path(), name, de.metadata().ok(), hidden) {
+        let child = de.path();
+        let md = de.metadata().ok();
+        #[cfg(unix)]
+        if let (Some(m), Some(dev)) = (&md, dev) {
+            use std::os::unix::fs::MetadataExt;
+            if m.is_dir() && (m.dev() != dev && foreign_mount(&child) || skipped_system_dir(&child)) {
+                continue;
+            }
+        }
+        if let Some(e) = entry_for(&child, name, md, hidden) {
             out.push(e);
         }
     }
     out
+}
+
+/// macOS: /System/Volumes holds the same data again (firmlinks), /Volumes
+/// other disks; neither belongs to a scan of the startup disk. Linux: /dev
+/// (devtmpfs shares its magic with tmpfs, so it is told by path).
+#[cfg(unix)]
+fn skipped_system_dir(p: &Path) -> bool {
+    if cfg!(target_os = "macos") {
+        p == Path::new("/System/Volumes") || p == Path::new("/Volumes")
+    } else {
+        p == Path::new("/dev")
+    }
+}
+
+/// A mount point of a network / virtual file system.
+#[cfg(target_os = "macos")]
+fn foreign_mount(p: &Path) -> bool {
+    use std::os::unix::ffi::OsStrExt;
+    let Ok(c) = std::ffi::CString::new(p.as_os_str().as_bytes()) else { return false };
+    let mut st: libc::statfs = unsafe { std::mem::zeroed() };
+    if unsafe { libc::statfs(c.as_ptr(), &mut st) } != 0 {
+        return true;
+    }
+    let ty = unsafe { std::ffi::CStr::from_ptr(st.f_fstypename.as_ptr()) }.to_string_lossy().to_lowercase();
+    st.f_flags & libc::MNT_LOCAL as u32 == 0 || ["autofs", "devfs", "nfs", "smbfs", "afpfs", "webdav", "ftp", "cifs"].contains(&ty.as_str())
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn foreign_mount(p: &Path) -> bool {
+    use std::os::unix::ffi::OsStrExt;
+    let Ok(c) = std::ffi::CString::new(p.as_os_str().as_bytes()) else { return false };
+    let mut st: libc::statfs = unsafe { std::mem::zeroed() };
+    if unsafe { libc::statfs(c.as_ptr(), &mut st) } != 0 {
+        return true;
+    }
+    const SKIP: [i64; 11] = [
+        0x6969,     // nfs
+        0x517B,     // smb
+        0xFF534D42, // cifs
+        0xFE534D42, // smb2
+        0x0187,     // autofs
+        0x9fa0,     // proc
+        0x62656572, // sysfs
+        0x1cd1,     // devpts
+        0x27e0eb,   // cgroup
+        0x63677270, // cgroup2
+        0x64626720, // debugfs
+    ];
+    SKIP.contains(&(st.f_type as i64))
 }
 
 pub fn entry_for(path: &Path, name: String, md: Option<std::fs::Metadata>, hidden: bool) -> Option<Entry> {
@@ -82,11 +148,51 @@ pub struct Progress {
     pub cancel: AtomicBool,
 }
 
+/// A directory read taking longer than this is given up on (a hung mount, an
+/// iCloud folder waiting for the network …) so the scan can finish.
+const STALL: Duration = Duration::from_secs(20);
+
+struct Shared {
+    queue: WorkQueue,
+    /// Set when the scan is over: idle workers exit.
+    done: AtomicBool,
+    /// Directories being read, with the time the read began.
+    inflight: Mutex<HashMap<u32, Instant>>,
+}
+
+/// Workers are detached: one stuck in a system call must not hold up the
+/// scan, which abandons its directory and starts a replacement.
+fn spawn_worker(shared: Arc<Shared>, tx: mpsc::Sender<(u32, PathBuf, Vec<Entry>)>, hidden: bool) {
+    std::thread::spawn(move || loop {
+        let job = {
+            let mut q = shared.queue.0.lock();
+            loop {
+                if shared.done.load(Ordering::Relaxed) {
+                    break None;
+                }
+                if let Some(j) = q.pop_front() {
+                    break Some(j);
+                }
+                shared.queue.1.wait(&mut q);
+            }
+        };
+        let Some((id, path)) = job else { break };
+        shared.inflight.lock().insert(id, Instant::now());
+        let entries = read_dir(&path, hidden);
+        if shared.inflight.lock().remove(&id).is_none() {
+            // Abandoned as stalled; a replacement worker took this one's place.
+            break;
+        }
+        if tx.send((id, path, entries)).is_err() {
+            break;
+        }
+    });
+}
+
 /// Scans `roots` into a fresh index.
 pub fn scan(roots: &[PathBuf], excludes: &Excludes, hidden: bool, progress: &Progress) -> IndexData {
     let mut d = IndexData::default();
-    let queue: Arc<WorkQueue> = Arc::new((Mutex::new(VecDeque::new()), Condvar::new()));
-    let done = Arc::new(AtomicBool::new(false));
+    let shared = Arc::new(Shared { queue: (Mutex::new(VecDeque::new()), Condvar::new()), done: AtomicBool::new(false), inflight: Mutex::new(HashMap::new()) });
     let (tx, rx) = mpsc::channel::<(u32, PathBuf, Vec<Entry>)>();
     let mut outstanding = 0usize;
     for r in roots {
@@ -95,59 +201,60 @@ pub fn scan(roots: &[PathBuf], excludes: &Excludes, hidden: bool, progress: &Pro
             continue;
         }
         let id = d.add(NONE, &Entry { name: r.to_string_lossy().into_owned(), flags: flags::DIR, size: 0, mtime: md.modified().map(system_time_ms).unwrap_or(0) });
-        queue.0.lock().push_back((id, r.clone()));
+        shared.queue.0.lock().push_back((id, r.clone()));
         outstanding += 1;
     }
     let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).clamp(2, 12);
-    std::thread::scope(|s| {
-        for _ in 0..threads {
-            let (queue, done, tx) = (queue.clone(), done.clone(), tx.clone());
-            s.spawn(move || loop {
-                let job = {
-                    let mut q = queue.0.lock();
-                    loop {
-                        if let Some(j) = q.pop_front() {
-                            break Some(j);
-                        }
-                        if done.load(Ordering::Relaxed) {
-                            break None;
-                        }
-                        queue.1.wait(&mut q);
+    for _ in 0..threads {
+        spawn_worker(shared.clone(), tx.clone(), hidden);
+    }
+    while outstanding > 0 && !progress.cancel.load(Ordering::Relaxed) {
+        let (parent, path, entries) = match rx.recv_timeout(Duration::from_millis(250)) {
+            Ok(m) => m,
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                let stalled: Vec<u32> = {
+                    let mut inflight = shared.inflight.lock();
+                    let ids: Vec<u32> = inflight.iter().filter(|(_, t)| t.elapsed() > STALL).map(|(&id, _)| id).collect();
+                    for id in &ids {
+                        inflight.remove(id);
                     }
+                    ids
                 };
-                let Some((id, path)) = job else { break };
-                let entries = if progress.cancel.load(Ordering::Relaxed) { Vec::new() } else { read_dir(&path, hidden) };
-                if tx.send((id, path, entries)).is_err() {
-                    break;
+                for _ in &stalled {
+                    outstanding -= 1;
+                    spawn_worker(shared.clone(), tx.clone(), hidden);
                 }
-            });
-        }
-        drop(tx);
-        while outstanding > 0 {
-            let Ok((parent, path, entries)) = rx.recv() else { break };
-            outstanding -= 1;
-            progress.dirs.fetch_add(1, Ordering::Relaxed);
-            let mut q = Vec::new();
-            for e in entries {
-                let is_dir = e.flags & flags::DIR != 0 && e.flags & flags::LINK == 0;
-                let child_path = path.join(&e.name);
-                if is_dir && excludes.excluded(&e.name, &child_path) {
-                    continue;
-                }
-                let id = d.add(parent, &e);
-                if is_dir {
-                    q.push((id, child_path));
-                }
+                continue;
             }
-            if !q.is_empty() {
-                outstanding += q.len();
-                queue.0.lock().extend(q);
-                queue.1.notify_all();
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        };
+        outstanding -= 1;
+        progress.dirs.fetch_add(1, Ordering::Relaxed);
+        let mut q = Vec::new();
+        for e in entries {
+            // Online-only cloud folders: listing one makes the sync client
+            // fetch it from the network, and nothing in it takes up space here.
+            let is_dir = e.flags & flags::DIR != 0 && e.flags & (flags::LINK | flags::CLOUD) == 0;
+            let child_path = path.join(&e.name);
+            if is_dir && excludes.excluded(&e.name, &child_path) {
+                continue;
+            }
+            let id = d.add(parent, &e);
+            if is_dir {
+                q.push((id, child_path));
             }
         }
-        done.store(true, Ordering::Relaxed);
-        queue.1.notify_all();
-    });
+        if !q.is_empty() {
+            outstanding += q.len();
+            shared.queue.0.lock().extend(q);
+            shared.queue.1.notify_all();
+        }
+    }
+    {
+        let _q = shared.queue.0.lock();
+        shared.done.store(true, Ordering::Relaxed);
+    }
+    shared.queue.1.notify_all();
     d
 }
 

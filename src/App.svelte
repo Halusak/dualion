@@ -198,6 +198,14 @@
       }),
     );
     unlisteners.push(
+      listen<{ session: string; name: string; error: string | null }>('remote-edit-uploaded', (e) => {
+        const u = e.payload;
+        if (u.error) return toast(`${t('remoteEdit.failed', { name: u.name })}: ${u.error}`, 'error');
+        toast(t('remoteEdit.uploaded', { name: u.name }));
+        for (const tab of app.visibleTabs()) if (tab.location.kind === 'remote' && tab.location.session === u.session) void tab.reload();
+      }),
+    );
+    unlisteners.push(
       listen('network-changed', () => {
         // Background discovery found other computers: refresh open Network places.
         for (const tab of app.visibleTabs()) if (tab.location.kind === 'network' && !tab.location.host) void tab.reload();

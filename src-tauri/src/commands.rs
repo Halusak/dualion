@@ -493,7 +493,9 @@ pub async fn write_text_file(path: String, content: String) -> AppResult<()> {
 /// Returns a local path for any location: FTP files are downloaded and
 /// archive members extracted into a temporary folder (viewer, editor, open).
 #[tauri::command]
-pub async fn materialize(state: State<'_, AppState>, location: Location) -> AppResult<String> {
+/// `watch`: the file is opened for editing; a remote file is uploaded back
+/// whenever the application saves it.
+pub async fn materialize(app: AppHandle, state: State<'_, AppState>, location: Location, watch: Option<bool>) -> AppResult<String> {
     match location {
         Location::Local { path } => Ok(path),
         Location::Archive { archive, inner } => blocking(move || {
@@ -508,16 +510,23 @@ pub async fn materialize(state: State<'_, AppState>, location: Location) -> AppR
         .await,
         Location::Remote { session, path } => {
             let s = state.remote.get(&session)?;
+            let registry = state.remote.clone();
             blocking(move || {
                 let name = remote::file_name(&path).to_string();
                 let dir = platform::temp_dir().join(format!("remote-{:x}", xxhash_rust::xxh3::xxh3_64(format!("{session}|{path}").as_bytes())));
                 std::fs::create_dir_all(&dir).map_err(|e| AppError::io(e, &dir))?;
                 let target = dir.join(&name);
+                // Downloading over a watched copy must not upload it back.
+                let watched = crate::remote_edit::forget(&target);
                 let mut out = std::fs::File::create(&target).map_err(|e| AppError::io(e, &target))?;
                 let fs = s.fs();
                 let mut stream = fs.reader(&path)?;
                 std::io::copy(&mut stream, &mut out).map_err(|e| AppError::io(e, &target))?;
                 stream.finish()?;
+                drop(out);
+                if watch == Some(true) || watched {
+                    crate::remote_edit::watch(&app, registry, &session, &path, &target);
+                }
                 Ok(util::path_str(&target))
             })
             .await
